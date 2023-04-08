@@ -83,7 +83,7 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
     version = lastHistory.version + 1
   }
 
-  const history = new History({
+  await History.create({
     op: context.op,
     modelName: context.modelName,
     collectionName: context.collectionName,
@@ -91,22 +91,18 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
     patch,
     version
   })
-
-  await history.save()
 }
 
 async function createPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>): Promise<void> {
   if (opts.patchHistoryDisabled) return
 
-  const history = new History({
+  await History.create({
     op: context.op,
     modelName: context.modelName,
     collectionName: context.collectionName,
     collectionId: current._id as Types.ObjectId,
     doc: current
   })
-
-  await history.save()
 }
 
 const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
@@ -140,35 +136,36 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
 
   schema.pre(['findOneAndUpdate', 'update', 'updateOne', 'updateMany'], async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
-    const options = this.getOptions()
     const update = this.getUpdate() as Record<string, Partial<T>>
-    const count = await this.model.count(filter).exec()
+
+    const keys = _.keys(update).filter((key) => key.startsWith('$'))
+    const commands: Record<string, Partial<T>>[] = []
+    _.forEach(keys, (key) => {
+      commands.push({ [key]: update[key] })
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete update[key]
+    })
 
     const context: IContext<T> = {
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
-      collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      isNew: options.upsert === true && count === 0
+      collectionName: opts.collectionName ?? this.model.collection.collectionName
     }
-
-    this._context = context
 
     try {
       const cursor = this.model.find(filter).cursor()
       await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
-        const keys = _.keys(update).filter((key) => key.startsWith('$'))
         let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
-        _.forEach(keys, (key) => {
+        current = assign(current, update)
+        _.forEach(commands, (command) => {
           try {
-            current = assign(current, { [key]: update[key] })
-          } catch {
+            current = assign(current, command)
+          } catch (error) {
             // we catch assign keys that are not implemented
           }
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete update[key]
         })
-        current = assign(current, update)
-        await updatePatch(opts, this._context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
+
+        await updatePatch(opts, context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
       })
       next()
     } catch (error) {
@@ -177,7 +174,13 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
   })
 
   schema.post(['findOneAndUpdate', 'update', 'updateOne', 'updateMany'], async function (this: IHookContext<T>) {
-    if (this._context.isNew) {
+    const filter = this.getFilter()
+    const options = this.getOptions()
+    const count = await this.model.count(filter).exec()
+
+    const isNew = options.upsert && count === 0
+
+    if (isNew) {
       const filter = this.getFilter()
       const cursor = this.model.find(filter).cursor()
       await cursor.eachAsync(async (current: HydratedDocument<T>) => {

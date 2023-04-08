@@ -37,12 +37,12 @@ describe('mongoose', () => {
     expect(history[0].version).toBe(0)
 
     expect(history[1].op).toBe('update')
-    expect(history[1].patch?.length).toBe(2)
+    expect(history[1].patch).toHaveLength(2)
     expect(history[1].patch[1].value).toBe('Alice')
     expect(history[1].version).toBe(1)
 
     expect(history[2].op).toBe('update')
-    expect(history[1].patch?.length).toBe(2)
+    expect(history[1].patch).toHaveLength(2)
     expect(history[2].patch[1].value).toBe('Bob')
     expect(history[2].version).toBe(2)
   })
@@ -77,12 +77,52 @@ describe('mongoose', () => {
     console.log(history[1].patch)
 
     expect(history[0].op).toBe('create')
-    expect(history[1].patch?.length).toBe(2)
+    expect(history[1].patch).toHaveLength(2)
     expect(history[0].doc.name).toBe('John')
     expect(history[0].version).toBe(0)
 
     expect(history[1].op).toBe('updateOne')
-    expect(history[1].patch?.length).toBe(2)
+    expect(history[1].patch).toHaveLength(2)
+    expect(history[1].patch[1].value).toBe('Alice')
+    expect(history[1].version).toBe(1)
+  })
+
+  it('should findOneAndUpdate', async () => {
+    const user = await Test.create({ name: 'John', role: 'user' })
+    expect(user.name).toBe('John')
+
+    await Test.findOneAndUpdate({ _id: user._id }, { name: 'Alice' }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(2)
+
+    expect(history[0].op).toBe('create')
+    expect(history[1].patch).toHaveLength(2)
+    expect(history[0].doc.name).toBe('John')
+    expect(history[0].version).toBe(0)
+
+    expect(history[1].op).toBe('findOneAndUpdate')
+    expect(history[1].patch).toHaveLength(2)
+    expect(history[1].patch[1].value).toBe('Alice')
+    expect(history[1].version).toBe(1)
+  })
+
+  it('should update deprecated', async () => {
+    const user = await Test.create({ name: 'John', role: 'user' })
+    expect(user.name).toBe('John')
+
+    await Test.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(2)
+
+    expect(history[0].op).toBe('create')
+    expect(history[1].patch).toHaveLength(2)
+    expect(history[0].doc.name).toBe('John')
+    expect(history[0].version).toBe(0)
+
+    expect(history[1].op).toBe('update')
+    expect(history[1].patch).toHaveLength(2)
     expect(history[1].patch[1].value).toBe('Alice')
     expect(history[1].version).toBe(1)
   })
