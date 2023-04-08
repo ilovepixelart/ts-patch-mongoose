@@ -70,7 +70,7 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
   if (_.isEmpty(patch)) return
 
   if (opts.eventUpdated) {
-    em.emit(opts.eventUpdated, { oldDoc: originalObject, doc: currentObject, patch })
+    em.emit(opts.eventUpdated, { oldDoc: original, doc: current, patch })
   }
 
   if (opts.patchHistoryDisabled) return

@@ -1,9 +1,17 @@
 import mongoose from 'mongoose'
 
-import Test from './models/Test'
+import User from './models/User'
 import History from '../src/models/History'
 
-describe('mongoose', () => {
+import em from '../src/em'
+
+import { USER_CREATED_EVENT, USER_UPDATED_EVENT } from './constants/events'
+
+jest.mock('../src/em', () => {
+  return { emit: jest.fn() }
+})
+
+describe('plugin', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   beforeAll(async () => {
@@ -15,12 +23,12 @@ describe('mongoose', () => {
   })
 
   beforeEach(async () => {
-    await mongoose.connection.collection('tests').deleteMany({})
+    await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
   })
 
   it('should createHistory', async () => {
-    const user = await Test.create({ name: 'John', role: 'user' })
+    const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
     user.name = 'Alice'
@@ -49,10 +57,23 @@ describe('mongoose', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch[1].value).toBe('Bob')
     expect(third.version).toBe(2)
+
+    expect(em.emit).toHaveBeenCalledTimes(3)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      patch: second.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
+      patch: third.patch
+    })
   })
 
   it('should omit update of role', async () => {
-    const user = await Test.create({ name: 'John', role: 'user' })
+    const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
     user.role = 'manager'
@@ -73,10 +94,10 @@ describe('mongoose', () => {
   })
 
   it('should updateOne', async () => {
-    const user = await Test.create({ name: 'John', role: 'user' })
+    const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await Test.updateOne({ _id: user._id }, { name: 'Alice' }).exec()
+    await User.updateOne({ _id: user._id }, { name: 'Alice' }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(2)
@@ -96,10 +117,10 @@ describe('mongoose', () => {
   })
 
   it('should findOneAndUpdate', async () => {
-    const user = await Test.create({ name: 'John', role: 'user' })
+    const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await Test.findOneAndUpdate({ _id: user._id }, { name: 'Alice' }).exec()
+    await User.findOneAndUpdate({ _id: user._id }, { name: 'Alice' }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(2)
@@ -118,10 +139,10 @@ describe('mongoose', () => {
   })
 
   it('should update deprecated', async () => {
-    const user = await Test.create({ name: 'John', role: 'user' })
+    const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await Test.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+    await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(2)
@@ -140,12 +161,12 @@ describe('mongoose', () => {
   })
 
   it('should updated deprecated with multi flag', async () => {
-    const john = await Test.create({ name: 'John', role: 'user' })
+    const john = await User.create({ name: 'John', role: 'user' })
     expect(john.name).toBe('John')
-    const alice = await Test.create({ name: 'Alice', role: 'user' })
+    const alice = await User.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
 
-    await Test.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
+    await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(4)
@@ -176,7 +197,7 @@ describe('mongoose', () => {
   })
 
   it('should create many', async () => {
-    await Test.create([
+    await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' }
     ])
@@ -200,8 +221,8 @@ describe('mongoose', () => {
   })
 
   it('should findOneAndUpdate upsert', async () => {
-    await Test.findOneAndUpdate({ name: 'John', role: 'user' }, { name: 'Bob', role: 'user' }, { upsert: true, runValidators: true }).exec()
-    const documents = await Test.find({})
+    await User.findOneAndUpdate({ name: 'John', role: 'user' }, { name: 'Bob', role: 'user' }, { upsert: true, runValidators: true }).exec()
+    const documents = await User.find({})
     expect(documents).toHaveLength(1)
 
     const history = await History.find({})

@@ -1,8 +1,8 @@
-interface ITest {
+interface IUser {
   name: string
   role: string
   createdAt?: Date
   updatedAt?: Date
 }
 
-export default ITest
+export default IUser
