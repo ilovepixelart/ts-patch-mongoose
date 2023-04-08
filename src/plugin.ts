@@ -45,7 +45,7 @@ async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Pro
               modelName: context.modelName,
               collectionName: context.collectionName,
               collectionId: oldDoc._id as Types.ObjectId,
-              doc: oldDoc as HydratedDocument<T>,
+              doc: oldDoc,
               version: 0
             }
           }
