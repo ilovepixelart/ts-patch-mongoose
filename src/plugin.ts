@@ -136,23 +136,30 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
 
   schema.pre(['findOneAndUpdate', 'update', 'updateOne', 'updateMany'], async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
-    const update = this.getUpdate() as Record<string, Partial<T>>
+    const update = this.getUpdate() as Record<string, Partial<T>> | null
+    const options = this.getOptions()
 
-    const keys = _.keys(update).filter((key) => key.startsWith('$'))
+    const count = await this.model.count(filter).exec()
     const commands: Record<string, Partial<T>>[] = []
-    _.forEach(keys, (key) => {
-      commands.push({ [key]: update[key] })
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete update[key]
-    })
 
     const context: IContext<T> = {
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
-      collectionName: opts.collectionName ?? this.model.collection.collectionName
+      collectionName: opts.collectionName ?? this.model.collection.collectionName,
+      isNew: options.upsert && count === 0
     }
 
+    this._context = context
+
     try {
+      const keys = _.keys(update).filter((key) => key.startsWith('$'))
+      if (update && !_.isEmpty(keys)) {
+        _.forEach(keys, (key) => {
+          commands.push({ [key]: update[key] })
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete update[key]
+        })
+      }
       const cursor = this.model.find(filter).cursor()
       await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
         let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
@@ -164,7 +171,6 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
             // we catch assign keys that are not implemented
           }
         })
-
         await updatePatch(opts, context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
       })
       next()
@@ -174,20 +180,14 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
   })
 
   schema.post(['findOneAndUpdate', 'update', 'updateOne', 'updateMany'], async function (this: IHookContext<T>) {
-    const filter = this.getFilter()
-    const options = this.getOptions()
-    const count = await this.model.count(filter).exec()
+    const update = this.getUpdate()
 
-    const isNew = options.upsert && count === 0
-
-    if (isNew) {
-      const filter = this.getFilter()
-      const cursor = this.model.find(filter).cursor()
+    if (update && this._context.isNew) {
+      const cursor = this.model.findOne(update).cursor()
       await cursor.eachAsync(async (current: HydratedDocument<T>) => {
         if (opts.eventCreated) {
           em.emit(opts.eventCreated, { doc: current })
         }
-
         await createPatch(opts, this._context, current)
       })
     }

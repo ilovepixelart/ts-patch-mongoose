@@ -174,4 +174,44 @@ describe('mongoose', () => {
     expect(fourth.patch[1].value).toBe('Bob')
     expect(fourth.version).toBe(1)
   })
+
+  it('should create many', async () => {
+    await Test.create([
+      { name: 'John', role: 'user' },
+      { name: 'Alice', role: 'user' }
+    ])
+
+    const history = await History.find({})
+    expect(history).toHaveLength(2)
+
+    const [first, second] = history
+
+    expect(first.op).toBe('create')
+    expect(first.patch).toHaveLength(0)
+    expect(first.doc.name).toBe('John')
+    expect(first.doc.role).toBe('user')
+    expect(first.version).toBe(0)
+
+    expect(second.op).toBe('create')
+    expect(second.patch).toHaveLength(0)
+    expect(second.doc.name).toBe('Alice')
+    expect(second.doc.role).toBe('user')
+    expect(second.version).toBe(0)
+  })
+
+  it('should findOneAndUpdate upsert', async () => {
+    await Test.findOneAndUpdate({ name: 'John', role: 'user' }, { name: 'Bob', role: 'user' }, { upsert: true, runValidators: true }).exec()
+    const documents = await Test.find({})
+    expect(documents).toHaveLength(1)
+
+    const history = await History.find({})
+    expect(history).toHaveLength(1)
+
+    const [first] = history
+
+    expect(first.op).toBe('findOneAndUpdate')
+    expect(first.patch).toHaveLength(0)
+    expect(first.doc.name).toBe('Bob')
+    expect(first.version).toBe(0)
+  })
 })
