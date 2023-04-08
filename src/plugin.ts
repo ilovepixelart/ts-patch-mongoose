@@ -245,12 +245,11 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
     }
 
     this._context = context
-
     next()
   })
 
   schema.post(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>) {
-    if (this._context.deletedDocs?.length) return
+    if (_.isEmpty(this._context.deletedDocs)) return
 
     await bulkPatch(opts, this._context)
   })

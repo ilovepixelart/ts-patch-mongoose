@@ -5,7 +5,7 @@ import History from '../src/models/History'
 
 import em from '../src/em'
 
-import { USER_CREATED_EVENT, USER_UPDATED_EVENT } from './constants/events'
+import { USER_CREATED_EVENT, USER_UPDATED_EVENT, USER_DELETED_EVENT } from './constants/events'
 
 jest.mock('../src/em', () => {
   return { emit: jest.fn() }
@@ -58,7 +58,9 @@ describe('plugin', () => {
     expect(third.patch[1].value).toBe('Bob')
     expect(third.version).toBe(2)
 
-    expect(em.emit).toHaveBeenCalledTimes(3)
+    await User.deleteMany({ role: 'user' }).exec()
+
+    expect(em.emit).toHaveBeenCalledTimes(4)
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
@@ -69,6 +71,9 @@ describe('plugin', () => {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
       patch: third.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(USER_DELETED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' })
     })
   })
 

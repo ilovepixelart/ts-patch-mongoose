@@ -18,7 +18,6 @@ const UserSchema = new Schema<IUser>({
 }, { timestamps: true })
 
 UserSchema.plugin(patchPlugin, {
-  collectionName: 'tests',
   eventCreated: USER_CREATED_EVENT,
   eventUpdated: USER_UPDATED_EVENT,
   eventDeleted: USER_DELETED_EVENT,
