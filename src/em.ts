@@ -1,6 +1,6 @@
 import EventEmitter from 'events'
 
-class MongooseEmitter extends EventEmitter {}
-const em = new MongooseEmitter()
+class PatchEventEmitter extends EventEmitter {}
+const em = new PatchEventEmitter()
 
 export default em

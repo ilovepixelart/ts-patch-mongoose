@@ -105,7 +105,18 @@ async function createPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
   })
 }
 
-const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
+/**
+ * @description Patch patch event emitter
+ */
+export const patchEventEmitter = em
+
+/**
+ * @description Patch history plugin
+ * @param {Schema} schema
+ * @param {IPluginOptions} opts
+ * @returns {void}
+ */
+export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
   schema.pre('save', async function (next) {
     const current = this.toObject({ depopulate: true }) as HydratedDocument<T>
     const model = this.constructor as Model<T>
@@ -254,5 +265,3 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
     await bulkPatch(opts, this._context)
   })
 }
-
-export default plugin

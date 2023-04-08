@@ -14,3 +14,53 @@ Patch history & events for mongoose models
 [![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=ilovepixelart_ts-patch-mongoose&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=ilovepixelart_ts-patch-mongoose)
 
 [![npm](https://nodei.co/npm/ts-patch-mongoose.png)](https://www.npmjs.com/package/ts-patch-mongoose)
+
+## Installation
+
+```bash
+npm install ts-patch-mongoose
+```
+
+## Usage example of plugin
+
+```typescript
+import { Schema, model } from 'mongoose'
+
+import type IUser from '../interfaces/IUser'
+
+import { patchHistoryPlugin } from 'ts-patch-mongoose'
+
+import { USER_CREATED_EVENT, USER_DELETED_EVENT, USER_UPDATED_EVENT } from '../constants/events'
+
+const UserSchema = new Schema<IUser>({
+  name: {
+    type: String,
+    required: true
+  },
+  role: {
+    type: String,
+    required: true
+  }
+}, { timestamps: true })
+
+UserSchema.plugin(patchHistoryPlugin, {
+  eventCreated: USER_CREATED_EVENT,
+  eventUpdated: USER_UPDATED_EVENT,
+  eventDeleted: USER_DELETED_EVENT,
+  omit: ['__v', 'role', 'createdAt', 'updatedAt']
+})
+
+const User = model('User', UserSchema)
+
+export default User
+```
+
+## Somewhere in your code you can subscribe to events
+
+```typescript
+import { patchEventEmitter } from 'ts-patch-mongoose'
+
+patchEventEmitter.on(USER_CREATED_EVENT, ({ doc }) => {
+  console.log('User created', doc)
+})
+```
