@@ -3,7 +3,7 @@ import omit from 'omit-deep'
 import jsonpatch from 'fast-json-patch'
 import { assign } from 'power-assign'
 
-import type { CallbackError, HydratedDocument, Model, MongooseError, Query, Schema, Types } from 'mongoose'
+import type { CallbackError, HydratedDocument, Model, MongooseError, Schema, Types } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
@@ -17,16 +17,16 @@ const options = {
   query: true
 }
 
-function getObjects<T> (opts: IPluginOptions<T>, original: HydratedDocument<T>, updated: T & { _id: Types.ObjectId }): { originalObject: Partial<T>, updatedObject: Partial<T> } {
+function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {
+  let currentObject = JSON.parse(JSON.stringify(current)) as Partial<T>
   let originalObject = JSON.parse(JSON.stringify(original)) as Partial<T>
-  let updatedObject = JSON.parse(JSON.stringify(updated)) as Partial<T>
 
   if (opts.omit) {
+    currentObject = omit(currentObject, opts.omit)
     originalObject = omit(originalObject, opts.omit)
-    updatedObject = omit(updatedObject, opts.omit)
   }
 
-  return { originalObject, updatedObject }
+  return { currentObject, originalObject }
 }
 
 async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
@@ -61,27 +61,23 @@ async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Pro
 }
 
 async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
-  const updated = current.toObject({ depopulate: true }) as T & { _id: Types.ObjectId }
+  const { currentObject, originalObject } = getObjects(opts, current, original)
 
-  const { originalObject, updatedObject } = getObjects(opts, original, updated)
+  if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
 
-  if (_.isEmpty(originalObject) || _.isEmpty(updatedObject)) return
-
-  const patch = jsonpatch.compare(originalObject, updatedObject, true)
+  const patch = jsonpatch.compare(originalObject, currentObject, true)
 
   if (_.isEmpty(patch)) return
 
   if (opts.eventUpdated) {
-    const oldDoc = assign(current, originalObject)
-    const doc = assign(current, updatedObject)
-    em.emit(opts.eventUpdated, { oldDoc, doc, patch })
+    em.emit(opts.eventUpdated, { oldDoc: originalObject, doc: currentObject, patch })
   }
 
   if (opts.patchHistoryDisabled) return
 
   let version = 0
 
-  const lastHistory = await History.findOne({ collectionId: updated._id }).sort('-version').exec()
+  const lastHistory = await History.findOne({ collectionId: original._id as Types.ObjectId }).sort('-version').exec()
 
   if (lastHistory && lastHistory.version >= 0) {
     version = lastHistory.version + 1
@@ -91,7 +87,7 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
     op: context.op,
     modelName: context.modelName,
     collectionName: context.collectionName,
-    collectionId: current._id as Types.ObjectId,
+    collectionId: original._id as Types.ObjectId,
     patch,
     version
   })
@@ -113,20 +109,9 @@ async function createPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
   await history.save()
 }
 
-async function saveDiffs<T> (opts: IPluginOptions<T>, context: IContext<T>, query: Query<T, T> & { op: string }): Promise<void> {
-  const filter = query.getFilter()
-  const update = query.getUpdate()
-  const cursor = query.model.find(filter).cursor()
-
-  await cursor.eachAsync(async (original: HydratedDocument<T>) => {
-    const current = assign(original, update)
-    await updatePatch(opts, context, original, current)
-  })
-}
-
 const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
   schema.pre('save', async function (next) {
-    const current = this as HydratedDocument<T>
+    const current = this.toObject({ depopulate: true }) as HydratedDocument<T>
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
@@ -156,6 +141,7 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
   schema.pre(['findOneAndUpdate', 'update', 'updateOne', 'updateMany'], async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
     const options = this.getOptions()
+    const update = this.getUpdate() as Record<string, Partial<T>>
     const count = await this.model.count(filter).exec()
 
     const context: IContext<T> = {
@@ -168,7 +154,22 @@ const plugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): 
     this._context = context
 
     try {
-      await saveDiffs(opts, context, this)
+      const cursor = this.model.find(filter).cursor()
+      await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+        const keys = _.keys(update).filter((key) => key.startsWith('$'))
+        let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
+        _.forEach(keys, (key) => {
+          try {
+            current = assign(current, { [key]: update[key] })
+          } catch {
+            // we catch assign keys that are not implemented
+          }
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete update[key]
+        })
+        current = assign(current, update)
+        await updatePatch(opts, this._context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
+      })
       next()
     } catch (error) {
       next(error as CallbackError)
