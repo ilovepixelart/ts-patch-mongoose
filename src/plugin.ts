@@ -164,7 +164,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
     if (update && this._context.isNew) {
       const cursor = this.model.findOne(update).cursor()
-      await cursor.eachAsync(async (current: HydratedDocument<T>) => {
+      await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+        const current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
         if (opts.eventCreated) {
           em.emit(opts.eventCreated, { doc: current })
         }
@@ -221,10 +222,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
         }
       }
 
-      if (opts.patchHistoryDisabled) continue
-      await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
-        console.error(err)
-      })
+      if (!opts.patchHistoryDisabled) {
+        await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
+          console.error(err)
+        })
+      }
     }
   })
 }

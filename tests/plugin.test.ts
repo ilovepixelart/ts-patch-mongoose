@@ -46,28 +46,72 @@ describe('plugin', () => {
     user.name = 'Bob'
     await user.save()
 
-    const history = await History.find({})
-    expect(history).toHaveLength(3)
-
-    const [first, second, third] = history
-
-    expect(first.op).toBe('create')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
-    expect(first.version).toBe(0)
-
-    expect(second.op).toBe('update')
-    expect(second.patch).toHaveLength(2)
-    expect(second.patch[1].value).toBe('Alice')
-    expect(second.version).toBe(1)
-
-    expect(third.op).toBe('update')
-    expect(third.patch).toHaveLength(2)
-    expect(third.patch[1].value).toBe('Bob')
-    expect(third.version).toBe(2)
-
     await User.deleteMany({ role: 'user' }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(4)
+
+    const [first, second, third, fourth] = history
+
+    // 1 create
+    expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(user._id)
+
+    expect(first.doc).toHaveProperty('_id', user._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
+    expect(second.version).toBe(1)
+    expect(second.op).toBe('update')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(user._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(2)
+    expect(second.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Alice' }
+    ])
+
+    // 3 update
+    expect(third.version).toBe(2)
+    expect(third.op).toBe('update')
+    expect(third.modelName).toBe('User')
+    expect(third.collectionName).toBe('users')
+    expect(third.collectionId).toEqual(user._id)
+
+    expect(third.doc).toBeUndefined()
+
+    expect(third.patch).toHaveLength(2)
+    expect(third.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'Alice' },
+      { op: 'replace', path: '/name', value: 'Bob' }
+    ])
+
+    // 4 delete
+    expect(fourth.version).toBe(0)
+    expect(fourth.op).toBe('deleteMany')
+    expect(fourth.modelName).toBe('User')
+    expect(fourth.collectionName).toBe('users')
+    expect(fourth.collectionId).toEqual(user._id)
+
+    expect(fourth.doc).toHaveProperty('_id', user._id)
+    expect(fourth.doc).toHaveProperty('name', 'Bob')
+    expect(fourth.doc).toHaveProperty('role', 'user')
+    expect(fourth.doc).toHaveProperty('createdAt')
+    expect(fourth.doc).toHaveProperty('updatedAt')
+
+    expect(fourth.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(4)
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
@@ -98,13 +142,24 @@ describe('plugin', () => {
 
     const [first] = history
 
-    expect(first.op).toBe('create')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(user._id)
 
-    expect(user.role).toBe('manager')
+    expect(first.doc).toHaveProperty('_id', user._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    // no update event emitted because role is omitted
   })
 
   it('should updateOne', async () => {
@@ -118,16 +173,43 @@ describe('plugin', () => {
 
     const [first, second] = history
 
-    expect(first.op).toBe('create')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(user._id)
 
-    expect(second.op).toBe('updateOne')
-    expect(second.patch).toHaveLength(2)
-    expect(second.patch[1].value).toBe('Alice')
+    expect(first.doc).toHaveProperty('_id', user._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
     expect(second.version).toBe(1)
+    expect(second.op).toBe('updateOne')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(user._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(2)
+    expect(second.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Alice' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(2)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      patch: second.patch
+    })
   })
 
   it('should findOneAndUpdate', async () => {
@@ -141,15 +223,43 @@ describe('plugin', () => {
 
     const [first, second] = history
 
-    expect(first.op).toBe('create')
-    expect(second.patch).toHaveLength(2)
-    expect(first.doc.name).toBe('John')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(user._id)
 
-    expect(second.op).toBe('findOneAndUpdate')
-    expect(second.patch).toHaveLength(2)
-    expect(second.patch[1].value).toBe('Alice')
+    expect(first.doc).toHaveProperty('_id', user._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
     expect(second.version).toBe(1)
+    expect(second.op).toBe('findOneAndUpdate')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(user._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(2)
+    expect(second.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Alice' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(2)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      patch: second.patch
+    })
   })
 
   it('should update deprecated', async () => {
@@ -163,15 +273,43 @@ describe('plugin', () => {
 
     const [first, second] = history
 
-    expect(first.op).toBe('create')
-    expect(second.patch).toHaveLength(2)
-    expect(first.doc.name).toBe('John')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(user._id)
 
-    expect(second.op).toBe('update')
-    expect(second.patch).toHaveLength(2)
-    expect(second.patch[1].value).toBe('Alice')
+    expect(first.doc).toHaveProperty('_id', user._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
     expect(second.version).toBe(1)
+    expect(second.op).toBe('update')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(user._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(2)
+    expect(second.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Alice' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(2)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      patch: second.patch
+    })
   })
 
   it('should updated deprecated with multi flag', async () => {
@@ -187,51 +325,123 @@ describe('plugin', () => {
 
     const [first, second, third, fourth] = history
 
-    expect(first.op).toBe('create')
-    expect(second.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(john._id)
 
-    expect(second.op).toBe('create')
-    expect(second.patch).toHaveLength(0)
-    expect(second.doc.name).toBe('Alice')
-    expect(first.doc.role).toBe('user')
+    expect(first.doc).toHaveProperty('_id', john._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 create
     expect(second.version).toBe(0)
+    expect(second.op).toBe('create')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(alice._id)
 
-    expect(third.op).toBe('update')
-    expect(third.patch).toHaveLength(2)
-    expect(third.patch[1].value).toBe('Bob')
+    expect(second.doc).toHaveProperty('_id', alice._id)
+    expect(second.doc).toHaveProperty('name', 'Alice')
+    expect(second.doc).toHaveProperty('role', 'user')
+    expect(second.doc).toHaveProperty('createdAt')
+    expect(second.doc).toHaveProperty('updatedAt')
+
+    expect(second.patch).toHaveLength(0)
+
+    // 3 update
     expect(third.version).toBe(1)
+    expect(third.op).toBe('update')
+    expect(third.modelName).toBe('User')
+    expect(third.collectionName).toBe('users')
+    expect(third.collectionId).toEqual(john._id)
 
-    expect(fourth.op).toBe('update')
-    expect(fourth.patch).toHaveLength(2)
-    expect(fourth.patch[1].value).toBe('Bob')
+    expect(third.doc).toBeUndefined()
+
+    expect(third.patch).toHaveLength(2)
+    expect(third.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Bob' }
+    ])
+
+    // 4 update
     expect(fourth.version).toBe(1)
+    expect(fourth.op).toBe('update')
+    expect(fourth.modelName).toBe('User')
+    expect(fourth.collectionName).toBe('users')
+    expect(fourth.collectionId).toEqual(alice._id)
+
+    expect(fourth.doc).toBeUndefined()
+
+    expect(fourth.patch).toHaveLength(2)
+    expect(fourth.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'Alice' },
+      { op: 'replace', path: '/name', value: 'Bob' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(4)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
+      patch: third.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
+      doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
+      patch: fourth.patch
+    })
   })
 
   it('should create many', async () => {
     await User.create([
-      { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' }
+      { name: 'Alice', role: 'user' },
+      { name: 'John', role: 'user' }
     ])
 
-    const history = await History.find({})
+    const history = await History.find({}).sort('doc.name')
     expect(history).toHaveLength(2)
 
     const [first, second] = history
 
-    expect(first.op).toBe('create')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
 
-    expect(second.op).toBe('create')
-    expect(second.patch).toHaveLength(0)
-    expect(second.doc.name).toBe('Alice')
-    expect(second.doc.role).toBe('user')
+    expect(first.doc).toHaveProperty('_id')
+    expect(first.doc).toHaveProperty('name', 'Alice')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 create
     expect(second.version).toBe(0)
+    expect(second.op).toBe('create')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+
+    expect(second.doc).toHaveProperty('_id')
+    expect(second.doc).toHaveProperty('name', 'John')
+    expect(second.doc).toHaveProperty('role', 'user')
+    expect(second.doc).toHaveProperty('createdAt')
+    expect(second.doc).toHaveProperty('updatedAt')
+
+    expect(second.patch).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(2)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
   })
 
   it('should findOneAndUpdate upsert', async () => {
@@ -244,10 +454,26 @@ describe('plugin', () => {
 
     const [first] = history
 
-    expect(first.op).toBe('findOneAndUpdate')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('Bob')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('findOneAndUpdate')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+
+    expect(first.doc).toHaveProperty('_id')
+    expect(first.doc).toHaveProperty('name', 'Bob')
+    expect(first.doc).toHaveProperty('role', 'user')
+
+    // Upsert don't have createdAt and updatedAt and validation errors
+    // Investigate this case later
+    // expect(first.doc).toHaveProperty('createdAt')
+    // expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    // updated event is not emitted because it's an upsert
   })
 
   it('should update many', async () => {
@@ -263,27 +489,66 @@ describe('plugin', () => {
 
     const [first, second, third, fourth] = history
 
-    expect(first.op).toBe('create')
-    expect(first.patch).toHaveLength(0)
-    expect(first.doc.name).toBe('John')
-    expect(first.doc.role).toBe('user')
+    // 1 create
     expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('User')
+    expect(first.collectionName).toBe('users')
+    expect(first.collectionId).toEqual(john._id)
 
-    expect(second.op).toBe('create')
-    expect(second.patch).toHaveLength(0)
-    expect(second.doc.name).toBe('Alice')
-    expect(second.doc.role).toBe('user')
+    expect(first.doc).toHaveProperty('_id', john._id)
+    expect(first.doc).toHaveProperty('name', 'John')
+    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 create
+
     expect(second.version).toBe(0)
+    expect(second.op).toBe('create')
+    expect(second.modelName).toBe('User')
+    expect(second.collectionName).toBe('users')
+    expect(second.collectionId).toEqual(alice._id)
 
-    expect(third.op).toBe('updateMany')
-    expect(third.patch).toHaveLength(2)
-    expect(third.patch[1].value).toBe('Bob')
+    expect(second.doc).toHaveProperty('_id', alice._id)
+    expect(second.doc).toHaveProperty('name', 'Alice')
+    expect(second.doc).toHaveProperty('role', 'user')
+    expect(second.doc).toHaveProperty('createdAt')
+    expect(second.doc).toHaveProperty('updatedAt')
+
+    expect(second.patch).toHaveLength(0)
+
+    // 3 update
     expect(third.version).toBe(1)
+    expect(third.op).toBe('updateMany')
+    expect(third.modelName).toBe('User')
+    expect(third.collectionName).toBe('users')
+    expect(third.collectionId).toEqual(john._id)
 
-    expect(fourth.op).toBe('updateMany')
-    expect(fourth.patch).toHaveLength(2)
-    expect(fourth.patch[1].value).toBe('Bob')
+    expect(third.doc).toBeUndefined()
+
+    expect(third.patch).toHaveLength(2)
+    expect(third.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'John' },
+      { op: 'replace', path: '/name', value: 'Bob' }
+    ])
+
+    // 4 update
     expect(fourth.version).toBe(1)
+    expect(fourth.op).toBe('updateMany')
+    expect(fourth.modelName).toBe('User')
+    expect(fourth.collectionName).toBe('users')
+    expect(fourth.collectionId).toEqual(alice._id)
+
+    expect(fourth.doc).toBeUndefined()
+
+    expect(fourth.patch).toHaveLength(2)
+    expect(fourth.patch).toMatchObject([
+      { op: 'test', path: '/name', value: 'Alice' },
+      { op: 'replace', path: '/name', value: 'Bob' }
+    ])
 
     expect(em.emit).toHaveBeenCalledTimes(4)
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
