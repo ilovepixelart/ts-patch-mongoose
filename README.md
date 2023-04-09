@@ -17,7 +17,7 @@ Patch history & events for mongoose models
 
 ## Motivation
 
-ts-patch-mongoose is a plugin for mongoose and requires it as peer dependency
+ts-patch-mongoose is a plugin for mongoose
 \
 I needed to track changes in my mongoose models and save them as patch history (audit log) in separate collection. Events will allow me to track changes in my models and react to them in other parts of the application. I also wanted to omit some fields from patch history.
 
@@ -42,7 +42,15 @@ yarn add ts-patch-mongoose
 
 ## Example
 
-Setup your mongoose model
+Create your events constants `events.ts`
+
+```typescript
+export const USER_CREATED = 'user-created'
+export const USER_UPDATED = 'user-updated'
+export const USER_DELETED = 'user-deleted'
+```
+
+Setup your mongoose model `User.ts`
 
 ```typescript
 import { Schema, model } from 'mongoose'
@@ -50,8 +58,7 @@ import { Schema, model } from 'mongoose'
 import type IUser from '../interfaces/IUser'
 
 import { patchHistoryPlugin } from 'ts-patch-mongoose'
-
-import { USER_CREATED_EVENT, USER_DELETED_EVENT, USER_UPDATED_EVENT } from '../constants/events'
+import { USER_CREATED, USER_UPDATED, USER_DELETED } from '../constants/events'
 
 const UserSchema = new Schema<IUser>({
   name: {
@@ -70,9 +77,9 @@ UserSchema.plugin(patchHistoryPlugin, {
   patchHistoryDisabled: true,
 
   // Create event constants provide them to plugin and use them to subscribe to events
-  eventCreated: USER_CREATED_EVENT,
-  eventUpdated: USER_UPDATED_EVENT,
-  eventDeleted: USER_DELETED_EVENT,
+  eventCreated: USER_CREATED,
+  eventUpdated: USER_UPDATED,
+  eventDeleted: USER_DELETED,
   
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt']
@@ -89,16 +96,17 @@ You can subscribe to events using patchEventEmitter anywhere in your application
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
+import { USER_CREATED, USER_UPDATED, USER_DELETED } from '../constants/events'
 
-patchEventEmitter.on(USER_CREATED_EVENT, ({ doc }) => {
+patchEventEmitter.on(USER_CREATED, ({ doc }) => {
   console.log('User created', doc)
 })
 
-patchEventEmitter.on(USER_UPDATED_EVENT, ({ doc, oldDoc, patch }) => {
+patchEventEmitter.on(USER_UPDATED, ({ doc, oldDoc, patch }) => {
   console.log('User updated', doc, patch)
 })
 
-patchEventEmitter.on(USER_DELETED_EVENT, ({ doc }) => {
+patchEventEmitter.on(USER_DELETED, ({ doc }) => {
   console.log('User deleted', doc)
 })
 ```
