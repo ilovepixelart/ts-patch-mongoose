@@ -59,6 +59,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should updateOne', async () => {
@@ -69,6 +71,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should findOneAndUpdate', async () => {
@@ -79,6 +83,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should update deprecated', async () => {
@@ -101,6 +107,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should create many', async () => {
@@ -111,6 +119,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should findOneAndUpdate upsert', async () => {
@@ -120,6 +130,8 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 
   it('should update many', async () => {
@@ -132,5 +144,7 @@ describe('plugin - patch history disabled', () => {
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
   })
 })
