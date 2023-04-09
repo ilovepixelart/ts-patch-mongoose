@@ -42,6 +42,8 @@ yarn add ts-patch-mongoose
 
 ## Example
 
+Setup your mongoose model
+
 ```typescript
 import { Schema, model } from 'mongoose'
 
@@ -81,7 +83,9 @@ const User = model('User', UserSchema)
 export default User
 ```
 
-## You can subscribe to events using patchEventEmitter anywhere in your application
+## Subscribe
+
+You can subscribe to events using patchEventEmitter anywhere in your application
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
