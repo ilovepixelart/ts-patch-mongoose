@@ -29,37 +29,6 @@ function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, o
   return { currentObject, originalObject }
 }
 
-async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
-  const chunks = _.chunk(context.deletedDocs, 1000)
-  for await (const chunk of chunks) {
-    const bulk = []
-    for (const oldDoc of chunk) {
-      if (opts.eventDeleted) {
-        em.emit(opts.eventDeleted, { oldDoc })
-      }
-      if (!opts.patchHistoryDisabled) {
-        bulk.push({
-          insertOne: {
-            document: {
-              op: context.op,
-              modelName: context.modelName,
-              collectionName: context.collectionName,
-              collectionId: oldDoc._id as Types.ObjectId,
-              doc: oldDoc,
-              version: 0
-            }
-          }
-        })
-      }
-    }
-
-    if (opts.patchHistoryDisabled) continue
-    await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
-      console.error(err)
-    })
-  }
-}
-
 async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
   const { currentObject, originalObject } = getObjects(opts, current, original)
 
@@ -204,39 +173,6 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
   })
 
-  schema.pre('updateMany', options, async function (this: IHookContext<T>, next) {
-    const filter = this.getFilter()
-    const options = this.getOptions()
-    const ignore = options.__ignore as boolean
-
-    const context: IContext<T> = {
-      op: this.op,
-      modelName: opts.modelName ?? this.model.modelName,
-      collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      isNew: options.upsert
-    }
-
-    if (!ignore) {
-      const ids = await this.model.distinct<Types.ObjectId>('_id', filter).exec()
-      context.updatedIds = ids
-    }
-
-    this._context = context
-
-    next()
-  })
-
-  schema.post('updateMany', options, async function (this: IHookContext<T>) {
-    if (this._context.updatedIds?.length) return
-
-    const cursor = this.model.find({ _id: { $in: this._context.updatedIds } }).cursor()
-    await cursor.eachAsync((current: HydratedDocument<T>) => {
-      if (opts.eventUpdated) {
-        em.emit(opts.eventUpdated, { doc: current })
-      }
-    })
-  })
-
   schema.pre(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
     const options = this.getOptions()
@@ -260,8 +196,35 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.post(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>) {
-    if (_.isEmpty(this._context.deletedDocs)) return
+    if (_.isEmpty(this._context.deletedDocs) || (!opts.eventDeleted && opts.patchHistoryDisabled)) return
 
-    await bulkPatch(opts, this._context)
+    const chunks = _.chunk(this._context.deletedDocs, 1000)
+    for await (const chunk of chunks) {
+      const bulk = []
+      for (const oldDoc of chunk) {
+        if (opts.eventDeleted) {
+          em.emit(opts.eventDeleted, { oldDoc })
+        }
+        if (!opts.patchHistoryDisabled) {
+          bulk.push({
+            insertOne: {
+              document: {
+                op: this._context.op,
+                modelName: this._context.modelName,
+                collectionName: this._context.collectionName,
+                collectionId: oldDoc._id as Types.ObjectId,
+                doc: oldDoc,
+                version: 0
+              }
+            }
+          })
+        }
+      }
+
+      if (opts.patchHistoryDisabled) continue
+      await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
+        console.error(err)
+      })
+    }
   })
 }
