@@ -221,10 +221,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
         }
       }
 
-      if (opts.patchHistoryDisabled) continue
-      await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
-        console.error(err)
-      })
+      if (!opts.patchHistoryDisabled) {
+        await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
+          console.error(err)
+        })
+      }
     }
   })
 }
