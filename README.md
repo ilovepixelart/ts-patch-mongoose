@@ -15,13 +15,32 @@ Patch history & events for mongoose models
 
 [![npm](https://nodei.co/npm/ts-patch-mongoose.png)](https://www.npmjs.com/package/ts-patch-mongoose)
 
+## Motivation
+
+ts-patch-mongoose is a plugin for mongoose and requires it as peer dependency
+\
+I needed to track changes in my mongoose models and save them as patch history (audit log) in separate collection. Events will allow me to track changes in my models and react to them in other parts of the application. I also wanted to omit some fields from patch history.
+
+## Features
+
+- Track changes in mongoose models
+- Save changes in a separate collection as a patch history
+- Emit events when a model is created, updated or deleted
+- Supports typescript
+- Let you omit fields that you don't want to track in patch history
+- Subscribe to one/many types of event
+- You can use events or patch history or both
+
 ## Installation
+
+- Locally inside your project
 
 ```bash
 npm install ts-patch-mongoose
+yarn add ts-patch-mongoose
 ```
 
-## Usage example of plugin
+## Example
 
 ```typescript
 import { Schema, model } from 'mongoose'
@@ -43,11 +62,18 @@ const UserSchema = new Schema<IUser>({
   }
 }, { timestamps: true })
 
-UserSchema.plugin(patchHistoryPlugin, {
+UserSchema.plugin(patchHistoryPlugin, { 
+  // In case you just want to track changes in your models using events below.
+  // And don't want to save changes to patch history collection
+  patchHistoryDisabled: true,
+
+  // Create event constants provide them to plugin and use them to subscribe to events
   eventCreated: USER_CREATED_EVENT,
   eventUpdated: USER_UPDATED_EVENT,
   eventDeleted: USER_DELETED_EVENT,
-  omit: ['__v', 'role', 'createdAt', 'updatedAt']
+  
+  // You can omit some properties in case you don't want to save them to patch history
+  omit: ['__v', 'createdAt', 'updatedAt']
 })
 
 const User = model('User', UserSchema)
@@ -55,12 +81,20 @@ const User = model('User', UserSchema)
 export default User
 ```
 
-## Somewhere in your code you can subscribe to events
+## You can subscribe to events using patchEventEmitter anywhere in your application
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
 
 patchEventEmitter.on(USER_CREATED_EVENT, ({ doc }) => {
   console.log('User created', doc)
+})
+
+patchEventEmitter.on(USER_UPDATED_EVENT, ({ doc, oldDoc, patch }) => {
+  console.log('User updated', doc, patch)
+})
+
+patchEventEmitter.on(USER_DELETED_EVENT, ({ doc }) => {
+  console.log('User deleted', doc)
 })
 ```
