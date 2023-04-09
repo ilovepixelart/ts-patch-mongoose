@@ -1,10 +1,10 @@
 import mongoose from 'mongoose'
 
-import User from './models/User'
+import UserSchema from './schemas/UserSchema'
+import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
 
 import em from '../src/em'
-
 import { USER_CREATED_EVENT, USER_UPDATED_EVENT, USER_DELETED_EVENT } from './constants/events'
 
 jest.mock('../src/em', () => {
@@ -13,6 +13,15 @@ jest.mock('../src/em', () => {
 
 describe('plugin', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+
+  UserSchema.plugin(patchHistoryPlugin, {
+    eventCreated: USER_CREATED_EVENT,
+    eventUpdated: USER_UPDATED_EVENT,
+    eventDeleted: USER_DELETED_EVENT,
+    omit: ['__v', 'role', 'createdAt', 'updatedAt']
+  })
+
+  const User = mongoose.model('User', UserSchema)
 
   beforeAll(async () => {
     await mongoose.connect(uri)
