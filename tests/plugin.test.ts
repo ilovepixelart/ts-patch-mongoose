@@ -240,4 +240,54 @@ describe('plugin', () => {
     expect(first.doc.name).toBe('Bob')
     expect(first.version).toBe(0)
   })
+
+  it('should update many', async () => {
+    const john = await User.create({ name: 'John', role: 'user' })
+    expect(john.name).toBe('John')
+    const alice = await User.create({ name: 'Alice', role: 'user' })
+    expect(alice.name).toBe('Alice')
+
+    await User.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(4)
+
+    const [first, second, third, fourth] = history
+
+    expect(first.op).toBe('create')
+    expect(first.patch).toHaveLength(0)
+    expect(first.doc.name).toBe('John')
+    expect(first.doc.role).toBe('user')
+    expect(first.version).toBe(0)
+
+    expect(second.op).toBe('create')
+    expect(second.patch).toHaveLength(0)
+    expect(second.doc.name).toBe('Alice')
+    expect(second.doc.role).toBe('user')
+    expect(second.version).toBe(0)
+
+    expect(third.op).toBe('updateMany')
+    expect(third.patch).toHaveLength(2)
+    expect(third.patch[1].value).toBe('Bob')
+    expect(third.version).toBe(1)
+
+    expect(fourth.op).toBe('updateMany')
+    expect(fourth.patch).toHaveLength(2)
+    expect(fourth.patch[1].value).toBe('Bob')
+    expect(fourth.version).toBe(1)
+
+    expect(em.emit).toHaveBeenCalledTimes(4)
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
+      doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
+      patch: third.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+      oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
+      doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
+      patch: fourth.patch
+    })
+  })
 })
