@@ -42,7 +42,7 @@ yarn add ts-patch-mongoose
 
 ## Example
 
-Create your events constants `events.ts`
+Create your event constants `events.ts`
 
 ```typescript
 export const USER_CREATED = 'user-created'
