@@ -1,6 +1,6 @@
 # ts-patch-mongoose
 
-Patch history & events for mongoose models
+Patch history & events plugin for mongoose
 
 [![npm](https://img.shields.io/npm/v/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
 [![npm](https://img.shields.io/npm/dt/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
