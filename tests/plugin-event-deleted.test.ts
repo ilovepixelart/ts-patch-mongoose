@@ -1,4 +1,3 @@
-
 import mongoose, { model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
@@ -14,7 +13,7 @@ jest.mock('../src/em', () => {
   }
 })
 
-describe('plugin - patch history disabled', () => {
+describe('plugin - event delete & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   UserSchema.plugin(patchHistoryPlugin, {
