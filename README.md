@@ -82,6 +82,7 @@ const UserSchema = new Schema<IUser>({
   },
   role: {
     type: String,
+    enum: ['admin', 'manager', 'user'],
     required: true
   }
 }, { timestamps: true })
@@ -107,22 +108,37 @@ export default User
 
 ## Subscribe
 
-You can subscribe to events using patchEventEmitter anywhere in your application
+You can subscribe to events using patchEventEmitter anywhere in your application `handlers/UserHandler.ts`
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
 import { USER_CREATED, USER_UPDATED, USER_DELETED } from '../constants/events'
 
 patchEventEmitter.on(USER_CREATED, ({ doc }) => {
-  console.log('User created', doc)
+  try {
+    console.log('Event - user created', doc)
+    // Do something with doc here
+  } catch (error) {
+    console.error(error)
+  }
 })
 
 patchEventEmitter.on(USER_UPDATED, ({ doc, oldDoc, patch }) => {
-  console.log('User updated', doc, oldDoc, patch)
+  try {
+    console.log('Event - user updated', doc, oldDoc, patch)
+    // Do something with doc, oldDoc and patch here
+  } catch (error) {
+    console.error(error)
+  }
 })
 
-patchEventEmitter.on(USER_DELETED, ({ doc }) => {
-  console.log('User deleted', doc)
+patchEventEmitter.on(USER_DELETED, ({ oldDoc }) => {
+  try {
+    console.log('Event - user deleted', oldDoc)
+    // Do something with doc here
+  } catch (error) {
+    console.error(error)
+  }
 })
 ```
 
