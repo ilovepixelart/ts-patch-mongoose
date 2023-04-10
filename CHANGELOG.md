@@ -1,3 +1,16 @@
+<a name="v1.0.7"></a>
+# [v1.0.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.0.7) - 10 Apr 2023
+
+- Merge pull request [#9](https://github.com/ilovepixelart/ts-patch-mongoose/issues/9) from ilovepixelart/feature/delete-one-fix-and-coverage  6637b45
+- Doc, refactor  a20767e
+- Fixes for delete cases and coverage  812ffa4
+- Update changelog for &quot;v1.0.6&quot;  7f11040
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.6...v1.0.7
+
+[Changes][v1.0.7]
+
+
 <a name="v1.0.6"></a>
 # [v1.0.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.0.6) - 10 Apr 2023
 
@@ -62,6 +75,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.6...v1.0.7
 [v1.0.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.5...v1.0.6
 [v1.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.4...v1.0.5
 [v1.0.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.3...v1.0.4
