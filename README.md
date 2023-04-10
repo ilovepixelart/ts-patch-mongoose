@@ -19,7 +19,7 @@ Patch history & events for mongoose models
 
 ts-patch-mongoose is a plugin for mongoose
 \
-I needed to track changes in my mongoose models and save them as patch history (audit log) in separate collection. Events will allow me to track changes in my models and react to them in other parts of the application. I also wanted to omit some fields from patch history.
+I need to track changes of mongoose models and save them as patch history (audit log) in separate collection. Changes must also emit events that I can subscribe to and react in other parts of my application. I also want to omit some fields from patch history.
 
 ## Features
 
@@ -42,12 +42,27 @@ yarn add ts-patch-mongoose
 
 ## Example
 
+How to use it with express [ts-express-swc](https://github.com/ilovepixelart/ts-express-swc)
+
 Create your event constants `events.ts`
 
 ```typescript
 export const USER_CREATED = 'user-created'
 export const USER_UPDATED = 'user-updated'
 export const USER_DELETED = 'user-deleted'
+```
+
+Create your interface `IUser.ts`
+
+```typescript
+interface IUser {
+  name: string
+  role: string
+  createdAt?: Date
+  updatedAt?: Date
+}
+
+export default IUser
 ```
 
 Setup your mongoose model `User.ts`
@@ -103,10 +118,14 @@ patchEventEmitter.on(USER_CREATED, ({ doc }) => {
 })
 
 patchEventEmitter.on(USER_UPDATED, ({ doc, oldDoc, patch }) => {
-  console.log('User updated', doc, patch)
+  console.log('User updated', doc, oldDoc, patch)
 })
 
 patchEventEmitter.on(USER_DELETED, ({ doc }) => {
   console.log('User deleted', doc)
 })
 ```
+
+## Check my other projects
+
+- [ts-migrate-mongoose](https://github.com/ilovepixelart/ts-express-swc) - Migration framework for mongoose
