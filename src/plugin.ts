@@ -64,6 +64,7 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
 
 async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const event = opts[eventKey]
+  const docKey = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
   const docs = context[docsKey]
 
   if (_.isEmpty(docs) || (!event && opts.patchHistoryDisabled)) return
@@ -72,13 +73,7 @@ async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, even
   for await (const chunk of chunks) {
     const bulk = []
     for (const doc of chunk) {
-      if (event && eventKey === 'eventCreated') {
-        em.emit(event, { doc })
-      }
-
-      if (event && eventKey === 'eventDeleted') {
-        em.emit(event, { oldDoc: doc })
-      }
+      if (event) em.emit(event, { [docKey]: doc })
 
       if (!opts.patchHistoryDisabled) {
         bulk.push({
@@ -96,7 +91,7 @@ async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, even
       }
     }
 
-    if (!opts.patchHistoryDisabled) {
+    if (opts.patchHistoryDisabled) {
       await History
         .bulkWrite(bulk, { ordered: false })
         .catch((err: MongooseError) => {
