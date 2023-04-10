@@ -74,6 +74,42 @@ async function createPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
   })
 }
 
+async function deletePatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
+  if (_.isEmpty(context.deletedDocs) || (!opts.eventDeleted && opts.patchHistoryDisabled)) return
+
+  const chunks = _.chunk(context.deletedDocs, 1000)
+  for await (const chunk of chunks) {
+    const bulk = []
+    for (const oldDoc of chunk) {
+      if (opts.eventDeleted) {
+        em.emit(opts.eventDeleted, { oldDoc })
+      }
+      if (!opts.patchHistoryDisabled) {
+        bulk.push({
+          insertOne: {
+            document: {
+              op: context.op,
+              modelName: context.modelName,
+              collectionName: context.collectionName,
+              collectionId: oldDoc._id as Types.ObjectId,
+              doc: oldDoc,
+              version: 0
+            }
+          }
+        })
+      }
+    }
+
+    if (!opts.patchHistoryDisabled) {
+      await History
+        .bulkWrite(bulk, { ordered: false })
+        .catch((err: MongooseError) => {
+          console.error(err)
+        })
+    }
+  }
+}
+
 /**
  * @description Patch patch event emitter
  */
@@ -140,8 +176,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
           delete update[key]
         })
       }
-      const cursor = this.model.find(filter).cursor()
-      await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+      const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
+      await cursor.eachAsync(async (doc) => {
         let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
         current = assign(current, update)
         _.forEach(commands, (command) => {
@@ -163,14 +199,35 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const update = this.getUpdate()
 
     if (update && this._context.isNew) {
-      const cursor = this.model.findOne(update).cursor()
-      await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+      const cursor = this.model.findOne<HydratedDocument<T>>(update).cursor()
+      await cursor.eachAsync(async (doc) => {
         const current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
         if (opts.eventCreated) {
           em.emit(opts.eventCreated, { doc: current })
         }
         await createPatch(opts, this._context, current)
       })
+    }
+  })
+
+  schema.pre('remove', async function (this: HydratedDocument<T>, next) {
+    const original = this.toObject({ depopulate: true })
+    const model = this.constructor as Model<T>
+
+    const context: IContext<T> = {
+      op: 'delete',
+      modelName: opts.modelName ?? model.modelName,
+      collectionName: opts.collectionName ?? model.collection.collectionName
+    }
+
+    try {
+      if (opts.eventDeleted) {
+        em.emit(opts.eventDeleted, { oldDoc: original })
+      }
+      await deletePatch(opts, context)
+      next()
+    } catch (error) {
+      next(error as CallbackError)
     }
   })
 
@@ -186,8 +243,18 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
 
     if (!ignore) {
-      context.deletedDocs = await this.model.find(filter).exec()
-      if (opts.preDeleteManyCallback) {
+      if (['remove', 'deleteMany'].includes(context.op) && !options.single) {
+        const docs = await this.model.find<HydratedDocument<T>>(filter).exec()
+        if (!_.isEmpty(docs)) {
+          context.deletedDocs = docs
+        }
+      } else {
+        const doc = await this.model.findOne<HydratedDocument<T>>(filter).exec()
+        if (!_.isEmpty(doc)) {
+          context.deletedDocs = [doc]
+        }
+      }
+      if (opts.preDeleteManyCallback && context.deletedDocs) {
         await opts.preDeleteManyCallback(context.deletedDocs)
       }
     }
@@ -197,36 +264,6 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.post(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>) {
-    if (_.isEmpty(this._context.deletedDocs) || (!opts.eventDeleted && opts.patchHistoryDisabled)) return
-
-    const chunks = _.chunk(this._context.deletedDocs, 1000)
-    for await (const chunk of chunks) {
-      const bulk = []
-      for (const oldDoc of chunk) {
-        if (opts.eventDeleted) {
-          em.emit(opts.eventDeleted, { oldDoc })
-        }
-        if (!opts.patchHistoryDisabled) {
-          bulk.push({
-            insertOne: {
-              document: {
-                op: this._context.op,
-                modelName: this._context.modelName,
-                collectionName: this._context.collectionName,
-                collectionId: oldDoc._id as Types.ObjectId,
-                doc: oldDoc,
-                version: 0
-              }
-            }
-          })
-        }
-      }
-
-      if (!opts.patchHistoryDisabled) {
-        await History.bulkWrite(bulk, { ordered: false }).catch((err: MongooseError) => {
-          console.error(err)
-        })
-      }
-    }
+    await deletePatch(opts, this._context)
   })
 }

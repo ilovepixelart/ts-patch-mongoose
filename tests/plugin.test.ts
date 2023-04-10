@@ -5,7 +5,7 @@ import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
 
 import em from '../src/em'
-import { USER_CREATED_EVENT, USER_UPDATED_EVENT, USER_DELETED_EVENT } from './constants/events'
+import { USER_CREATED, USER_UPDATED, USER_DELETED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return { emit: jest.fn() }
@@ -15,9 +15,9 @@ describe('plugin', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   UserSchema.plugin(patchHistoryPlugin, {
-    eventCreated: USER_CREATED_EVENT,
-    eventUpdated: USER_UPDATED_EVENT,
-    eventDeleted: USER_DELETED_EVENT,
+    eventCreated: USER_CREATED,
+    eventUpdated: USER_UPDATED,
+    eventDeleted: USER_DELETED,
     omit: ['__v', 'role', 'createdAt', 'updatedAt']
   })
 
@@ -114,18 +114,18 @@ describe('plugin', () => {
     expect(fourth.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(4)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       patch: second.patch
     })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
       patch: third.patch
     })
-    expect(em.emit).toHaveBeenCalledWith(USER_DELETED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' })
     })
   })
@@ -158,7 +158,7 @@ describe('plugin', () => {
     expect(first.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     // no update event emitted because role is omitted
   })
 
@@ -204,8 +204,8 @@ describe('plugin', () => {
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       patch: second.patch
@@ -254,8 +254,8 @@ describe('plugin', () => {
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       patch: second.patch
@@ -304,8 +304,8 @@ describe('plugin', () => {
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       patch: second.patch
@@ -386,14 +386,14 @@ describe('plugin', () => {
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(4)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: second.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
       patch: third.patch
     })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
       patch: fourth.patch
@@ -440,8 +440,8 @@ describe('plugin', () => {
     expect(second.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(2)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: second.doc })
   })
 
   it('should findOneAndUpdate upsert', async () => {
@@ -472,7 +472,7 @@ describe('plugin', () => {
     expect(first.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     // updated event is not emitted because it's an upsert
   })
 
@@ -551,14 +551,14 @@ describe('plugin', () => {
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(4)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: first.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED_EVENT, { doc: second.doc })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: second.doc })
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
       patch: third.patch
     })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED_EVENT, {
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
       patch: fourth.patch
