@@ -128,4 +128,4 @@ patchEventEmitter.on(USER_DELETED, ({ doc }) => {
 
 ## Check my other projects
 
-- [ts-migrate-mongoose](https://github.com/ilovepixelart/ts-express-swc) - Migration framework for mongoose
+- [ts-migrate-mongoose](https://github.com/ilovepixelart/ts-migrate-mongoose) - Migration framework for mongoose
