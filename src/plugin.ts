@@ -91,7 +91,7 @@ async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, even
       }
     }
 
-    if (opts.patchHistoryDisabled) {
+    if (!opts.patchHistoryDisabled) {
       await History
         .bulkWrite(bulk, { ordered: false })
         .catch((err: MongooseError) => {
