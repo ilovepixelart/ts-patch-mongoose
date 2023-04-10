@@ -64,16 +64,16 @@ async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, cu
 
 async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const event = opts[eventKey]
-  const docKey = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
   const docs = context[docsKey]
+  const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
 
   if (_.isEmpty(docs) || (!event && opts.patchHistoryDisabled)) return
 
-  const chunks = _.chunk(context[docsKey], 1000)
+  const chunks = _.chunk(docs, 1000)
   for await (const chunk of chunks) {
     const bulk = []
     for (const doc of chunk) {
-      if (event) em.emit(event, { [docKey]: doc })
+      if (event) em.emit(event, { [key]: doc })
 
       if (!opts.patchHistoryDisabled) {
         bulk.push({
