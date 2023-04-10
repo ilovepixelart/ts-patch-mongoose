@@ -1,3 +1,19 @@
+<a name="v1.0.8"></a>
+# [v1.0.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.0.8) - 10 Apr 2023
+
+- Lint update  7c88b4c
+- Merge pull request [#10](https://github.com/ilovepixelart/ts-patch-mongoose/issues/10) from ilovepixelart/feature/fix-insert-many-and-coverage  61de07c
+- Naming  5a60eb1
+- Fix condition  1644905
+- Refactor  d73cb13
+- Fix insert many and coverage for create event  d009d28
+- Update changelog for &quot;v1.0.7&quot;  a390697
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.7...v1.0.8
+
+[Changes][v1.0.8]
+
+
 <a name="v1.0.7"></a>
 # [v1.0.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.0.7) - 10 Apr 2023
 
@@ -75,6 +91,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.0.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.7...v1.0.8
 [v1.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.6...v1.0.7
 [v1.0.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.5...v1.0.6
 [v1.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.4...v1.0.5
