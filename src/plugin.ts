@@ -158,14 +158,12 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const count = await this.model.count(filter).exec()
     const commands: Record<string, Partial<T>>[] = []
 
-    const context: IContext<T> = {
+    this._context = {
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
       isNew: options.upsert && count === 0
     }
-
-    this._context = context
 
     try {
       const keys = _.keys(update).filter((key) => key.startsWith('$'))
@@ -187,7 +185,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
             // we catch assign keys that are not implemented
           }
         })
-        await updatePatch(opts, context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
+        await updatePatch(opts, this._context, current, doc.toObject({ depopulate: true }) as HydratedDocument<T>)
       })
       next()
     } catch (error) {
@@ -236,30 +234,30 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const options = this.getOptions()
     const ignore = options.__ignore as boolean
 
-    const context: IContext<T> = {
+    if (ignore) return next()
+
+    this._context = {
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName
     }
 
-    if (!ignore) {
-      if (['remove', 'deleteMany'].includes(context.op) && !options.single) {
-        const docs = await this.model.find<HydratedDocument<T>>(filter).exec()
-        if (!_.isEmpty(docs)) {
-          context.deletedDocs = docs
-        }
-      } else {
-        const doc = await this.model.findOne<HydratedDocument<T>>(filter).exec()
-        if (!_.isEmpty(doc)) {
-          context.deletedDocs = [doc]
-        }
+    if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
+      const docs = await this.model.find<HydratedDocument<T>>(filter).exec()
+      if (!_.isEmpty(docs)) {
+        this._context.deletedDocs = docs
       }
-      if (opts.preDeleteManyCallback && context.deletedDocs) {
-        await opts.preDeleteManyCallback(context.deletedDocs)
+    } else {
+      const doc = await this.model.findOne<HydratedDocument<T>>(filter).exec()
+      if (!_.isEmpty(doc)) {
+        this._context.deletedDocs = [doc]
       }
     }
 
-    this._context = context
+    if (opts.preDeleteManyCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
+      await opts.preDeleteManyCallback(this._context.deletedDocs)
+    }
+
     next()
   })
 
