@@ -24,6 +24,7 @@
     "lcov",
     "linebreak",
     "nargs",
+    "nodenext",
     "nosql",
     "npmignore",
     "parens",

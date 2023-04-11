@@ -49,20 +49,30 @@
     ".eslintrc",
     ".eslintignore"
   ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/esm/types/plugin.d.ts",
+        "default": "./lib/esm/plugin.mjs"
+      },
+      "require": {
+        "types": "./lib/cjs/types/plugin.d.ts",
+        "default": "./lib/cjs/plugin.js"
+      }
+    }
+  },
   "main": "dist/cjs/plugin.js",
-  "module": "dist/esm/plugin.js",
-  "types": "dist/types/plugin.d.js",
+  "types": "dist/cjs/types/plugin.d.ts",
   "scripts": {
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "eslint . --fix --ext .js,.ts",
-    "cleanup": "node -r @swc/register tools/cleanup.ts",
-    "build": "npm run build:cjs && npm run build:esm && npm run build:types",
-    "build:cjs": "npm run cleanup cjs && tsc -p config/tsconfig.cjs.json",
-    "build:esm": "npm run cleanup esm && tsc -p config/tsconfig.esm.json",
-    "build:types": "npm run cleanup types && tsc -p config/tsconfig.types.json",
-    "package": "npm run build && npm pack",
     "test": "jest --config jest.config.ts --detectOpenHandles --coverage",
-    "test:open": "npm run test && open-cli coverage/lcov-report/index.html"
+    "test:open": "npm run test && open-cli coverage/lcov-report/index.html",
+    "clean": "rm -rf ./dist",
+    "build": "npm run clean && npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -p config/tsconfig.cjs.json",
+    "build:esm": "tsc -p config/tsconfig.esm.json && mv ./dist/esm/plugin.js ./dist/esm/plugin.mjs",
+    "release": "npm run lint && npm run build && np"
   },
   "dependencies": {
     "fast-json-patch": "^3.1.1",
