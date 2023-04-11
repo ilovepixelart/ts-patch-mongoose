@@ -52,12 +52,12 @@
   "exports": {
     ".": {
       "import": {
-        "types": "./lib/esm/types/plugin.d.ts",
-        "default": "./lib/esm/plugin.mjs"
+        "types": "./dist/esm/types/plugin.d.ts",
+        "default": "./dist/esm/plugin.mjs"
       },
       "require": {
-        "types": "./lib/cjs/types/plugin.d.ts",
-        "default": "./lib/cjs/plugin.js"
+        "types": "./dist/cjs/types/plugin.d.ts",
+        "default": "./dist/cjs/plugin.js"
       }
     }
   },
