@@ -1,3 +1,18 @@
+<a name="v1.1.0"></a>
+# [v1.1.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.0) - 11 Apr 2023
+
+- Merge pull request [#12](https://github.com/ilovepixelart/ts-patch-mongoose/issues/12) from ilovepixelart/feature/coverage  85b9384
+- Merge pull request [#11](https://github.com/ilovepixelart/ts-patch-mongoose/issues/11) from ilovepixelart/feature/build  ae03e6e
+- Build  1dabd95
+- Test for update event  2dc7665
+- Test name  9710b5b
+- Update changelog for &quot;v1.0.9&quot;  05c6cb0
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.9...v1.1.0
+
+[Changes][v1.1.0]
+
+
 <a name="v1.0.9"></a>
 # [v1.0.9](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.0.9) - 10 Apr 2023
 
@@ -101,6 +116,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.9...v1.1.0
 [v1.0.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.8...v1.0.9
 [v1.0.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.7...v1.0.8
 [v1.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.6...v1.0.7
