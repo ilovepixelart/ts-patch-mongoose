@@ -158,7 +158,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     await createPatch(opts, context)
   })
 
-  schema.pre(['update', 'updateOne', 'updateMany', 'findOneAndUpdate'], async function (this: IHookContext<T>, next) {
+  schema.pre(['update', 'updateOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace'], async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
     const update = this.getUpdate() as Record<string, Partial<T>> | null
     const options = this.getOptions()
