@@ -1,4 +1,4 @@
-import mongoose, { model } from 'mongoose'
+import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
@@ -36,99 +36,248 @@ describe('plugin - event created & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  it('should save and emit one create event', async () => {
-    const john = new User({ name: 'John', role: 'user' })
-    await john.save()
+  describe('normal cases', () => {
+    it('should save() and emit one create event', async () => {
+      const john = new User({ name: 'John', role: 'user' })
+      await john.save()
 
-    const history = await History.find({})
-    expect(history).toHaveLength(0)
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: john._id,
-        name: john.name,
-        role: john.role,
-        createdAt: john.createdAt,
-        updatedAt: john.updatedAt
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: john._id,
+          name: john.name,
+          role: john.role,
+          createdAt: john.createdAt,
+          updatedAt: john.updatedAt
+        })
+      })
+    })
+
+    it('should create() and emit one create event', async () => {
+      const user = await User.create({ name: 'John', role: 'user' })
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user._id,
+          name: user.name,
+          role: user.role,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        })
+      })
+    })
+
+    it('should insertMany() and emit three create events', async () => {
+      const users = await User.insertMany([
+        { name: 'John', role: 'user' },
+        { name: 'Alice', role: 'user' },
+        { name: 'Bob', role: 'user' }
+      ])
+
+      const [john, alice, bob] = users
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(3)
+      expect(em.emit).toHaveBeenNthCalledWith(1, USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: john._id,
+          name: john.name,
+          role: john.role,
+          createdAt: john.createdAt,
+          updatedAt: john.updatedAt
+        })
+      })
+      expect(em.emit).toHaveBeenNthCalledWith(2, USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: alice._id,
+          name: alice.name,
+          role: alice.role,
+          createdAt: alice.createdAt,
+          updatedAt: alice.updatedAt
+        })
+      })
+      expect(em.emit).toHaveBeenNthCalledWith(3, USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: bob._id,
+          name: bob.name,
+          role: bob.role,
+          createdAt: bob.createdAt,
+          updatedAt: bob.updatedAt
+        })
       })
     })
   })
 
-  it('should create and emit one create event', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+  describe('upsert cases', () => {
+    it('should update() + upsert and emit one create event', async () => {
+      await User.update(
+        { name: 'John' },
+        { name: 'John', role: 'admin' },
+        { upsert: true }
+      )
 
-    const history = await History.find({})
-    expect(history).toHaveLength(0)
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: user._id,
-        name: user.name,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+        // Upsert does not set createdAt and updatedAt
+        })
       })
     })
-  })
 
-  it('should insertMany and emit one create event', async () => {
-    const [user] = await User.insertMany([{ name: 'John', role: 'user' }])
+    it('should updateOne() + upsert and emit one create event', async () => {
+      await User.updateOne(
+        { name: 'John' },
+        { name: 'John', role: 'admin' },
+        { upsert: true }
+      )
 
-    const history = await History.find({})
-    expect(history).toHaveLength(0)
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
-    expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: user._id,
-        name: user.name,
-        role: user.role,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+        // Upsert does not set createdAt and updatedAt
+        })
       })
     })
-  })
 
-  it('should insertMany and emit three create events', async () => {
-    const users = await User.insertMany([
-      { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'user' }
-    ])
+    it('should replaceOne() + upsert and emit one create event', async () => {
+      await User.replaceOne(
+        { name: 'John' },
+        { name: 'John', role: 'admin' },
+        { upsert: true }
+      )
 
-    const [john, alice, bob] = users
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
 
-    const history = await History.find({})
-    expect(history).toHaveLength(0)
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(3)
-    expect(em.emit).toHaveBeenNthCalledWith(1, USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: john._id,
-        name: john.name,
-        role: john.role,
-        createdAt: john.createdAt,
-        updatedAt: john.updatedAt
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+          // Upsert does not set createdAt and updatedAt
+        })
       })
     })
-    expect(em.emit).toHaveBeenNthCalledWith(2, USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: alice._id,
-        name: alice.name,
-        role: alice.role,
-        createdAt: alice.createdAt,
-        updatedAt: alice.updatedAt
+
+    it('should updateMany() + upsert and emit one create event', async () => {
+      await User.updateMany(
+        { name: { $in: ['John', 'Alice', 'Bob'] } },
+        { name: 'Steve', role: 'admin' },
+        { upsert: true }
+      )
+
+      const users = await User.findOne({ name: 'Steve', role: 'admin' })
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenNthCalledWith(1, USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: users?._id,
+          name: users?.name,
+          role: users?.role
+        // Upsert does not set createdAt and updatedAt
+        })
       })
     })
-    expect(em.emit).toHaveBeenNthCalledWith(3, USER_CREATED, {
-      doc: expect.objectContaining({
-        _id: bob._id,
-        name: bob.name,
-        role: bob.role,
-        createdAt: bob.createdAt,
-        updatedAt: bob.updatedAt
+
+    it('should findOneAndUpdate() + upsert and emit one create event', async () => {
+      await User.findOneAndUpdate(
+        { name: 'John' },
+        { name: 'John', role: 'admin' },
+        { upsert: true }
+      )
+
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+        // Upsert does not set createdAt and updatedAt
+        })
+      })
+    })
+
+    it('should findOneAndReplace() + upsert and emit one create event', async () => {
+      await User.findOneAndReplace(
+        { name: 'John' },
+        { name: 'John', role: 'admin' },
+        { upsert: true }
+      )
+
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+        // Upsert does not set createdAt and updatedAt
+        })
+      })
+    })
+
+    it('should findByIdAndUpdate() + upsert and emit one create event', async () => {
+      const _id = new Types.ObjectId()
+      await User.findByIdAndUpdate(_id, { name: 'John', role: 'admin' }, { upsert: true })
+
+      const user = await User.findOne({ name: 'John', role: 'admin' })
+      expect(user).not.toBeNull()
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          _id: user?._id,
+          name: user?.name,
+          role: user?.role
+        })
       })
     })
   })

@@ -3,7 +3,7 @@ import omit from 'omit-deep'
 import jsonpatch from 'fast-json-patch'
 import { assign } from 'power-assign'
 
-import type { CallbackError, HydratedDocument, Model, MongooseError, Schema, Types } from 'mongoose'
+import type { CallbackError, HydratedDocument, Model, MongooseError, MongooseQueryMiddleware, Schema, Types } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
@@ -16,6 +16,26 @@ const options = {
   document: false,
   query: true
 }
+
+const updateMethods = [
+  'update',
+  'updateOne',
+  'replaceOne',
+  'updateMany',
+  'findOneAndUpdate',
+  'findOneAndReplace',
+  'findByIdAndUpdate'
+]
+
+const deleteMethods = [
+  'remove',
+  'findOneAndDelete',
+  'findOneAndRemove',
+  'findByIdAndDelete',
+  'findByIdAndRemove',
+  'deleteOne',
+  'deleteMany'
+]
 
 function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {
   let currentObject = JSON.parse(JSON.stringify(current)) as Partial<T>
@@ -158,7 +178,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     await createPatch(opts, context)
   })
 
-  schema.pre(['update', 'updateOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace'], async function (this: IHookContext<T>, next) {
+  schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
     const update = this.getUpdate() as Record<string, Partial<T>> | null
     const options = this.getOptions()
@@ -202,7 +222,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
   })
 
-  schema.post(['update', 'updateOne', 'updateMany', 'findOneAndUpdate'], async function (this: IHookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
     const update = this.getUpdate()
 
     if (update && this._context.isNew) {
@@ -240,7 +260,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
   })
 
-  schema.pre(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>, next) {
+  schema.pre(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, next) {
     const filter = this.getFilter()
     const options = this.getOptions()
     const ignore = options.__ignore as boolean
@@ -272,7 +292,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     next()
   })
 
-  schema.post(['remove', 'findOneAndDelete', 'findOneAndRemove', 'deleteOne', 'deleteMany'], options, async function (this: IHookContext<T>) {
+  schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>) {
     await deletePatch(opts, this._context)
   })
 }

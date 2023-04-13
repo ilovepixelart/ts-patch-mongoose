@@ -1,4 +1,4 @@
-import mongoose, { model } from 'mongoose'
+import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
@@ -37,7 +37,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  it('should save/save and emit one update event', async () => {
+  it('should save() and emit one update event', async () => {
     await User.create({ name: 'Bob', role: 'user' })
     const user = new User({ name: 'John', role: 'user' })
     const created = await user.save()
@@ -74,7 +74,134 @@ describe('plugin - event updated & patch history disabled', () => {
     })
   })
 
-  it('should findOneAndReplace and emit one update event', async () => {
+  it('should update() and emit three update event', async () => {
+    await User.create([
+      { name: 'Alice', role: 'user' },
+      { name: 'Bob', role: 'user' },
+      { name: 'John', role: 'user' }
+    ], { ordered: true })
+
+    await User.update({ role: 'user' }, { role: 'manager' })
+    const users = await User.find({ role: 'manager' })
+    expect(users).toHaveLength(3)
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(3)
+  })
+
+  it('should updateOne() and emit one update event', async () => {
+    await User.create([
+      { name: 'Alice', role: 'user' },
+      { name: 'Bob', role: 'user' },
+      { name: 'John', role: 'user' }
+    ], { ordered: true })
+
+    await User.updateOne({ name: 'Bob' }, { role: 'manager' })
+    const users = await User.find({ role: 'manager' })
+    expect(users).toHaveLength(1)
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+  })
+
+  it('should replaceOne() and emit two update event', async () => {
+    await User.create([
+      { name: 'Alice', role: 'user' },
+      { name: 'Bob', role: 'user' },
+      { name: 'John', role: 'user' }
+    ], { ordered: true })
+
+    await User.replaceOne({ name: 'Bob' }, { name: 'Bob Doe', role: 'manager' })
+    const users = await User.find({ role: 'manager' })
+    expect(users).toHaveLength(1)
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
+      oldDoc: expect.objectContaining({
+        __v: 0,
+        _id: expect.any(Types.ObjectId),
+        name: 'Bob',
+        role: 'user',
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
+      }),
+      doc: expect.objectContaining({
+        __v: 0,
+        _id: expect.any(Types.ObjectId),
+        name: 'Bob Doe',
+        role: 'manager',
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
+      }),
+      patch: expect.arrayContaining([
+        { op: 'test', path: '/name', value: 'Bob' },
+        { op: 'replace', path: '/name', value: 'Bob Doe' },
+        { op: 'test', path: '/role', value: 'user' },
+        { op: 'replace', path: '/role', value: 'manager' }
+      ])
+    })
+  })
+
+  it('should updateMany() and emit two update event', async () => {
+    await User.create([
+      { name: 'Alice', role: 'user' },
+      { name: 'Bob', role: 'user' },
+      { name: 'John', role: 'user' }
+    ], { ordered: true })
+
+    await User.updateMany({ role: 'user' }, { role: 'manager' })
+    const users = await User.find({ role: 'manager' })
+    expect(users).toHaveLength(3)
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(3)
+  })
+
+  it('should findOneAndUpdate() and emit one update event', async () => {
+    await User.create({ name: 'Bob', role: 'user' })
+    const created = await User.create({ name: 'John', role: 'user' })
+    await User.findOneAndUpdate({ _id: created._id }, { name: 'John Doe', role: 'manager' })
+    const updated = await User.findById(created._id).exec()
+    expect(updated).not.toBeNull()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
+      oldDoc: expect.objectContaining({
+        __v: 0,
+        _id: created._id,
+        name: created.name,
+        role: created.role,
+        createdAt: created.createdAt
+      }),
+      doc: expect.objectContaining({
+        __v: 0,
+        _id: updated?._id,
+        name: updated?.name,
+        role: updated?.role,
+        createdAt: created.createdAt
+      }),
+      patch: expect.arrayContaining([
+        { op: 'test', path: '/role', value: 'user' },
+        { op: 'replace', path: '/role', value: 'manager' },
+        { op: 'test', path: '/name', value: 'John' },
+        { op: 'replace', path: '/name', value: 'John Doe' }
+      ])
+    })
+  })
+
+  it('should findOneAndReplace() and emit one update event', async () => {
     await User.create({ name: 'Bob', role: 'user' })
     const created = await User.create({ name: 'John', role: 'user' })
     await User.findOneAndReplace({ _id: created._id }, { name: 'John Doe', role: 'manager' })
@@ -111,12 +238,9 @@ describe('plugin - event updated & patch history disabled', () => {
     })
   })
 
-  it('should findOneAndUpdate and emit one update event', async () => {
-    await User.create({ name: 'Bob', role: 'user' })
-    const created = await User.create({ name: 'John', role: 'user' })
-    await User.findOneAndUpdate({ _id: created._id }, { name: 'John Doe', role: 'manager' })
-    const updated = await User.findById(created._id).exec()
-    expect(updated).not.toBeNull()
+  it('should findByIdAndUpdate() and emit one update event', async () => {
+    const created = await User.create({ name: 'Bob', role: 'user' })
+    await User.findByIdAndUpdate(created._id, { name: 'John Doe', role: 'manager' })
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -132,16 +256,16 @@ describe('plugin - event updated & patch history disabled', () => {
       }),
       doc: expect.objectContaining({
         __v: 0,
-        _id: updated?._id,
-        name: updated?.name,
-        role: updated?.role,
+        _id: created._id,
+        name: 'John Doe',
+        role: 'manager',
         createdAt: created.createdAt
       }),
       patch: expect.arrayContaining([
+        { op: 'test', path: '/name', value: 'Bob' },
+        { op: 'replace', path: '/name', value: 'John Doe' },
         { op: 'test', path: '/role', value: 'user' },
-        { op: 'replace', path: '/role', value: 'manager' },
-        { op: 'test', path: '/name', value: 'John' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
+        { op: 'replace', path: '/role', value: 'manager' }
       ])
     })
   })
