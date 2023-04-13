@@ -1,3 +1,16 @@
+<a name="v1.1.4"></a>
+# [v1.1.4](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.4) - 13 Apr 2023
+
+- Merge pull request [#15](https://github.com/ilovepixelart/ts-patch-mongoose/issues/15) from ilovepixelart/feature/more-use-cases-and-tests  f7f955e
+- Minor  32f4f87
+- Added update/delete methods that were missing, moved them two const, full coverage of create/update/delete  a5d26d1
+- Update changelog for &quot;v1.1.3&quot;  7a60ae6
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.3...v1.1.4
+
+[Changes][v1.1.4]
+
+
 <a name="v1.1.3"></a>
 # [v1.1.3](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.3) - 13 Apr 2023
 
@@ -143,6 +156,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.3...v1.1.4
 [v1.1.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.2...v1.1.3
 [v1.1.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.1...v1.1.2
 [v1.1.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.0.9...v1.1.1
