@@ -1,4 +1,4 @@
-import mongoose, { model } from 'mongoose'
+import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
@@ -126,7 +126,7 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
-        _id: expect.any(mongoose.Types.ObjectId),
+        _id: expect.any(Types.ObjectId),
         name: 'Bob',
         role: 'user',
         createdAt: expect.any(Date),
@@ -134,7 +134,7 @@ describe('plugin - event updated & patch history disabled', () => {
       }),
       doc: expect.objectContaining({
         __v: 0,
-        _id: expect.any(mongoose.Types.ObjectId),
+        _id: expect.any(Types.ObjectId),
         name: 'Bob Doe',
         role: 'manager',
         createdAt: expect.any(Date),
