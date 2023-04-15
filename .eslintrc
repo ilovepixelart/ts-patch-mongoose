@@ -10,7 +10,8 @@
   "plugins": [
     "@typescript-eslint",
     "jest",
-    "jest-formatting"
+    "jest-formatting",
+    "sonarjs"
   ],
   "extends": [
     "standard",
@@ -62,7 +63,10 @@
         "plugin:jest/style",
         "plugin:jest/recommended",
         "plugin:jest-formatting/recommended"
-      ]
+      ],
+      "rules": {
+        "sonarjs/no-duplicate-string": "off"
+      }
     },
     {
       "parserOptions": {
