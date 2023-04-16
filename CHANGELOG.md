@@ -1,5 +1,38 @@
+<a name="v1.1.5"></a>
+# [v1.1.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.5) - 16 Apr 2023
+
+- Merge pull request [#18](https://github.com/ilovepixelart/ts-patch-mongoose/issues/18) from ilovepixelart/feature/refactor  d77edd0
+- Refactor  41cef7e
+- Options  30e6558
+- Split in two files, additional tests, post remove  dcfd58f
+- Merge pull request [#17](https://github.com/ilovepixelart/ts-patch-mongoose/issues/17) from ilovepixelart/feature/dep  1720def
+- Dep  8186547
+- Merge pull request [#16](https://github.com/ilovepixelart/ts-patch-mongoose/issues/16) from ilovepixelart/feature/sonar-linter  fd8d498
+- Plugin  a971fbe
+- Sonar linter  f582fd6
+- Update changelog for &quot;v1.1.4&quot;  fdd33c4
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.4...v1.1.5
+
+[Changes][v1.1.5]
+
+
 <a name="v1.1.4"></a>
 # [v1.1.4](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.4) - 13 Apr 2023
+
+- Added missing update MongooseQueryMiddleware
+
+> - replaceOne
+> - findOneAndReplace
+> - findByIdAndUpdate
+
+- Added missing delete MongooseQueryMiddleware
+
+> - findByIdAndDelete
+> - findByIdAndRemove
+
+- Two constants updateMethods, deleteMethods
+- Coverage for all above + some { upsert: true } creation cases
 
 - Merge pull request [#15](https://github.com/ilovepixelart/ts-patch-mongoose/issues/15) from ilovepixelart/feature/more-use-cases-and-tests  f7f955e
 - Minor  32f4f87
@@ -156,6 +189,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.4...v1.1.5
 [v1.1.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.3...v1.1.4
 [v1.1.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.2...v1.1.3
 [v1.1.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.1...v1.1.2
