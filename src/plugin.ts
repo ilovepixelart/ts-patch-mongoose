@@ -1,20 +1,23 @@
 import _ from 'lodash'
-import omit from 'omit-deep'
-import jsonpatch from 'fast-json-patch'
 import { assign } from 'power-assign'
 
-import type { CallbackError, HydratedDocument, Model, MongooseError, MongooseQueryMiddleware, Schema, Types } from 'mongoose'
+import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, ToObjectOptions } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
 import type IHookContext from './interfaces/IHookContext'
 
+import { createPatch, updatePatch, deletePatch } from './patch'
 import em from './em'
-import History from './models/History'
 
 const options = {
   document: false,
   query: true
+}
+
+const toObjectOptions: ToObjectOptions = {
+  depopulate: true,
+  virtuals: false
 }
 
 const updateMethods = [
@@ -37,98 +40,6 @@ const deleteMethods = [
   'deleteMany'
 ]
 
-function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {
-  let currentObject = JSON.parse(JSON.stringify(current)) as Partial<T>
-  let originalObject = JSON.parse(JSON.stringify(original)) as Partial<T>
-
-  if (opts.omit) {
-    currentObject = omit(currentObject, opts.omit)
-    originalObject = omit(originalObject, opts.omit)
-  }
-
-  return { currentObject, originalObject }
-}
-
-async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
-  const { currentObject, originalObject } = getObjects(opts, current, original)
-
-  if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
-
-  const patch = jsonpatch.compare(originalObject, currentObject, true)
-
-  if (_.isEmpty(patch)) return
-
-  if (opts.eventUpdated) {
-    em.emit(opts.eventUpdated, { oldDoc: original, doc: current, patch })
-  }
-
-  if (opts.patchHistoryDisabled) return
-
-  let version = 0
-
-  const lastHistory = await History.findOne({ collectionId: original._id as Types.ObjectId }).sort('-version').exec()
-
-  if (lastHistory && lastHistory.version >= 0) {
-    version = lastHistory.version + 1
-  }
-
-  await History.create({
-    op: context.op,
-    modelName: context.modelName,
-    collectionName: context.collectionName,
-    collectionId: original._id as Types.ObjectId,
-    patch,
-    version
-  })
-}
-
-async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
-  const event = opts[eventKey]
-  const docs = context[docsKey]
-  const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
-
-  if (_.isEmpty(docs) || (!event && opts.patchHistoryDisabled)) return
-
-  const chunks = _.chunk(docs, 1000)
-  for await (const chunk of chunks) {
-    const bulk = []
-    for (const doc of chunk) {
-      if (event) em.emit(event, { [key]: doc })
-
-      if (!opts.patchHistoryDisabled) {
-        bulk.push({
-          insertOne: {
-            document: {
-              op: context.op,
-              modelName: context.modelName,
-              collectionName: context.collectionName,
-              collectionId: doc._id as Types.ObjectId,
-              doc,
-              version: 0
-            }
-          }
-        })
-      }
-    }
-
-    if (!opts.patchHistoryDisabled) {
-      await History
-        .bulkWrite(bulk, { ordered: false })
-        .catch((err: MongooseError) => {
-          console.error(err)
-        })
-    }
-  }
-}
-
-async function createPatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
-  await bulkPatch(opts, context, 'eventCreated', 'createdDocs')
-}
-
-async function deletePatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
-  await bulkPatch(opts, context, 'eventDeleted', 'deletedDocs')
-}
-
 /**
  * @description Patch patch event emitter
  */
@@ -142,7 +53,7 @@ export const patchEventEmitter = em
  */
 export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
   schema.pre('save', async function (next) {
-    const current = this.toObject({ depopulate: true }) as HydratedDocument<T>
+    const current = this.toObject(toObjectOptions) as HydratedDocument<T>
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
@@ -152,19 +63,16 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       createdDocs: [current]
     }
 
-    try {
-      if (this.isNew) {
-        await createPatch(opts, context)
-      } else {
-        const original = await model.findById(current._id).exec()
-        if (original) {
-          await updatePatch(opts, context, current, original)
-        }
+    if (this.isNew) {
+      await createPatch(opts, context)
+    } else {
+      const original = await model.findById(current._id).exec()
+      if (original) {
+        await updatePatch(opts, context, current, original)
       }
-      next()
-    } catch (error) {
-      next(error as CallbackError)
     }
+
+    next()
   })
 
   schema.post('insertMany', async function (docs) {
@@ -193,54 +101,50 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       isNew: options.upsert && count === 0
     }
 
-    try {
-      const keys = _.keys(update).filter((key) => key.startsWith('$'))
-      if (update && !_.isEmpty(keys)) {
-        _.forEach(keys, (key) => {
-          commands.push({ [key]: update[key] })
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete update[key]
-        })
-      }
-      const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
-      await cursor.eachAsync(async (doc) => {
-        let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
-        const original = doc.toObject({ depopulate: true }) as HydratedDocument<T>
-        current = assign(current, update)
-        _.forEach(commands, (command) => {
-          try {
-            current = assign(current, command)
-          } catch (error) {
-            // we catch assign keys that are not implemented
-          }
-        })
-        await updatePatch(opts, this._context, current, original)
+    const keys = _.keys(update).filter((key) => key.startsWith('$'))
+    if (update && !_.isEmpty(keys)) {
+      _.forEach(keys, (key) => {
+        commands.push({ [key]: update[key] })
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete update[key]
       })
-      next()
-    } catch (error) {
-      next(error as CallbackError)
     }
+
+    const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
+    await cursor.eachAsync(async (doc) => {
+      let current = doc.toObject(toObjectOptions) as HydratedDocument<T>
+      const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
+
+      current = assign(current, update)
+      _.forEach(commands, (command) => {
+        try {
+          current = assign(current, command)
+        } catch (error) {
+          // we catch assign keys that are not implemented
+        }
+      })
+
+      await updatePatch(opts, this._context, current, original)
+    })
+
+    next()
   })
 
   schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
     const update = this.getUpdate()
+    if (!update || !this._context.isNew) return
 
-    if (update && this._context.isNew) {
-      const cursor = this.model.findOne<HydratedDocument<T>>(update).cursor()
-      await cursor.eachAsync((doc) => {
-        const current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
-        if (this._context.createdDocs) {
-          this._context.createdDocs.push(current)
-        } else {
-          this._context.createdDocs = [current]
-        }
-      })
+    const found = await this.model.findOne<HydratedDocument<T>>(update).exec()
+    if (found) {
+      const current = found.toObject(toObjectOptions) as HydratedDocument<T>
+      this._context.createdDocs = [current]
+
       await createPatch(opts, this._context)
     }
   })
 
-  schema.pre('remove', async function (this: HydratedDocument<T>, next) {
-    const original = this.toObject({ depopulate: true })
+  schema.post('remove', async function (this: HydratedDocument<T>) {
+    const original = this.toObject(toObjectOptions)
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
@@ -249,15 +153,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       collectionName: opts.collectionName ?? model.collection.collectionName
     }
 
-    try {
-      if (opts.eventDeleted) {
-        em.emit(opts.eventDeleted, { oldDoc: original })
-      }
-      await deletePatch(opts, context)
-      next()
-    } catch (error) {
-      next(error as CallbackError)
+    if (opts.eventDeleted) {
+      em.emit(opts.eventDeleted, { oldDoc: original })
     }
+
+    await deletePatch(opts, context)
   })
 
   schema.pre(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, next) {
@@ -285,8 +185,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       }
     }
 
-    if (opts.preDeleteManyCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
-      await opts.preDeleteManyCallback(this._context.deletedDocs)
+    if (opts.preDeleteCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
+      await opts.preDeleteCallback(this._context.deletedDocs)
     }
 
     next()

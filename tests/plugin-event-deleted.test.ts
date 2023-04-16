@@ -1,5 +1,7 @@
 import mongoose, { model } from 'mongoose'
 
+import type { ToObjectOptions } from 'mongoose'
+
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
@@ -12,6 +14,11 @@ jest.mock('../src/em', () => {
     emit: jest.fn()
   }
 })
+
+const toObjectOptions: ToObjectOptions = {
+  depopulate: true,
+  virtuals: false
+}
 
 describe('plugin - event delete & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
@@ -45,7 +52,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -69,10 +76,10 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(2)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(alice.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
     })
   })
 
@@ -92,7 +99,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -112,7 +119,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -132,7 +139,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -152,7 +159,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -172,7 +179,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -192,7 +199,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -212,10 +219,10 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(2)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(alice.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
     })
   })
 
@@ -235,7 +242,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 
@@ -248,7 +255,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject({ depopulate: true }))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
 })
