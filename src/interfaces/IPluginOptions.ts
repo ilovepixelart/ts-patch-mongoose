@@ -7,7 +7,7 @@ interface IPluginOptions<T> {
   eventCreated?: string
   eventDeleted?: string
   patchHistoryDisabled?: boolean
-  preDeleteManyCallback?: (docs: HydratedDocument<T>[]) => Promise<void>
+  preDeleteCallback?: (docs: HydratedDocument<T>[]) => Promise<void>
   omit?: string[]
 }
 

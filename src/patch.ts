@@ -8,7 +8,6 @@ import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
 
 import History from './models/History'
-
 import em from './em'
 
 export function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {

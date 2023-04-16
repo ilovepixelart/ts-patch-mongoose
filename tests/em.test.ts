@@ -1,4 +1,4 @@
-import em from '../src/em'
+import { patchEventEmitter } from '../src/plugin'
 
 describe('em', () => {
   it('should subscribe and count', async () => {
@@ -6,11 +6,11 @@ describe('em', () => {
     const fn = () => {
       count++
     }
-    em.on('test', fn)
-    em.emit('test')
+    patchEventEmitter.on('test', fn)
+    patchEventEmitter.emit('test')
     expect(count).toBe(1)
-    em.off('test', fn)
-    em.emit('test')
+    patchEventEmitter.off('test', fn)
+    patchEventEmitter.emit('test')
     expect(count).toBe(1)
   })
 })

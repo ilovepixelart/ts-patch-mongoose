@@ -1,14 +1,14 @@
 import _ from 'lodash'
 import { assign } from 'power-assign'
 
-import type { CallbackError, HydratedDocument, Model, MongooseQueryMiddleware, Schema, ToObjectOptions } from 'mongoose'
+import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, ToObjectOptions } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
 import type IHookContext from './interfaces/IHookContext'
 
-import em from './em'
 import { createPatch, updatePatch, deletePatch } from './patch'
+import em from './em'
 
 const options = {
   document: false,
@@ -63,19 +63,16 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       createdDocs: [current]
     }
 
-    try {
-      if (this.isNew) {
-        await createPatch(opts, context)
-      } else {
-        const original = await model.findById(current._id).exec()
-        if (original) {
-          await updatePatch(opts, context, current, original)
-        }
+    if (this.isNew) {
+      await createPatch(opts, context)
+    } else {
+      const original = await model.findById(current._id).exec()
+      if (original) {
+        await updatePatch(opts, context, current, original)
       }
-      next()
-    } catch (error) {
-      next(error as CallbackError)
     }
+
+    next()
   })
 
   schema.post('insertMany', async function (docs) {
@@ -104,48 +101,44 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       isNew: options.upsert && count === 0
     }
 
-    try {
-      const keys = _.keys(update).filter((key) => key.startsWith('$'))
-      if (update && !_.isEmpty(keys)) {
-        _.forEach(keys, (key) => {
-          commands.push({ [key]: update[key] })
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-          delete update[key]
-        })
-      }
-      const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
-      await cursor.eachAsync(async (doc) => {
-        let current = doc.toObject(toObjectOptions) as HydratedDocument<T>
-        const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
-        current = assign(current, update)
-        _.forEach(commands, (command) => {
-          try {
-            current = assign(current, command)
-          } catch (error) {
-            // we catch assign keys that are not implemented
-          }
-        })
-        await updatePatch(opts, this._context, current, original)
+    const keys = _.keys(update).filter((key) => key.startsWith('$'))
+    if (update && !_.isEmpty(keys)) {
+      _.forEach(keys, (key) => {
+        commands.push({ [key]: update[key] })
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        delete update[key]
       })
-      next()
-    } catch (error) {
-      next(error as CallbackError)
     }
+
+    const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
+    await cursor.eachAsync(async (doc) => {
+      let current = doc.toObject(toObjectOptions) as HydratedDocument<T>
+      const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
+
+      current = assign(current, update)
+      _.forEach(commands, (command) => {
+        try {
+          current = assign(current, command)
+        } catch (error) {
+          // we catch assign keys that are not implemented
+        }
+      })
+
+      await updatePatch(opts, this._context, current, original)
+    })
+
+    next()
   })
 
   schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
     const update = this.getUpdate()
+    if (!update || !this._context.isNew) return
 
-    if (update && this._context.isNew) {
-      const cursor = this.model.findOne<HydratedDocument<T>>(update).cursor()
-      await cursor.eachAsync((doc) => {
-        const current = doc.toObject(toObjectOptions) as HydratedDocument<T>
-        if (this._context.createdDocs) {
-          this._context.createdDocs.push(current)
-        } else {
-          this._context.createdDocs = [current]
-        }
-      })
+    const found = await this.model.findOne<HydratedDocument<T>>(update).exec()
+    if (found) {
+      const current = found.toObject(toObjectOptions) as HydratedDocument<T>
+      this._context.createdDocs = [current]
+
       await createPatch(opts, this._context)
     }
   })
@@ -192,8 +185,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       }
     }
 
-    if (opts.preDeleteManyCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
-      await opts.preDeleteManyCallback(this._context.deletedDocs)
+    if (opts.preDeleteCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
+      await opts.preDeleteCallback(this._context.deletedDocs)
     }
 
     next()
