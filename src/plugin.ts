@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import { assign } from 'power-assign'
 
-import type { CallbackError, HydratedDocument, Model, MongooseQueryMiddleware, Schema } from 'mongoose'
+import type { CallbackError, HydratedDocument, Model, MongooseQueryMiddleware, Schema, ToObjectOptions } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
@@ -13,6 +13,11 @@ import { createPatch, updatePatch, deletePatch } from './patch'
 const options = {
   document: false,
   query: true
+}
+
+const toObjectOptions: ToObjectOptions = {
+  depopulate: true,
+  virtuals: false
 }
 
 const updateMethods = [
@@ -48,7 +53,7 @@ export const patchEventEmitter = em
  */
 export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
   schema.pre('save', async function (next) {
-    const current = this.toObject({ depopulate: true }) as HydratedDocument<T>
+    const current = this.toObject(toObjectOptions) as HydratedDocument<T>
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
@@ -110,8 +115,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       }
       const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
       await cursor.eachAsync(async (doc) => {
-        let current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
-        const original = doc.toObject({ depopulate: true }) as HydratedDocument<T>
+        let current = doc.toObject(toObjectOptions) as HydratedDocument<T>
+        const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
         current = assign(current, update)
         _.forEach(commands, (command) => {
           try {
@@ -134,7 +139,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     if (update && this._context.isNew) {
       const cursor = this.model.findOne<HydratedDocument<T>>(update).cursor()
       await cursor.eachAsync((doc) => {
-        const current = doc.toObject({ depopulate: true }) as HydratedDocument<T>
+        const current = doc.toObject(toObjectOptions) as HydratedDocument<T>
         if (this._context.createdDocs) {
           this._context.createdDocs.push(current)
         } else {
@@ -146,7 +151,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.post('remove', async function (this: HydratedDocument<T>) {
-    const original = this.toObject({ depopulate: true })
+    const original = this.toObject(toObjectOptions)
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
