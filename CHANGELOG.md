@@ -1,3 +1,16 @@
+<a name="v1.1.6"></a>
+# [v1.1.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.6) - 18 Apr 2023
+
+- Dep  add8e81
+- Merge pull request [#19](https://github.com/ilovepixelart/ts-patch-mongoose/issues/19) from ilovepixelart/dependabot/npm_and_yarn/swc/core-1.3.51  62c2eec
+- Bump @swc/core from 1.3.50 to 1.3.51  c4266cb
+- Update changelog for &quot;v1.1.5&quot;  d1f1ddf
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.5...v1.1.6
+
+[Changes][v1.1.6]
+
+
 <a name="v1.1.5"></a>
 # [v1.1.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.5) - 16 Apr 2023
 
@@ -189,6 +202,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.5...v1.1.6
 [v1.1.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.4...v1.1.5
 [v1.1.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.3...v1.1.4
 [v1.1.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.2...v1.1.3
