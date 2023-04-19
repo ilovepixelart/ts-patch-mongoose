@@ -25,6 +25,9 @@ const HistorySchema = new Schema<IHistory>({
   patch: {
     type: Array
   },
+  user: {
+    type: Object
+  },
   version: {
     type: Number,
     min: 0,

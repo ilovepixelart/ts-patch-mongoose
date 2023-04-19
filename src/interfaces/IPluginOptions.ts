@@ -8,6 +8,7 @@ interface IPluginOptions<T> {
   eventDeleted?: string
   patchHistoryDisabled?: boolean
   preDeleteCallback?: (docs: HydratedDocument<T>[]) => Promise<void>
+  getUser?: () => Promise<Record<string, unknown>> | Record<string, unknown>
   omit?: string[]
 }
 

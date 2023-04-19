@@ -22,12 +22,21 @@ export function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocumen
   return { currentObject, originalObject }
 }
 
+export async function getUser<T> (opts: IPluginOptions<T>): Promise<Record<string, unknown> | undefined> {
+  if (_.isFunction(opts.getUser)) {
+    return await opts.getUser()
+  }
+  return undefined
+}
+
 export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const event = opts[eventKey]
   const docs = context[docsKey]
   const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
 
   if (_.isEmpty(docs) || (!event && opts.patchHistoryDisabled)) return
+
+  const user = await getUser(opts)
 
   const chunks = _.chunk(docs, 1000)
 
@@ -46,6 +55,7 @@ export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T
               collectionName: context.collectionName,
               collectionId: doc._id as Types.ObjectId,
               doc,
+              user,
               version: 0
             }
           }
@@ -86,12 +96,15 @@ export async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext
     version = lastHistory.version + 1
   }
 
+  const user = await getUser(opts)
+
   await History.create({
     op: context.op,
     modelName: context.modelName,
     collectionName: context.collectionName,
     collectionId: original._id as Types.ObjectId,
     patch,
+    user,
     version
   })
 }

@@ -1,6 +1,6 @@
 import mongoose, { model } from 'mongoose'
 
-import { getObjects, bulkPatch, updatePatch } from '../src/patch'
+import { getUser, getObjects, bulkPatch, updatePatch } from '../src/patch'
 import { patchHistoryPlugin } from '../src/plugin'
 
 import UserSchema from './schemas/UserSchema'
@@ -136,6 +136,16 @@ describe('patch tests', () => {
 
       await updatePatch(pluginOptions, context, current, {} as HydratedDocument<IUser>)
       expect(em.emit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('should getUser()', () => {
+    it('should return user', async () => {
+      const opts: IPluginOptions<IUser> = {
+        getUser: () => ({ name: 'test' })
+      }
+
+      await expect(getUser(opts)).resolves.toEqual({ name: 'test' })
     })
   })
 })
