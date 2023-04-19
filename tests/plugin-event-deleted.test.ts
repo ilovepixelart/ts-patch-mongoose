@@ -258,4 +258,34 @@ describe('plugin - event delete & patch history disabled', () => {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
   })
+
+  it('should ignoreHook option on deleteMany', async () => {
+    await User.create({ name: 'John', role: 'user' })
+    await User.deleteMany({ role: 'user' }, { ignoreHook: true }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
+  })
+
+  it('should ignoreHook option on deleteOne', async () => {
+    await User.create({ name: 'John', role: 'user' })
+    await User.deleteOne({ role: 'user' }, { ignoreHook: true }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
+  })
+
+  it('should ignoreHook option on updateMany', async () => {
+    await User.create({ name: 'John', role: 'user' })
+    await User.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
+  })
 })

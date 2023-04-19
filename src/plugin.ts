@@ -87,10 +87,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>, next) {
+    const options = this.getOptions()
+    if (options.ignoreHook) return next()
+
     const filter = this.getFilter()
     const update = this.getUpdate() as Record<string, Partial<T>> | null
-    const options = this.getOptions()
-
     const count = await this.model.count(filter).exec()
     const commands: Record<string, Partial<T>>[] = []
 
@@ -131,7 +132,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
+    const options = this.getOptions()
+    if (options.ignoreHook) return
+
     const update = this.getUpdate()
+
     if (!update || !this._context.isNew) return
 
     const found = await this.model.findOne<HydratedDocument<T>>(update).exec()
@@ -161,11 +166,10 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.pre(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, next) {
-    const filter = this.getFilter()
     const options = this.getOptions()
-    const ignore = options.__ignore as boolean
+    if (options.ignoreHook) return next()
 
-    if (ignore) return next()
+    const filter = this.getFilter()
 
     this._context = {
       op: this.op,
@@ -193,6 +197,9 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   })
 
   schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>) {
+    const options = this.getOptions()
+    if (options.ignoreHook) return
+
     await deletePatch(opts, this._context)
   })
 }

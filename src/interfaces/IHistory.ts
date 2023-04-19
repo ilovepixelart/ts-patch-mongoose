@@ -8,6 +8,7 @@ interface IHistory {
   collectionId: Types.ObjectId
   version: number
   doc?: object
+  user?: object
   patch?: Operation[]
 }
 
