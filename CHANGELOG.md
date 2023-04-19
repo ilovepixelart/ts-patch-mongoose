@@ -1,3 +1,15 @@
+<a name="v1.1.7"></a>
+# [v1.1.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.7) - 19 Apr 2023
+
+- Merge pull request [#20](https://github.com/ilovepixelart/ts-patch-mongoose/issues/20) from ilovepixelart/feature/ignore-hook-get-user-context  61eb6ad
+- Ignore hook, get user context, 100% coverage  db5acea
+- Update changelog for &quot;v1.1.6&quot;  c6b6c06
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.6...v1.1.7
+
+[Changes][v1.1.7]
+
+
 <a name="v1.1.6"></a>
 # [v1.1.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.6) - 18 Apr 2023
 
@@ -202,6 +214,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.6...v1.1.7
 [v1.1.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.5...v1.1.6
 [v1.1.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.4...v1.1.5
 [v1.1.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.3...v1.1.4
