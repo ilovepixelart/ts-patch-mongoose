@@ -93,7 +93,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     if (options.ignoreHook) return next()
 
     const filter = this.getFilter()
-    const update = this.getUpdate() as Record<string, Partial<T>> | null
+    const update = _.cloneDeep(this.getUpdate()) as Record<string, Partial<T>> | null
     const count = await this.model.count(filter).exec()
     const commands: Record<string, Partial<T>>[] = []
 
