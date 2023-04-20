@@ -9,6 +9,8 @@ interface IHistory {
   version: number
   doc?: object
   user?: object
+  reason?: string
+  metadata?: object
   patch?: Operation[]
 }
 
