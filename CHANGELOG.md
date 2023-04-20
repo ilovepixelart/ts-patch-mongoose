@@ -1,3 +1,26 @@
+<a name="v1.2.0"></a>
+# [v1.2.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.2.0) - 20 Apr 2023
+
+- Merge pull request [#23](https://github.com/ilovepixelart/ts-patch-mongoose/issues/23) from ilovepixelart/feature/clone  fb24ba3
+- Clone  14a3bc8
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.9...v1.2.0
+
+[Changes][v1.2.0]
+
+
+<a name="v1.1.9"></a>
+# [v1.1.9](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.9) - 20 Apr 2023
+
+- Merge pull request [#22](https://github.com/ilovepixelart/ts-patch-mongoose/issues/22) from ilovepixelart/feature/next  38518fb
+- Next  0eff813
+- Update changelog for &quot;v1.1.8&quot;  79d26d3
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.8...v1.1.9
+
+[Changes][v1.1.9]
+
+
 <a name="v1.1.8"></a>
 # [v1.1.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.8) - 20 Apr 2023
 
@@ -226,6 +249,8 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.2.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.9...v1.2.0
+[v1.1.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.8...v1.1.9
 [v1.1.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.7...v1.1.8
 [v1.1.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.6...v1.1.7
 [v1.1.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.5...v1.1.6
