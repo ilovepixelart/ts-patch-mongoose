@@ -75,7 +75,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     next()
   })
 
-  schema.post('insertMany', async function (docs) {
+  schema.post('insertMany', async function (docs, next) {
     const context = {
       op: 'create',
       modelName: opts.modelName ?? this.modelName,
@@ -84,6 +84,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
 
     await createPatch(opts, context)
+
+    next()
   })
 
   schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>, next) {
@@ -131,7 +133,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     next()
   })
 
-  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>, _, next) {
     const options = this.getOptions()
     if (options.ignoreHook) return
 
@@ -146,9 +148,11 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
       await createPatch(opts, this._context)
     }
+
+    next()
   })
 
-  schema.post('remove', async function (this: HydratedDocument<T>) {
+  schema.post('remove', async function (this: HydratedDocument<T>, _, next) {
     const original = this.toObject(toObjectOptions)
     const model = this.constructor as Model<T>
 
@@ -163,6 +167,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
 
     await deletePatch(opts, context)
+
+    next()
   })
 
   schema.pre(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, next) {
@@ -196,10 +202,12 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     next()
   })
 
-  schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>) {
+  schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, _, next) {
     const options = this.getOptions()
     if (options.ignoreHook) return
 
     await deletePatch(opts, this._context)
+
+    next()
   })
 }
