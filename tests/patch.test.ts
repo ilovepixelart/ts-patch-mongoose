@@ -1,6 +1,6 @@
 import mongoose, { model } from 'mongoose'
 
-import { getUser, getObjects, bulkPatch, updatePatch } from '../src/patch'
+import { getUser, getReason, getMetadata, getData, getValue, getObjects, bulkPatch, updatePatch } from '../src/patch'
 import { patchHistoryPlugin } from '../src/plugin'
 
 import UserSchema from './schemas/UserSchema'
@@ -8,6 +8,7 @@ import UserSchema from './schemas/UserSchema'
 import { USER_DELETED } from './constants/events'
 
 import type { HydratedDocument } from 'mongoose'
+import type { User } from '../src/interfaces/IPluginOptions'
 import type IPluginOptions from '../src/interfaces/IPluginOptions'
 import type IUser from './interfaces/IUser'
 import type IContext from '../src/interfaces/IContext'
@@ -140,12 +141,58 @@ describe('patch tests', () => {
   })
 
   describe('should getUser()', () => {
-    it('should return user', async () => {
+    it('should return user, reason, metadata', async () => {
       const opts: IPluginOptions<IUser> = {
-        getUser: () => ({ name: 'test' })
+        getUser: () => ({ name: 'test' }),
+        getReason: () => 'test',
+        getMetadata: () => ({ test: 'test' })
       }
 
       await expect(getUser(opts)).resolves.toEqual({ name: 'test' })
+      await expect(getReason(opts)).resolves.toBe('test')
+      await expect(getMetadata(opts)).resolves.toEqual({ test: 'test' })
+    })
+  })
+
+  describe('should getData()', () => {
+    it('should return user, reason, metadata', async () => {
+      const opts: IPluginOptions<IUser> = {
+        getUser: () => ({ name: 'test' }),
+        getReason: () => 'test',
+        getMetadata: () => ({ test: 'test' })
+      }
+
+      await expect(getData(opts)).resolves.toEqual([{ name: 'test' }, 'test', { test: 'test' }])
+    })
+
+    it('should return user, reason, metadata undefined', async () => {
+      const opts: IPluginOptions<IUser> = {
+        getUser: () => ({ name: 'test' }),
+        getReason: () => 'test',
+        getMetadata: () => {
+          throw new Error('test')
+        }
+      }
+
+      await expect(getData(opts)).resolves.toEqual([{ name: 'test' }, 'test', undefined])
+    })
+
+    it('should getValue', () => {
+      const item1: PromiseSettledResult<User> = {
+        status: 'fulfilled',
+        value: {
+          name: 'test'
+        }
+      }
+
+      expect(getValue(item1)).toEqual({ name: 'test' })
+
+      const item2: PromiseSettledResult<User> = {
+        status: 'rejected',
+        reason: new Error('test')
+      }
+
+      expect(getValue(item2)).toBeUndefined()
     })
   })
 })

@@ -28,6 +28,12 @@ const HistorySchema = new Schema<IHistory>({
   user: {
     type: Object
   },
+  reason: {
+    type: String
+  },
+  metadata: {
+    type: Object
+  },
   version: {
     type: Number,
     min: 0,
