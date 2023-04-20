@@ -1,3 +1,15 @@
+<a name="v1.1.8"></a>
+# [v1.1.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.8) - 20 Apr 2023
+
+- Merge pull request [#21](https://github.com/ilovepixelart/ts-patch-mongoose/issues/21) from ilovepixelart/feature/reason-metadata  47de74c
+- Reason, metadata  e2d415e
+- Update changelog for &quot;v1.1.7&quot;  3b45062
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.7...v1.1.8
+
+[Changes][v1.1.8]
+
+
 <a name="v1.1.7"></a>
 # [v1.1.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.1.7) - 19 Apr 2023
 
@@ -214,6 +226,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.1.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.7...v1.1.8
 [v1.1.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.6...v1.1.7
 [v1.1.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.5...v1.1.6
 [v1.1.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.4...v1.1.5
