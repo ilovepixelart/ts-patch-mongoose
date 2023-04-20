@@ -363,4 +363,40 @@ describe('plugin - event updated & patch history disabled', () => {
       ])
     })
   })
+
+  it('should findOneAndUpdate $set and emit one update event', async () => {
+    const created = await User.create({ name: 'Bob', role: 'user' })
+    await User.findOneAndUpdate({ _id: created._id }, { $set: { name: 'John Doe', role: 'manager' } })
+    const updated = await User.findById(created._id).exec()
+    expect(updated).not.toBeNull()
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
+      oldDoc: expect.objectContaining({
+        __v: 0,
+        _id: created._id,
+        name: created.name,
+        role: created.role,
+        createdAt: created.createdAt
+      }),
+      doc: expect.objectContaining({
+        __v: 0,
+        _id: updated?._id,
+        name: updated?.name,
+        role: updated?.role,
+        createdAt: created.createdAt
+      }),
+      patch: expect.arrayContaining([
+        { op: 'test', path: '/name', value: 'Bob' },
+        { op: 'replace', path: '/name', value: 'John Doe' },
+        { op: 'test', path: '/role', value: 'user' },
+        { op: 'replace', path: '/role', value: 'manager' }
+      ])
+    })
+  })
 })
