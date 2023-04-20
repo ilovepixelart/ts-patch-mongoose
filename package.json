@@ -1,6 +1,6 @@
 {
   "name": "ts-patch-mongoose",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "Patch history & events for mongoose models",
   "author": "Alex Eagle",
   "license": "MIT",
