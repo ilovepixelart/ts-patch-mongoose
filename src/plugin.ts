@@ -104,13 +104,16 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       isNew: options.upsert && count === 0
     }
 
-    const keys = _.keys(update).filter((key) => key.startsWith('$'))
-    if (update && !_.isEmpty(keys)) {
-      _.forEach(keys, (key) => {
-        commands.push({ [key]: update[key] })
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-        delete update[key]
-      })
+    if (update) {
+      delete update.$setOnInsert
+      const keys = _.keys(update).filter((key) => key.startsWith('$'))
+      if (!_.isEmpty(keys)) {
+        _.forEach(keys, (key) => {
+          commands.push({ [key]: update[key] })
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete update[key]
+        })
+      }
     }
 
     const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
@@ -135,7 +138,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>, _, next) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (options.ignoreHook) return next()
 
     const update = this.getUpdate()
 
@@ -204,7 +207,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>, _, next) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (options.ignoreHook) return next()
 
     await deletePatch(opts, this._context)
 

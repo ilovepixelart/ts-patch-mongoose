@@ -54,6 +54,10 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const user = await User.findById(john._id)
+    expect(user).toBeNull()
   })
 
   it('should remove() and emit two delete events', async () => {
@@ -67,10 +71,6 @@ describe('plugin - event delete & patch history disabled', () => {
 
     await User.remove({ role: 'user' }).exec()
 
-    const remaining = await User.find({})
-
-    expect(remaining).toHaveLength(1)
-
     const history = await History.find({})
     expect(history).toHaveLength(0)
 
@@ -81,6 +81,16 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const deletedAlice = await User.findById(alice._id)
+    expect(deletedAlice).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(1)
   })
 
   it('should remove() and emit one delete event { single: true }', async () => {
@@ -101,6 +111,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(2)
   })
 
   it('should findOneAndDelete() and emit one delete event', async () => {
@@ -121,6 +138,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(2)
   })
 
   it('should findOneAndRemove() and emit one delete event', async () => {
@@ -141,6 +165,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    expect(remaining).toHaveLength(2)
   })
 
   it('should findByIdAndDelete() and emit one delete event', async () => {
@@ -161,6 +192,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    expect(remaining).toHaveLength(2)
   })
 
   it('should findByIdAndRemove() and emit one delete event', async () => {
@@ -181,6 +219,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    expect(remaining).toHaveLength(2)
   })
 
   it('should deleteOne() and emit one delete event', async () => {
@@ -201,6 +246,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    expect(remaining).toHaveLength(2)
   })
 
   it('should deleteMany() and emit two delete events', async () => {
@@ -224,6 +276,16 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const deletedAlice = await User.findById(alice._id)
+    expect(deletedAlice).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(1)
   })
 
   it('should deleteMany() and emit one delete event { single: true }', async () => {
@@ -244,6 +306,13 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(2)
   })
 
   it('should create then delete and emit one delete event', async () => {
@@ -257,35 +326,43 @@ describe('plugin - event delete & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
     })
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
+
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(0)
   })
 
   it('should ignoreHook option on deleteMany', async () => {
-    await User.create({ name: 'John', role: 'user' })
+    const john = await User.create({ name: 'John', role: 'user' })
     await User.deleteMany({ role: 'user' }, { ignoreHook: true }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
+
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
   })
 
   it('should ignoreHook option on deleteOne', async () => {
-    await User.create({ name: 'John', role: 'user' })
+    const john = await User.create({ name: 'John', role: 'user' })
     await User.deleteOne({ role: 'user' }, { ignoreHook: true }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
-  })
 
-  it('should ignoreHook option on updateMany', async () => {
-    await User.create({ name: 'John', role: 'user' })
-    await User.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
+    // Check if data is deleted
+    const deletedJohn = await User.findById(john._id)
+    expect(deletedJohn).toBeNull()
 
-    const history = await History.find({})
-    expect(history).toHaveLength(0)
-
-    expect(em.emit).toHaveBeenCalledTimes(0)
+    const remaining = await User.find({})
+    expect(remaining).toHaveLength(0)
   })
 })

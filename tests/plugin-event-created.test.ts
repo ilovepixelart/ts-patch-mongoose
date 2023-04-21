@@ -54,6 +54,12 @@ describe('plugin - event created & patch history disabled', () => {
           updatedAt: john.updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('user')
     })
 
     it('should create() and emit one create event', async () => {
@@ -72,6 +78,12 @@ describe('plugin - event created & patch history disabled', () => {
           updatedAt: user.updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('user')
     })
 
     it('should insertMany() and emit three create events', async () => {
@@ -79,7 +91,7 @@ describe('plugin - event created & patch history disabled', () => {
         { name: 'John', role: 'user' },
         { name: 'Alice', role: 'user' },
         { name: 'Bob', role: 'user' }
-      ])
+      ], { ordered: true })
 
       const [john, alice, bob] = users
 
@@ -114,6 +126,21 @@ describe('plugin - event created & patch history disabled', () => {
           updatedAt: bob.updatedAt
         })
       })
+
+      // Check if the documents are saved
+      const found = await User.find({})
+      expect(found).toHaveLength(3)
+
+      const [foundJohn, foundAlice, foundBob] = found
+
+      expect(foundJohn.name).toBe('John')
+      expect(foundJohn.role).toBe('user')
+
+      expect(foundAlice.name).toBe('Alice')
+      expect(foundAlice.role).toBe('user')
+
+      expect(foundBob.name).toBe('Bob')
+      expect(foundBob.role).toBe('user')
     })
   })
 
@@ -140,6 +167,12 @@ describe('plugin - event created & patch history disabled', () => {
         // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
 
     it('should updateOne() + upsert and emit one create event', async () => {
@@ -164,6 +197,12 @@ describe('plugin - event created & patch history disabled', () => {
         // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
 
     it('should replaceOne() + upsert and emit one create event', async () => {
@@ -188,6 +227,12 @@ describe('plugin - event created & patch history disabled', () => {
           // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
 
     it('should updateMany() + upsert and emit one create event', async () => {
@@ -211,6 +256,12 @@ describe('plugin - event created & patch history disabled', () => {
         // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findById(users?._id)
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('Steve')
+      expect(found?.role).toBe('admin')
     })
 
     it('should findOneAndUpdate() + upsert and emit one create event', async () => {
@@ -235,6 +286,12 @@ describe('plugin - event created & patch history disabled', () => {
         // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
 
     it('should findOneAndReplace() + upsert and emit one create event', async () => {
@@ -259,6 +316,12 @@ describe('plugin - event created & patch history disabled', () => {
         // Upsert does not set createdAt and updatedAt
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
 
     it('should findByIdAndUpdate() + upsert and emit one create event', async () => {
@@ -279,6 +342,12 @@ describe('plugin - event created & patch history disabled', () => {
           role: user?.role
         })
       })
+
+      // Check if the document is saved
+      const found = await User.findOne({})
+      expect(found).not.toBeNull()
+      expect(found?.name).toBe('John')
+      expect(found?.role).toBe('admin')
     })
   })
 })
