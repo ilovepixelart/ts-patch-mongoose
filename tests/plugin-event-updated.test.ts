@@ -72,6 +72,13 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/name', value: 'John Doe' }
       ])
     })
+
+    // Confirm that the document is updated
+    const users = await User.find({})
+    expect(users).toHaveLength(2)
+    const [bob, john] = users
+    expect(bob.name).toBe('Bob')
+    expect(john.name).toBe('John Doe')
   })
 
   it('should update() and emit three update event', async () => {
@@ -89,6 +96,14 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(3)
+
+    // Confirm that the document is updated
+    const updated = await User.find({})
+    expect(updated).toHaveLength(3)
+    const [alice, bob, john] = updated
+    expect(alice.role).toBe('manager')
+    expect(bob.role).toBe('manager')
+    expect(john.role).toBe('manager')
   })
 
   it('should updateOne() and emit one update event', async () => {
@@ -106,6 +121,14 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
+
+    // Confirm that the document is updated
+    const updated = await User.find({})
+    expect(updated).toHaveLength(3)
+    const [alice, bob, john] = updated
+    expect(alice.role).toBe('user')
+    expect(bob.role).toBe('manager')
+    expect(john.role).toBe('user')
   })
 
   it('should replaceOne() and emit two update event', async () => {
@@ -147,6 +170,14 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/role', value: 'manager' }
       ])
     })
+
+    // Confirm that the document is updated
+    const updated = await User.find({})
+    expect(updated).toHaveLength(3)
+    const [alice, bob, john] = updated
+    expect(alice.role).toBe('user')
+    expect(bob.role).toBe('manager')
+    expect(john.role).toBe('user')
   })
 
   it('should updateMany() and emit two update event', async () => {
@@ -164,6 +195,14 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(3)
+
+    // Confirm that the document is updated
+    const updated = await User.find({})
+    expect(updated).toHaveLength(3)
+    const [alice, bob, john] = updated
+    expect(alice.role).toBe('manager')
+    expect(bob.role).toBe('manager')
+    expect(john.role).toBe('manager')
   })
 
   it('should findOneAndUpdate() and emit one update event', async () => {
@@ -199,6 +238,10 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/name', value: 'John Doe' }
       ])
     })
+
+    // Confirm that the document is updated
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
   })
 
   it('should findOneAndReplace() and emit one update event', async () => {
@@ -236,6 +279,10 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/role', value: 'manager' }
       ])
     })
+
+    // Confirm that the document is updated
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
   })
 
   it('should findByIdAndUpdate() and emit one update event', async () => {
@@ -268,6 +315,11 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/role', value: 'manager' }
       ])
     })
+
+    // Confirm that the document is updated
+    const updated = await User.findById(created._id).exec()
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
   })
 
   it('should update and emit one update event', async () => {
@@ -303,6 +355,10 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/name', value: 'John Doe' }
       ])
     })
+
+    // Confirm that the document is updated
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
   })
 
   it('should updateMany and emit two update events', async () => {
@@ -362,6 +418,13 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/name', value: 'John Doe' }
       ])
     })
+
+    // Confirm that the documents are updated
+    expect(updated1?.name).toBe('John Doe')
+    expect(updated1?.role).toBe('manager')
+
+    expect(updated2?.name).toBe('John Doe')
+    expect(updated2?.role).toBe('manager')
   })
 
   it('should findOneAndUpdate $set and emit one update event', async () => {
@@ -398,5 +461,23 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/role', value: 'manager' }
       ])
     })
+
+    // Confirm that the document is updated
+    expect(updated?.name).toBe('John Doe')
+    expect(updated?.role).toBe('manager')
+  })
+
+  it('should ignoreHook option on updateMany', async () => {
+    const john = await User.create({ name: 'John', role: 'user' })
+    await User.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledTimes(0)
+
+    // Confirm that the document is updated
+    const updated = await User.findById(john._id).exec()
+    expect(updated?.role).toBe('admin')
   })
 })
