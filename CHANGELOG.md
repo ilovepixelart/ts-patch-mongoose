@@ -1,3 +1,17 @@
+<a name="v1.2.2"></a>
+# [v1.2.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.2.2) - 21 Apr 2023
+
+- Merge pull request [#27](https://github.com/ilovepixelart/ts-patch-mongoose/issues/27) from ilovepixelart/feature/bug-fixes-and-cleanup  7a136e0
+- One-liner  dad015f
+- Async functions don&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);t need next in mongoose 6, fixed bug for all query methods with { upsert: true } when doc is created, refactored the code for reusability  566831e
+- Dep  3c2fa95
+- Update changelog for &quot;v1.2.1&quot;  25563a1
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.1...v1.2.2
+
+[Changes][v1.2.2]
+
+
 <a name="v1.2.1"></a>
 # [v1.2.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.2.1) - 21 Apr 2023
 
@@ -262,6 +276,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v1.2.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.1...v1.2.2
 [v1.2.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.0...v1.2.1
 [v1.2.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.9...v1.2.0
 [v1.1.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.1.8...v1.1.9
