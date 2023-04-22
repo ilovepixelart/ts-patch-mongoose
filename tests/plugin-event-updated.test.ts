@@ -172,7 +172,7 @@ describe('plugin - event updated & patch history disabled', () => {
     })
 
     // Confirm that the document is updated
-    const updated = await User.find({}).sort({ name: 1 }).sort({ name: 1 })
+    const updated = await User.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('user')
