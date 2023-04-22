@@ -98,7 +98,7 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledTimes(3)
 
     // Confirm that the document is updated
-    const updated = await User.find({})
+    const updated = await User.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('manager')
@@ -123,7 +123,7 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledTimes(1)
 
     // Confirm that the document is updated
-    const updated = await User.find({})
+    const updated = await User.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('user')
@@ -172,7 +172,7 @@ describe('plugin - event updated & patch history disabled', () => {
     })
 
     // Confirm that the document is updated
-    const updated = await User.find({})
+    const updated = await User.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('user')
@@ -197,7 +197,7 @@ describe('plugin - event updated & patch history disabled', () => {
     expect(em.emit).toHaveBeenCalledTimes(3)
 
     // Confirm that the document is updated
-    const updated = await User.find({})
+    const updated = await User.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('manager')
