@@ -1,3 +1,23 @@
+<a name="v2.0.0"></a>
+# [v2.0.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.0) - 23 Apr 2023
+
+- Doc  0166902
+- Doc  9fb790c
+- Rename  eb34c49
+- Merge pull request [#30](https://github.com/ilovepixelart/ts-patch-mongoose/issues/30) from ilovepixelart/feature/support-for-mongoose7  a4b274d
+- Book  f0b7eb7
+- Doc  414a93c
+- Naming  4f6f0a6
+- Pipeline  a638bb5
+- Matrix for mongoose 6 &amp; 7  d0a4f9e
+- - Conditional tests depending on version - Added reason to index - Jest config update - Nev dependency semver - preDeleteCallback -&gt; preDelete - for mongoose 6 mongoose.set(&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);strictQuery&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);, false)  d126a29
+- Update changelog for &quot;v1.2.3&quot;  3c5f15a
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.3...v2.0.0
+
+[Changes][v2.0.0]
+
+
 <a name="v1.2.3"></a>
 # [v1.2.3](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v1.2.3) - 22 Apr 2023
 
@@ -289,6 +309,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.3...v2.0.0
 [v1.2.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.2...v1.2.3
 [v1.2.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.1...v1.2.2
 [v1.2.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.0...v1.2.1
