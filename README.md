@@ -145,7 +145,7 @@ export default Book
 
 ## Subscribe
 
-You can subscribe to events using patchEventEmitter anywhere in your application `handlers/UserHandler.ts`
+You can subscribe to events using patchEventEmitter anywhere in your application `handlers/BookHandler.ts`
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
