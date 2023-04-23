@@ -323,7 +323,7 @@ describe('plugin', () => {
     const alice = await User.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
 
-    if (mongoose.version.startsWith('7')) {
+    if (isMongooseLessThan7) {
       await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
     } else {
       await User.findOneAndUpdate({ role: 'user' }, { $set: { name: 'Bob' } }).exec()

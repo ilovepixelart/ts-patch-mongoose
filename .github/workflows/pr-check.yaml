@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         node-version: [16.x, 18.x]
-        mongoose-version: ['legacy', latest]
+        mongoose-version: [mongoose@legacy, mongoose@latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,8 +35,8 @@ jobs:
       - name: Installing dependencies
         run: npm ci
 
-      - name: npm i mongoose@${{ matrix.mongoose-version }}
-        run: npm i mongoose@${{ matrix.mongoose-version }}
+      - name: npm i ${{ matrix.mongoose-version }}
+        run: npm i ${{ matrix.mongoose-version }}
 
       - name: Coverage
         run: npm run test
