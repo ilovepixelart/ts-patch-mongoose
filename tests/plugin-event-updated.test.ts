@@ -1,3 +1,5 @@
+import { isMongooseLessThan7 } from '../src/version'
+
 import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
@@ -88,7 +90,12 @@ describe('plugin - event updated & patch history disabled', () => {
       { name: 'John', role: 'user' }
     ], { ordered: true })
 
-    await User.update({ role: 'user' }, { role: 'manager' })
+    if (isMongooseLessThan7) {
+      await User.update({ role: 'user' }, { role: 'manager' })
+    } else {
+      await User.updateMany({ role: 'user' }, { role: 'manager' })
+    }
+
     const users = await User.find({ role: 'manager' })
     expect(users).toHaveLength(3)
 

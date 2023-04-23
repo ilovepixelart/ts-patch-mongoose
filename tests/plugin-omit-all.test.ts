@@ -1,3 +1,5 @@
+import { isMongooseLessThan7 } from '../src/version'
+
 import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
@@ -164,7 +166,11 @@ describe('plugin - omit all', () => {
     const user = await User.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+    if (isMongooseLessThan7) {
+      await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+    } else {
+      await User.findOneAndUpdate({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(1)
@@ -193,7 +199,11 @@ describe('plugin - omit all', () => {
     const alice = await User.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
 
-    await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
+    if (isMongooseLessThan7) {
+      await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
+    } else {
+      await User.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(2)

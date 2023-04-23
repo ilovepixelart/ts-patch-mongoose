@@ -5,7 +5,7 @@ import { patchHistoryPlugin } from '../src/plugin'
 
 import { USER_CREATED } from './constants/events'
 
-const preDeleteCallbackMock = jest.fn()
+const preDeleteMock = jest.fn()
 
 describe('plugin - event created & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
@@ -13,7 +13,7 @@ describe('plugin - event created & patch history disabled', () => {
   UserSchema.plugin(patchHistoryPlugin, {
     eventCreated: USER_CREATED,
     patchHistoryDisabled: true,
-    preDeleteCallback: preDeleteCallbackMock
+    preDelete: preDeleteMock
   })
 
   const User = model('User', UserSchema)
@@ -31,7 +31,7 @@ describe('plugin - event created & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  it('should deleteMany and execute preDeleteCallback', async () => {
+  it('should deleteMany and execute preDelete', async () => {
     await User.create([
       { name: 'John', role: 'user' },
       { name: 'Jane', role: 'user' },
@@ -44,7 +44,7 @@ describe('plugin - event created & patch history disabled', () => {
     const [john, jane, jack] = users
 
     await User.deleteMany({ role: 'user' })
-    expect(preDeleteCallbackMock).toHaveBeenCalledTimes(1)
-    expect(preDeleteCallbackMock).toHaveBeenCalledWith([john, jane, jack])
+    expect(preDeleteMock).toHaveBeenCalledTimes(1)
+    expect(preDeleteMock).toHaveBeenCalledWith([john, jane, jack])
   })
 })

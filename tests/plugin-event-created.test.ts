@@ -1,3 +1,4 @@
+import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { Types, model } from 'mongoose'
 
 import UserSchema from './schemas/UserSchema'
@@ -146,11 +147,19 @@ describe('plugin - event created & patch history disabled', () => {
 
   describe('upsert cases', () => {
     it('should update() + upsert and emit one create event', async () => {
-      await User.update(
-        { name: 'John' },
-        { name: 'John', role: 'admin' },
-        { upsert: true }
-      )
+      if (isMongooseLessThan7) {
+        await User.update(
+          { name: 'John' },
+          { name: 'John', role: 'admin' },
+          { upsert: true }
+        )
+      } else {
+        await User.findOneAndUpdate(
+          { name: 'John' },
+          { name: 'John', role: 'admin' },
+          { upsert: true }
+        )
+      }
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
       expect(user).not.toBeNull()

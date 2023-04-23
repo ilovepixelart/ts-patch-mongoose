@@ -11,18 +11,16 @@ const config = recursive(mongo, {
   clearMocks: true,
   collectCoverage: true,
   collectCoverageFrom: [
-    'src/**/*.[jt]s?(x)',
-    '!src/bin.ts',
+    'src/**/*.ts',
     '!src/**/*.d.ts',
-    '!src/interfaces/**/*.[jt]s?(x)',
-    '!src/template.ts'
+    '!src/interfaces/**/*.ts'
   ],
   coverageDirectory: 'coverage',
   testMatch: [
     '<rootDir>/tests/**/*.test.ts'
   ],
   transform: {
-    '^.+\\.tsx?$': '@swc/jest'
+    '^.+\\.(t|j)sx?$': '@swc/jest'
   },
   testPathIgnorePatterns: [
     'node_modules'

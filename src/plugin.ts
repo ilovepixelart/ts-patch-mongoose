@@ -8,12 +8,10 @@ import type IContext from './interfaces/IContext'
 import type IHookContext from './interfaces/IHookContext'
 
 import { createPatch, updatePatch, deletePatch } from './patch'
+import { isMongooseLessThan7 } from './version'
 import em from './em'
 
-const options = {
-  document: false,
-  query: true
-}
+const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 
 const toObjectOptions: ToObjectOptions = {
   depopulate: true,
@@ -163,7 +161,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
   })
 
-  schema.post('remove', async function (this: HydratedDocument<T>) {
+  schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
     const original = this.toObject(toObjectOptions)
     const model = this.constructor as Model<T>
 
@@ -180,7 +178,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     await deletePatch(opts, context)
   })
 
-  schema.pre(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>) {
+  schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
     if (options.ignoreHook) return
 
@@ -204,12 +202,12 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       }
     }
 
-    if (opts.preDeleteCallback && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
-      await opts.preDeleteCallback(this._context.deletedDocs)
+    if (opts.preDelete && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
+      await opts.preDelete(this._context.deletedDocs)
     }
   })
 
-  schema.post(deleteMethods as MongooseQueryMiddleware[], options, async function (this: IHookContext<T>) {
+  schema.post(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
     if (options.ignoreHook) return
 

@@ -10,12 +10,12 @@ interface IPluginOptions<T> {
   eventUpdated?: string
   eventCreated?: string
   eventDeleted?: string
-  patchHistoryDisabled?: boolean
-  preDeleteCallback?: (docs: HydratedDocument<T>[]) => Promise<void>
   getUser?: () => Promise<User> | User
   getReason?: () => Promise<Reason> | Reason
   getMetadata?: () => Promise<Metadata> | Metadata
   omit?: string[]
+  patchHistoryDisabled?: boolean
+  preDelete?: (docs: HydratedDocument<T>[]) => Promise<void>
 }
 
 export default IPluginOptions
