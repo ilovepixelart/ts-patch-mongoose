@@ -1,6 +1,6 @@
 # ts-patch-mongoose
 
-Patch history & events plugin for mongoose
+Patch history (audit log) & events plugin for mongoose
 
 [![npm](https://img.shields.io/npm/v/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
 [![npm](https://img.shields.io/npm/dt/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
@@ -70,6 +70,7 @@ Setup your mongoose model `User.ts`
 ```typescript
 import { Schema, model } from 'mongoose'
 
+import type { HydratedDocument } from 'mongoose'
 import type IUser from '../interfaces/IUser'
 
 import { patchHistoryPlugin } from 'ts-patch-mongoose'
@@ -98,7 +99,40 @@ UserSchema.plugin(patchHistoryPlugin, {
   eventDeleted: USER_DELETED,
   
   // You can omit some properties in case you don't want to save them to patch history
-  omit: ['__v', 'createdAt', 'updatedAt']
+  omit: ['__v', 'createdAt', 'updatedAt'],
+
+  // Addition options for ts-match-mongoose plugin
+
+  // These three properties will be added to patch history document automatically and give you flexibility to track who, why and when made changes to your documents
+
+  // Code bellow is abstract example, you can use any other way to get user, reason, metadata
+  getUser: async () => {
+    // For example: get user from http context
+    // You should return an object, in case you want to save user to patch history
+    return httpContext.get('user') as Record<string, unknown>
+  },
+
+  // Reason of document (create/update/delete) like: 'Excel upload', 'Manual update', 'API call', etc.
+  getReason: async () => {
+    // For example: get reason from http context, or any other place of your application
+    // You shout return a string, in case you want to save reason to patch history
+    return httpContext.get('reason') as string
+  },
+
+  // You can provide any information you want to save in along with patch history
+  getMetadata: async () => {
+    // For example: get metadata from http context, or any other place of your application
+    // You should return an object, in case you want to save metadata to patch history
+    return httpContext.get('metadata') as Record<string, unknown>
+  },
+
+
+  // Do something before deleting documents
+  // This method will be executed before deleting document or documents and always returns a nonempty array of documents
+  preDelete: async (docs: HydratedDocument<IUser>[]) => {
+    const ids = docs.map((doc) => doc._id)
+    await Purchase.deleteMany({ userId: { $in: ids } })
+  },
 })
 
 const User = model('User', UserSchema)
