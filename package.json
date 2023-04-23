@@ -72,13 +72,14 @@
     "build": "npm run clean && npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -p config/tsconfig.cjs.json",
     "build:esm": "tsc -p config/tsconfig.esm.json && mv ./dist/esm/plugin.js ./dist/esm/plugin.mjs",
-    "release": "npm run lint && npm run build && np"
+    "release": "npm install && npm run lint && npm run build && np"
   },
   "dependencies": {
     "fast-json-patch": "3.1.1",
     "lodash": "4.17.21",
     "omit-deep": "0.3.0",
-    "power-assign": "0.2.10"
+    "power-assign": "0.2.10",
+    "semver": "7.5.0"
   },
   "devDependencies": {
     "@shelf/jest-mongodb": "4.1.7",
@@ -89,7 +90,7 @@
     "@swc/register": "0.1.10",
     "@types/jest": "29.5.1",
     "@types/lodash": "4.14.194",
-    "@types/node": "18.15.13",
+    "@types/node": "18.16.0",
     "@typescript-eslint/eslint-plugin": "5.59.0",
     "@typescript-eslint/parser": "5.59.0",
     "eslint": "8.39.0",
@@ -109,6 +110,6 @@
     "typescript": "5.0.4"
   },
   "peerDependencies": {
-    "mongoose": ">=6.6.0 < 7"
+    "mongoose": ">=6.6.0 < 8"
   }
 }

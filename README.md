@@ -1,6 +1,6 @@
 # ts-patch-mongoose
 
-Patch history & events plugin for mongoose
+Patch history (audit log) & events plugin for mongoose
 
 [![npm](https://img.shields.io/npm/v/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
 [![npm](https://img.shields.io/npm/dt/ts-patch-mongoose)](https://www.npmjs.com/package/ts-patch-mongoose)
@@ -47,63 +47,100 @@ How to use it with express [ts-express-swc](https://github.com/ilovepixelart/ts-
 Create your event constants `events.ts`
 
 ```typescript
-export const USER_CREATED = 'user-created'
-export const USER_UPDATED = 'user-updated'
-export const USER_DELETED = 'user-deleted'
+export const BOOK_CREATED = 'book-created'
+export const BOOK_UPDATED = 'book-updated'
+export const BOOK_DELETED = 'book-deleted'
 ```
 
-Create your interface `IUser.ts`
+Create your interface `IBook.ts`
 
 ```typescript
-interface IUser {
-  name: string
-  role: string
+import type { Types } from 'mongoose'
+
+interface IBook {
+  title: string
+  description?: string
+  authorId: Types.ObjectId
   createdAt?: Date
   updatedAt?: Date
 }
 
-export default IUser
+export default IBook
 ```
 
-Setup your mongoose model `User.ts`
+Setup your mongoose model `Book.ts`
 
 ```typescript
 import { Schema, model } from 'mongoose'
 
-import type IUser from '../interfaces/IUser'
+import type { HydratedDocument, Types } from 'mongoose'
+import type IBook from '../interfaces/IBook'
 
 import { patchHistoryPlugin } from 'ts-patch-mongoose'
-import { USER_CREATED, USER_UPDATED, USER_DELETED } from '../constants/events'
+import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
 
-const UserSchema = new Schema<IUser>({
+const BookSchema = new Schema<IBook>({
   name: {
-    type: String,
+    title: String,
     required: true
   },
-  role: {
+  description: {
     type: String,
-    enum: ['admin', 'manager', 'user'],
+  },
+  authorId: {
+    type: Types.ObjectId,
     required: true
   }
 }, { timestamps: true })
 
-UserSchema.plugin(patchHistoryPlugin, { 
-  // In case you just want to track changes in your models using events below.
-  // And don't want to save changes to patch history collection
-  patchHistoryDisabled: true,
-
+BookSchema.plugin(patchHistoryPlugin, { 
   // Create event constants provide them to plugin and use them to subscribe to events
-  eventCreated: USER_CREATED,
-  eventUpdated: USER_UPDATED,
-  eventDeleted: USER_DELETED,
+  eventCreated: BOOK_CREATED,
+  eventUpdated: BOOK_UPDATED,
+  eventDeleted: BOOK_DELETED,
   
   // You can omit some properties in case you don't want to save them to patch history
-  omit: ['__v', 'createdAt', 'updatedAt']
+  omit: ['__v', 'createdAt', 'updatedAt'],
+
+  // Addition options for ts-match-mongoose plugin
+
+  // Code bellow is abstract example, you can use any other way to get user, reason, metadata
+  // These three properties will be added to patch history document automatically and give you flexibility to track who, why and when made changes to your documents
+  getUser: async () => {
+    // For example: get user from http context
+    // You should return an object, in case you want to save user to patch history
+    return httpContext.get('user') as Record<string, unknown>
+  },
+
+  // Reason of document (create/update/delete) like: 'Excel upload', 'Manual update', 'API call', etc.
+  getReason: async () => {
+    // For example: get reason from http context, or any other place of your application
+    // You shout return a string, in case you want to save reason to patch history
+    return httpContext.get('reason') as string
+  },
+
+  // You can provide any information you want to save in along with patch history
+  getMetadata: async () => {
+    // For example: get metadata from http context, or any other place of your application
+    // You should return an object, in case you want to save metadata to patch history
+    return httpContext.get('metadata') as Record<string, unknown>
+  },
+
+  // Do something before deleting documents
+  // This method will be executed before deleting document or documents and always returns a nonempty array of documents
+  preDelete: async (docs: HydratedDocument<IBook>[]) => {
+    const bookIds = docs.map((doc) => doc._id)
+    await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
+  },
+
+  // In case you just want to track changes in your models using events below.
+  // And don't want to save changes to patch history collection
+  patchHistoryDisabled: true, 
 })
 
-const User = model('User', UserSchema)
+const Book = model('Book', BookSchema)
 
-export default User
+export default Book
 ```
 
 ## Subscribe
@@ -112,29 +149,29 @@ You can subscribe to events using patchEventEmitter anywhere in your application
 
 ```typescript
 import { patchEventEmitter } from 'ts-patch-mongoose'
-import { USER_CREATED, USER_UPDATED, USER_DELETED } from '../constants/events'
+import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
 
-patchEventEmitter.on(USER_CREATED, ({ doc }) => {
+patchEventEmitter.on(BOOK_CREATED, ({ doc }) => {
   try {
-    console.log('Event - user created', doc)
+    console.log('Event - book created', doc)
     // Do something with doc here
   } catch (error) {
     console.error(error)
   }
 })
 
-patchEventEmitter.on(USER_UPDATED, ({ doc, oldDoc, patch }) => {
+patchEventEmitter.on(BOOK_UPDATED, ({ doc, oldDoc, patch }) => {
   try {
-    console.log('Event - user updated', doc, oldDoc, patch)
+    console.log('Event - book updated', doc, oldDoc, patch)
     // Do something with doc, oldDoc and patch here
   } catch (error) {
     console.error(error)
   }
 })
 
-patchEventEmitter.on(USER_DELETED, ({ oldDoc }) => {
+patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
   try {
-    console.log('Event - user deleted', oldDoc)
+    console.log('Event - book deleted', oldDoc)
     // Do something with doc here
   } catch (error) {
     console.error(error)

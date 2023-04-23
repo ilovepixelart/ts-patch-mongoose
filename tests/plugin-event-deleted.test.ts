@@ -1,3 +1,4 @@
+import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { model } from 'mongoose'
 
 import type { ToObjectOptions } from 'mongoose'
@@ -45,7 +46,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
   it('should remove() and emit one delete event', async () => {
     const john = await User.create({ name: 'John', role: 'user' })
-    await john.remove()
+
+    if (isMongooseLessThan7) {
+      await john.remove()
+    } else {
+      await john.deleteOne()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -69,7 +75,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john, alice] = users
 
-    await User.remove({ role: 'user' }).exec()
+    if (isMongooseLessThan7) {
+      await User.remove({ role: 'user' }).exec()
+    } else {
+      await User.deleteMany({ role: 'user' }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -102,7 +112,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.remove({ role: 'user' }, { single: true }).exec()
+    if (isMongooseLessThan7) {
+      await User.remove({ role: 'user' }, { single: true }).exec()
+    } else {
+      await User.deleteOne({ role: 'user' }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -297,7 +311,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.deleteMany({ role: 'user' }, { single: true }).exec()
+    if (isMongooseLessThan7) {
+      await User.deleteMany({ role: 'user' }, { single: true }).exec()
+    } else {
+      await User.deleteOne({ role: 'user' }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -317,7 +335,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
   it('should create then delete and emit one delete event', async () => {
     const john = await User.create({ name: 'John', role: 'user' })
-    await john.delete()
+
+    if (isMongooseLessThan7) {
+      await john.delete()
+    } else {
+      await john.deleteOne()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
