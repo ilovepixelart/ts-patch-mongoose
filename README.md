@@ -21,6 +21,15 @@ ts-patch-mongoose is a plugin for mongoose
 \
 I need to track changes of mongoose models and save them as patch history (audit log) in separate collection. Changes must also emit events that I can subscribe to and react in other parts of my application. I also want to omit some fields from patch history.
 
+## Supports and tested with
+
+```json
+{
+  "node": "16.x || 18.x || 20.x",
+  "mongoose": ">=6.6.x || 7.x",
+}
+```
+
 ## Features
 
 - Track changes in mongoose models
@@ -38,6 +47,17 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```bash
 npm install ts-patch-mongoose
 yarn add ts-patch-mongoose
+```
+
+- This plugin requires mongoose `>=6.6.x || 7.x` to be installed as a peer dependency
+
+```bash
+# For mongoose 6
+npm install mongoose@legacy
+yarn add mongoose mongoose@legacy
+# For mongoose 7
+npm install mongoose@latest
+yarn add mongoose@latest
 ```
 
 ## Example
