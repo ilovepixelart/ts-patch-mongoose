@@ -94,7 +94,7 @@ const BookSchema = new Schema<IBook>({
 }, { timestamps: true })
 
 BookSchema.plugin(patchHistoryPlugin, { 
-  // Create event constants provide them to plugin and use them to subscribe to events
+  // Provide your event constants to plugin
   eventCreated: BOOK_CREATED,
   eventUpdated: BOOK_UPDATED,
   eventDeleted: BOOK_DELETED,
@@ -103,6 +103,7 @@ BookSchema.plugin(patchHistoryPlugin, {
   omit: ['__v', 'createdAt', 'updatedAt'],
 
   // Addition options for ts-match-mongoose plugin
+  // Everything bellow is optional and just shows you what you can do:
 
   // Code bellow is abstract example, you can use any other way to get user, reason, metadata
   // These three properties will be added to patch history document automatically and give you flexibility to track who, why and when made changes to your documents
