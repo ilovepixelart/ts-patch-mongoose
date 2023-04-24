@@ -122,7 +122,7 @@ BookSchema.plugin(patchHistoryPlugin, {
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt'],
 
-  // Addition options for ts-match-mongoose plugin
+  // Addition options for patchHistoryPlugin plugin
   // Everything bellow is optional and just shows you what you can do:
 
   // Code bellow is abstract example, you can use any other way to get user, reason, metadata
@@ -149,7 +149,7 @@ BookSchema.plugin(patchHistoryPlugin, {
 
   // Do something before deleting documents
   // This method will be executed before deleting document or documents and always returns a nonempty array of documents
-  preDelete: async (docs: HydratedDocument<IBook>[]) => {
+  preDelete: async (docs) => {
     const bookIds = docs.map((doc) => doc._id)
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
