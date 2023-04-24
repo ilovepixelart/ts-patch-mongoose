@@ -133,11 +133,8 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
     const cursor = model.find(filter).lean().cursor()
-    await cursor.eachAsync(async (doc) => {
-      const current = assignUpdate(doc as HydratedDocument<T>, update, commands)
-      const original = doc as HydratedDocument<T>
-
-      await updatePatch(opts, this._context, current, original)
+    await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+      await updatePatch(opts, this._context, assignUpdate(doc, update, commands), doc)
     })
   })
 
