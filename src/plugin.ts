@@ -96,9 +96,9 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     if (this.isNew) {
       await createPatch(opts, context)
     } else {
-      const original = await model.findById(current._id).exec()
+      const original = await model.findById(current._id).lean().exec()
       if (original) {
-        await updatePatch(opts, context, current, original)
+        await updatePatch(opts, context, current, original as HydratedDocument<T>)
       }
     }
   })
@@ -118,6 +118,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const options = this.getOptions()
     if (options.ignoreHook) return
 
+    const model = this.model as Model<T>
     const filter = this.getFilter()
     const count = await this.model.count(filter).exec()
 
@@ -131,10 +132,10 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
-    const cursor = this.model.find<HydratedDocument<T>>(filter).cursor()
+    const cursor = model.find(filter).lean().cursor()
     await cursor.eachAsync(async (doc) => {
-      const current = assignUpdate(doc.toObject(toObjectOptions) as HydratedDocument<T>, update, commands)
-      const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
+      const current = assignUpdate(doc as HydratedDocument<T>, update, commands)
+      const original = doc as HydratedDocument<T>
 
       await updatePatch(opts, this._context, current, original)
     })
@@ -146,33 +147,38 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
     if (!this._context.isNew) return
 
+    const model = this.model as Model<T>
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
     const filter = assignUpdate({} as HydratedDocument<T>, update, commands)
     if (!_.isEmpty(filter)) {
-      const found = await this.model.findOne<HydratedDocument<T>>(update).exec()
-      if (found) {
-        const current = found.toObject(toObjectOptions) as HydratedDocument<T>
-        this._context.createdDocs = [current]
+      const current = await model.findOne(update).lean().exec()
+      if (current) {
+        this._context.createdDocs = [current] as HydratedDocument<T>[]
 
         await createPatch(opts, this._context)
       }
     }
   })
 
+  schema.pre(remove, { document: true, query: false }, async function () {
+    const original = this.toObject(toObjectOptions) as HydratedDocument<T>
+
+    if (opts.preDelete && !_.isEmpty(original)) {
+      await opts.preDelete([original])
+    }
+  })
+
   schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
-    const original = this.toObject(toObjectOptions)
+    const original = this.toObject(toObjectOptions) as HydratedDocument<T>
     const model = this.constructor as Model<T>
 
     const context: IContext<T> = {
       op: 'delete',
       modelName: opts.modelName ?? model.modelName,
-      collectionName: opts.collectionName ?? model.collection.collectionName
-    }
-
-    if (opts.eventDeleted) {
-      em.emit(opts.eventDeleted, { oldDoc: original })
+      collectionName: opts.collectionName ?? model.collection.collectionName,
+      deletedDocs: [original]
     }
 
     await deletePatch(opts, context)
@@ -182,6 +188,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     const options = this.getOptions()
     if (options.ignoreHook) return
 
+    const model = this.model as Model<T>
     const filter = this.getFilter()
 
     this._context = {
@@ -191,14 +198,14 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
-      const docs = await this.model.find<HydratedDocument<T>>(filter).exec()
+      const docs = await model.find(filter).lean().exec()
       if (!_.isEmpty(docs)) {
-        this._context.deletedDocs = docs
+        this._context.deletedDocs = docs as HydratedDocument<T>[]
       }
     } else {
-      const doc = await this.model.findOne<HydratedDocument<T>>(filter).exec()
+      const doc = await model.findOne(filter).lean().exec()
       if (!_.isEmpty(doc)) {
-        this._context.deletedDocs = [doc]
+        this._context.deletedDocs = [doc] as HydratedDocument<T>[]
       }
     }
 
