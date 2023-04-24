@@ -1,5 +1,30 @@
+<a name="v2.0.1"></a>
+# [v2.0.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.1) - 24 Apr 2023
+
+- Merge pull request [#31](https://github.com/ilovepixelart/ts-patch-mongoose/issues/31) from ilovepixelart/feature/pre-detete-one  43ae423
+- Smell  ae5e051
+- Cover case of preDelete on doc.remove()/doc.deleteOne() - Switch to lean() - Tests for preDelete()  6fa2d1f
+- Update changelog for &quot;v2.0.0&quot;  70d0fbe
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.0...v2.0.1
+
+[Changes][v2.0.1]
+
+
 <a name="v2.0.0"></a>
 # [v2.0.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.0) - 23 Apr 2023
+
+Changes:
+
+1. Conditional tests depending on version
+2. Added reason to index
+3. Jest config update
+4. Nev dependency semver
+
+Breaking changes:
+
+1. `preDeleteCallback` renamed to `preDelete`
+2. for Mongoose 6 will be set by default: `mongoose.set('strictQuery', false)`
 
 - Doc  0166902
 - Doc  9fb790c
@@ -10,7 +35,7 @@
 - Naming  4f6f0a6
 - Pipeline  a638bb5
 - Matrix for mongoose 6 &amp; 7  d0a4f9e
-- - Conditional tests depending on version - Added reason to index - Jest config update - Nev dependency semver - preDeleteCallback -&gt; preDelete - for mongoose 6 mongoose.set(&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);strictQuery&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);, false)  d126a29
+- Mongoose 7 support  d126a29
 - Update changelog for &quot;v1.2.3&quot;  3c5f15a
 
 https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.3...v2.0.0
@@ -309,6 +334,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.0...v2.0.1
 [v2.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.3...v2.0.0
 [v1.2.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.2...v1.2.3
 [v1.2.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.1...v1.2.2
