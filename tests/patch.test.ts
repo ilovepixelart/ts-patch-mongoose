@@ -40,7 +40,7 @@ describe('patch tests', () => {
   })
 
   beforeEach(async () => {
-    await mongoose.connection.collection('tests').deleteMany({})
+    await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('patches').deleteMany({})
   })
 
