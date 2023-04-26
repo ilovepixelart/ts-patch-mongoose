@@ -1,3 +1,21 @@
+<a name="v2.0.2"></a>
+# [v2.0.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.2) - 26 Apr 2023
+
+- Merge pull request [#34](https://github.com/ilovepixelart/ts-patch-mongoose/issues/34) from ilovepixelart/feature/dep  a8280d8
+- Dep  72e31a5
+- Merge pull request [#33](https://github.com/ilovepixelart/ts-patch-mongoose/issues/33) from ilovepixelart/feature/ignore  6bf09df
+- Type  c89b233
+- One function for emit  1f33865
+- Ignore options - Added ignoreEvent &amp; ignorePatchHistory so you can ignore history persisting or events emits on specific query when providing QueryOptions  15ee5c6
+- Users  ff75f05
+- Doc  6ae0a49
+- Update changelog for &quot;v2.0.1&quot;  c88756f
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.1...v2.0.2
+
+[Changes][v2.0.2]
+
+
 <a name="v2.0.1"></a>
 # [v2.0.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.1) - 24 Apr 2023
 
@@ -334,6 +352,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.1...v2.0.2
 [v2.0.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.0...v2.0.1
 [v2.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.3...v2.0.0
 [v1.2.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v1.2.2...v1.2.3
