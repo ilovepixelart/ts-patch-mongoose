@@ -4,6 +4,7 @@ import jsonpatch from 'fast-json-patch'
 
 import type { HydratedDocument, Types } from 'mongoose'
 
+import type IEvent from './interfaces/IEvent'
 import type IContext from './interfaces/IContext'
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type { User, Reason, Metadata } from './interfaces/IPluginOptions'
@@ -64,6 +65,12 @@ export async function getData<T> (opts: IPluginOptions<T>): Promise<[User | unde
     })
 }
 
+export function emitEvent<T> (context: IContext<T>, event: string | undefined, data: IEvent<T>): void {
+  if (event && !context.ignoreEvent) {
+    em.emit(event, data)
+  }
+}
+
 export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
@@ -75,12 +82,11 @@ export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T
   const [user, reason, metadata] = await getData(opts)
 
   const chunks = _.chunk(docs, 1000)
-
   for await (const chunk of chunks) {
     const bulk = []
 
     for (const doc of chunk) {
-      if (event) em.emit(event, { [key]: doc })
+      emitEvent(context, event, { [key]: doc })
 
       if (history) {
         bulk.push({
@@ -120,9 +126,7 @@ export async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext
   const patch = jsonpatch.compare(originalObject, currentObject, true)
   if (_.isEmpty(patch)) return
 
-  if (opts.eventUpdated) {
-    em.emit(opts.eventUpdated, { oldDoc: original, doc: current, patch })
-  }
+  emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
 
   if (history) {
     let version = 0
