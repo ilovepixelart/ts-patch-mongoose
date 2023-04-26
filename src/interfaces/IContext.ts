@@ -7,6 +7,8 @@ interface IContext<T> {
   isNew?: boolean
   createdDocs?: HydratedDocument<T>[]
   deletedDocs?: HydratedDocument<T>[]
+  ignoreEvent?: boolean
+  ignorePatchHistory?: boolean
 }
 
 export default IContext
