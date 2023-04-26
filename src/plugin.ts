@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import { assign } from 'power-assign'
 
-import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, ToObjectOptions, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
+import type { HydratedDocument, Model, MongooseQueryMiddleware, QueryOptions, Schema, ToObjectOptions, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
 
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
@@ -37,6 +37,10 @@ const deleteMethods = [
   'deleteOne',
   'deleteMany'
 ]
+
+function isHookIgnored<T> (options: QueryOptions<T>): boolean {
+  return options.ignoreHook === true || (options.ignoreEvent === true && options.ignorePatchHistory === true)
+}
 
 function splitUpdateAndCommands<T> (updateQuery: UpdateWithAggregationPipeline | UpdateQuery<T> | null): { update: UpdateQuery<T>, commands: Record<string, unknown>[] } {
   let update: UpdateQuery<T> = {}
@@ -116,7 +120,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (isHookIgnored(options)) return
 
     const model = this.model as Model<T>
     const filter = this.getFilter()
@@ -126,7 +130,9 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      isNew: options.upsert && count === 0
+      isNew: options.upsert && count === 0,
+      ignoreEvent: options.ignoreEvent as boolean,
+      ignorePatchHistory: options.ignorePatchHistory as boolean
     }
 
     const updateQuery = this.getUpdate()
@@ -140,7 +146,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (isHookIgnored(options)) return
 
     if (!this._context.isNew) return
 
@@ -183,7 +189,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (isHookIgnored(options)) return
 
     const model = this.model as Model<T>
     const filter = this.getFilter()
@@ -191,7 +197,9 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     this._context = {
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
-      collectionName: opts.collectionName ?? this.model.collection.collectionName
+      collectionName: opts.collectionName ?? this.model.collection.collectionName,
+      ignoreEvent: options.ignoreEvent as boolean,
+      ignorePatchHistory: options.ignorePatchHistory as boolean
     }
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
@@ -213,7 +221,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
   schema.post(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
-    if (options.ignoreHook) return
+    if (isHookIgnored(options)) return
 
     await deletePatch(opts, this._context)
   })

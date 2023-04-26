@@ -11,6 +11,10 @@ import type { User, Reason, Metadata } from './interfaces/IPluginOptions'
 import History from './models/History'
 import em from './em'
 
+function isPatchHistoryEnabled<T> (opts: IPluginOptions<T>, context: IContext<T>): boolean {
+  return !opts.patchHistoryDisabled && !context.ignorePatchHistory
+}
+
 export function getObjects<T> (opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {
   let currentObject = JSON.parse(JSON.stringify(current)) as Partial<T>
   let originalObject = JSON.parse(JSON.stringify(original)) as Partial<T>
@@ -61,11 +65,12 @@ export async function getData<T> (opts: IPluginOptions<T>): Promise<[User | unde
 }
 
 export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
+  const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
   const docs = context[docsKey]
   const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
 
-  if (_.isEmpty(docs) || (!event && opts.patchHistoryDisabled)) return
+  if (_.isEmpty(docs) || (!event && !history)) return
 
   const [user, reason, metadata] = await getData(opts)
 
@@ -77,7 +82,7 @@ export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T
     for (const doc of chunk) {
       if (event) em.emit(event, { [key]: doc })
 
-      if (!opts.patchHistoryDisabled) {
+      if (history) {
         bulk.push({
           insertOne: {
             document: {
@@ -96,7 +101,7 @@ export async function bulkPatch<T> (opts: IPluginOptions<T>, context: IContext<T
       }
     }
 
-    if (!opts.patchHistoryDisabled) {
+    if (history) {
       await History.bulkWrite(bulk, { ordered: false })
     }
   }
@@ -107,41 +112,41 @@ export async function createPatch<T> (opts: IPluginOptions<T>, context: IContext
 }
 
 export async function updatePatch<T> (opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
-  const { currentObject, originalObject } = getObjects(opts, current, original)
+  const history = isPatchHistoryEnabled(opts, context)
 
+  const { currentObject, originalObject } = getObjects(opts, current, original)
   if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
 
   const patch = jsonpatch.compare(originalObject, currentObject, true)
-
   if (_.isEmpty(patch)) return
 
   if (opts.eventUpdated) {
     em.emit(opts.eventUpdated, { oldDoc: original, doc: current, patch })
   }
 
-  if (opts.patchHistoryDisabled) return
+  if (history) {
+    let version = 0
 
-  let version = 0
+    const lastHistory = await History.findOne({ collectionId: original._id as Types.ObjectId }).sort('-version').exec()
 
-  const lastHistory = await History.findOne({ collectionId: original._id as Types.ObjectId }).sort('-version').exec()
+    if (lastHistory && lastHistory.version >= 0) {
+      version = lastHistory.version + 1
+    }
 
-  if (lastHistory && lastHistory.version >= 0) {
-    version = lastHistory.version + 1
+    const [user, reason, metadata] = await getData(opts)
+
+    await History.create({
+      op: context.op,
+      modelName: context.modelName,
+      collectionName: context.collectionName,
+      collectionId: original._id as Types.ObjectId,
+      patch,
+      user,
+      reason,
+      metadata,
+      version
+    })
   }
-
-  const [user, reason, metadata] = await getData(opts)
-
-  await History.create({
-    op: context.op,
-    modelName: context.modelName,
-    collectionName: context.collectionName,
-    collectionId: original._id as Types.ObjectId,
-    patch,
-    user,
-    reason,
-    metadata,
-    version
-  })
 }
 
 export async function deletePatch<T> (opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
