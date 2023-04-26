@@ -1,8 +1,9 @@
 import type { Operation } from 'fast-json-patch'
+import type { HydratedDocument } from 'mongoose'
 
 interface IEvent<T> {
-  oldDoc?: T
-  doc?: T
+  oldDoc?: HydratedDocument<T>
+  doc?: HydratedDocument<T>
   patch?: Operation[]
 }
 
