@@ -203,3 +203,4 @@ patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
 ## Check my other projects
 
 - [ts-migrate-mongoose](https://github.com/ilovepixelart/ts-migrate-mongoose) - Migration framework for mongoose
+- [ts-cache-mongoose](https://github.com/ilovepixelart/ts-cache-mongoose) - Cache plugin for mongoose Queries and Aggregate (in-memory, redis)
