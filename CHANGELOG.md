@@ -1,3 +1,21 @@
+<a name="v2.0.5"></a>
+# [v2.0.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.5) - 23 May 2023
+
+- Dep  1d2ab2f
+- Index  db1f92f
+- Merge pull request [#48](https://github.com/ilovepixelart/ts-patch-mongoose/issues/48) from ilovepixelart/dependabot/npm_and_yarn/eslint-8.41.0  2344ad7
+- Bump eslint from 8.40.0 to 8.41.0  813dbf7
+- Merge pull request [#47](https://github.com/ilovepixelart/ts-patch-mongoose/issues/47) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.2.3  3b2c95c
+- Merge pull request [#49](https://github.com/ilovepixelart/ts-patch-mongoose/issues/49) from ilovepixelart/dependabot/npm_and_yarn/swc/core-1.3.59  639b2e3
+- Bump @swc/core from 1.3.58 to 1.3.59  f18884a
+- Bump @types/node from 20.1.7 to 20.2.3  f838fd6
+- Update changelog for &quot;v2.0.4&quot;  9d5f7d1
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.4...v2.0.5
+
+[Changes][v2.0.5]
+
+
 <a name="v2.0.4"></a>
 # [v2.0.4](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.4) - 17 May 2023
 
@@ -395,6 +413,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.4...v2.0.5
 [v2.0.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.3...v2.0.4
 [v2.0.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.2...v2.0.3
 [v2.0.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.1...v2.0.2
