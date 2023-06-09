@@ -1,3 +1,32 @@
+<a name="v2.0.6"></a>
+# [v2.0.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.6) - 09 Jun 2023
+
+- Merge pull request [#62](https://github.com/ilovepixelart/ts-patch-mongoose/issues/62) from ilovepixelart/feature/dep  bf9826d
+- Sonar cloud latest version, settings for vscode  7987e2c
+- Dep  7b1a61c
+- Merge pull request [#61](https://github.com/ilovepixelart/ts-patch-mongoose/issues/61) from ilovepixelart/feature/dep  3173c72
+- Dep  6658c1d
+- Merge pull request [#57](https://github.com/ilovepixelart/ts-patch-mongoose/issues/57) from ilovepixelart/dependabot/npm_and_yarn/eslint-plugin-n-16.0.0  dbf02f0
+- Merge pull request [#58](https://github.com/ilovepixelart/ts-patch-mongoose/issues/58) from ilovepixelart/dependabot/npm_and_yarn/types/jest-29.5.2  49bbef4
+- Merge pull request [#59](https://github.com/ilovepixelart/ts-patch-mongoose/issues/59) from ilovepixelart/dependabot/npm_and_yarn/eslint-8.42.0  2188a3a
+- Merge pull request [#60](https://github.com/ilovepixelart/ts-patch-mongoose/issues/60) from ilovepixelart/dependabot/npm_and_yarn/typescript-5.1.3  373bab3
+- Bump typescript from 5.0.4 to 5.1.3  245b86b
+- Bump eslint from 8.41.0 to 8.42.0  b7348b4
+- Bump @types/jest from 29.5.1 to 29.5.2  97edf0b
+- Bump eslint-plugin-n from 15.7.0 to 16.0.0  4f2533c
+- Merge pull request [#55](https://github.com/ilovepixelart/ts-patch-mongoose/issues/55) from ilovepixelart/feature/dep  fd1d4e4
+- Dep  ecc03c9
+- Merge pull request [#54](https://github.com/ilovepixelart/ts-patch-mongoose/issues/54) from ilovepixelart/dependabot/npm_and_yarn/types/lodash-4.14.195  5024d26
+- Merge pull request [#51](https://github.com/ilovepixelart/ts-patch-mongoose/issues/51) from ilovepixelart/dependabot/npm_and_yarn/swc/core-1.3.60  1c2202a
+- Bump @types/lodash from 4.14.194 to 4.14.195  11ed8ab
+- Bump @swc/core from 1.3.59 to 1.3.60  8be370a
+- Update changelog for &quot;v2.0.5&quot;  c0d2e5e
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.5...v2.0.6
+
+[Changes][v2.0.6]
+
+
 <a name="v2.0.5"></a>
 # [v2.0.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.5) - 23 May 2023
 
@@ -413,6 +442,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.5...v2.0.6
 [v2.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.4...v2.0.5
 [v2.0.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.3...v2.0.4
 [v2.0.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.2...v2.0.3
