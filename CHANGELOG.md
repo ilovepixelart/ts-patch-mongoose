@@ -1,3 +1,41 @@
+<a name="v2.0.7"></a>
+# [v2.0.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.7) - 04 Jul 2023
+
+- Merge pull request [#84](https://github.com/ilovepixelart/ts-patch-mongoose/issues/84) from ilovepixelart/feature/dep  91a73c4
+- Dep  ca3b543
+- Merge pull request [#83](https://github.com/ilovepixelart/ts-patch-mongoose/issues/83) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/parser-5.61.0  ba6a794
+- Merge pull request [#78](https://github.com/ilovepixelart/ts-patch-mongoose/issues/78) from ilovepixelart/dependabot/npm_and_yarn/semver-7.5.3  3633358
+- Bump @typescript-eslint/parser from 5.59.9 to 5.61.0  a1b4b67
+- Merge pull request [#80](https://github.com/ilovepixelart/ts-patch-mongoose/issues/80) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.3.3  4931929
+- Merge pull request [#81](https://github.com/ilovepixelart/ts-patch-mongoose/issues/81) from ilovepixelart/dependabot/npm_and_yarn/eslint-8.44.0  e76e80d
+- Bump eslint from 8.42.0 to 8.44.0  c9c3288
+- Bump @types/node from 20.3.1 to 20.3.3  24d15c7
+- Bump semver from 7.5.2 to 7.5.3  f1a0367
+- Merge pull request [#77](https://github.com/ilovepixelart/ts-patch-mongoose/issues/77) from ilovepixelart/snyk-upgrade-268170801952a39496cbf4c5cbe1e539  ad9a713
+- fix: upgrade mongoose from 6.10.5 to 6.11.1  bb45deb
+- Merge pull request [#76](https://github.com/ilovepixelart/ts-patch-mongoose/issues/76) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/eslint-plugin-5.60.1  adec806
+- Bump @typescript-eslint/eslint-plugin from 5.59.9 to 5.60.1  56febde
+- Merge pull request [#75](https://github.com/ilovepixelart/ts-patch-mongoose/issues/75) from ilovepixelart/dependabot/npm_and_yarn/fast-xml-parser-and-aws-sdk/credential-providers-4.2.5  648c504
+- Merge pull request [#70](https://github.com/ilovepixelart/ts-patch-mongoose/issues/70) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/eslint-plugin-5.60.0  340d924
+- Bump fast-xml-parser and @aws-sdk/credential-providers  ecb718e
+- Merge pull request [#72](https://github.com/ilovepixelart/ts-patch-mongoose/issues/72) from ilovepixelart/dependabot/npm_and_yarn/eslint-plugin-jest-27.2.2  464cbf7
+- Merge pull request [#71](https://github.com/ilovepixelart/ts-patch-mongoose/issues/71) from ilovepixelart/dependabot/npm_and_yarn/eslint-plugin-n-16.0.1  6220ae6
+- Merge pull request [#73](https://github.com/ilovepixelart/ts-patch-mongoose/issues/73) from ilovepixelart/dependabot/npm_and_yarn/swc/core-1.3.66  87ba5f4
+- Bump @swc/core from 1.3.62 to 1.3.66  9399cbc
+- Bump eslint-plugin-jest from 27.2.1 to 27.2.2  8253592
+- Bump eslint-plugin-n from 16.0.0 to 16.0.1  36aec94
+- Bump @typescript-eslint/eslint-plugin from 5.59.9 to 5.60.0  38d3c6a
+- Merge pull request [#67](https://github.com/ilovepixelart/ts-patch-mongoose/issues/67) from ilovepixelart/dependabot/npm_and_yarn/semver-7.5.2  66926a2
+- Merge pull request [#69](https://github.com/ilovepixelart/ts-patch-mongoose/issues/69) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.3.1  9dde126
+- Bump @types/node from 20.2.5 to 20.3.1  c33971b
+- Bump semver from 7.5.1 to 7.5.2  de99820
+- Update changelog for &quot;v2.0.6&quot;  7a0571b
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.6...v2.0.7
+
+[Changes][v2.0.7]
+
+
 <a name="v2.0.6"></a>
 # [v2.0.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.6) - 09 Jun 2023
 
@@ -442,6 +480,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.6...v2.0.7
 [v2.0.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.5...v2.0.6
 [v2.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.4...v2.0.5
 [v2.0.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.3...v2.0.4
