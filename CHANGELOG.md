@@ -1,3 +1,19 @@
+<a name="v2.0.8"></a>
+# [v2.0.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.8) - 16 Jul 2023
+
+- Merge pull request [#91](https://github.com/ilovepixelart/ts-patch-mongoose/issues/91) from ilovepixelart/feature/dep  5c8eace
+- Dep  78701fd
+- Merge pull request [#86](https://github.com/ilovepixelart/ts-patch-mongoose/issues/86) from ilovepixelart/dependabot/npm_and_yarn/semver-7.5.4  a566c41
+- Bump semver from 7.5.3 to 7.5.4  4bc7a79
+- Merge pull request [#85](https://github.com/ilovepixelart/ts-patch-mongoose/issues/85) from ilovepixelart/snyk-upgrade-63056c843090a73084f0a3f7ee8b1155  b66e4f0
+- fix: upgrade mongoose from 6.11.1 to 6.11.2  067c1ab
+- Update changelog for &quot;v2.0.7&quot;  3e10d11
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.7...v2.0.8
+
+[Changes][v2.0.8]
+
+
 <a name="v2.0.7"></a>
 # [v2.0.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.7) - 04 Jul 2023
 
@@ -480,6 +496,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.0.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.7...v2.0.8
 [v2.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.6...v2.0.7
 [v2.0.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.5...v2.0.6
 [v2.0.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.4...v2.0.5
