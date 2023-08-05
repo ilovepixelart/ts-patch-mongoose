@@ -1,3 +1,20 @@
+<a name="v2.1.0"></a>
+# [v2.1.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.1.0) - 05 Aug 2023
+
+- Dep + new version of swc - Remove env use target in .swcrc  f2d2674
+- Merge pull request [#99](https://github.com/ilovepixelart/ts-patch-mongoose/issues/99) from ilovepixelart/dependabot/npm_and_yarn/eslint-8.46.0  c1c7044
+- Bump eslint from 8.45.0 to 8.46.0  142e738
+- Merge pull request [#101](https://github.com/ilovepixelart/ts-patch-mongoose/issues/101) from ilovepixelart/dependabot/npm_and_yarn/jest-29.6.2  ec6d905
+- Merge pull request [#103](https://github.com/ilovepixelart/ts-patch-mongoose/issues/103) from ilovepixelart/dependabot/npm_and_yarn/types/lodash-4.14.196  d16c12c
+- Bump @types/lodash from 4.14.195 to 4.14.196  b2f40da
+- Bump jest from 29.6.1 to 29.6.2  7993949
+- Update changelog for &quot;v2.0.9&quot;  cf65e9f
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.9...v2.1.0
+
+[Changes][v2.1.0]
+
+
 <a name="v2.0.9"></a>
 # [v2.0.9](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.0.9) - 24 Jul 2023
 
@@ -510,6 +527,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.9...v2.1.0
 [v2.0.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.8...v2.0.9
 [v2.0.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.7...v2.0.8
 [v2.0.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.6...v2.0.7
