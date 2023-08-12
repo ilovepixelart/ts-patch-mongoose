@@ -7,7 +7,7 @@ import type { HydratedDocument, Types } from 'mongoose'
 import type IEvent from './interfaces/IEvent'
 import type IContext from './interfaces/IContext'
 import type IPluginOptions from './interfaces/IPluginOptions'
-import type { User, Reason, Metadata } from './interfaces/IPluginOptions'
+import type { User, Metadata } from './interfaces/IPluginOptions'
 
 import History from './models/History'
 import em from './em'
@@ -35,7 +35,7 @@ export async function getUser<T> (opts: IPluginOptions<T>): Promise<User | undef
   return undefined
 }
 
-export async function getReason<T> (opts: IPluginOptions<T>): Promise<Reason | undefined> {
+export async function getReason<T> (opts: IPluginOptions<T>): Promise<string | undefined> {
   if (_.isFunction(opts.getReason)) {
     return await opts.getReason()
   }
@@ -53,7 +53,7 @@ export function getValue <T> (item: PromiseSettledResult<T>): T | undefined {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export async function getData<T> (opts: IPluginOptions<T>): Promise<[User | undefined, Reason | undefined, Metadata | undefined]> {
+export async function getData<T> (opts: IPluginOptions<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
   return Promise
     .allSettled([getUser(opts), getReason(opts), getMetadata(opts)])
     .then(([user, reason, metadata]) => {
