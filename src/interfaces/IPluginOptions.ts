@@ -1,7 +1,6 @@
 import type { HydratedDocument } from 'mongoose'
 
 export type User = Record<string, unknown>
-export type Reason = string
 export type Metadata = Record<string, unknown>
 
 interface IPluginOptions<T> {
@@ -11,7 +10,7 @@ interface IPluginOptions<T> {
   eventCreated?: string
   eventDeleted?: string
   getUser?: () => Promise<User> | User
-  getReason?: () => Promise<Reason> | Reason
+  getReason?: () => Promise<string> | string
   getMetadata?: () => Promise<Metadata> | Metadata
   omit?: string[]
   patchHistoryDisabled?: boolean
