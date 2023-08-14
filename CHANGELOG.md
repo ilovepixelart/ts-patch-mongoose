@@ -1,3 +1,17 @@
+<a name="v2.2.0"></a>
+# [v2.2.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.2.0) - 14 Aug 2023
+
+- Merge pull request [#108](https://github.com/ilovepixelart/ts-patch-mongoose/issues/108) from ilovepixelart/feature/smell  fcb6049
+- Sonar smell  5ce6b79
+- Merge pull request [#107](https://github.com/ilovepixelart/ts-patch-mongoose/issues/107) from ilovepixelart/feature/dep  592ea3c
+- Dep - Update dependencies  4f237f9
+- Update changelog for &quot;v2.1.0&quot;  8f88bf5
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.1.0...v2.2.0
+
+[Changes][v2.2.0]
+
+
 <a name="v2.1.0"></a>
 # [v2.1.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.1.0) - 05 Aug 2023
 
@@ -527,6 +541,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.2.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.9...v2.1.0
 [v2.0.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.8...v2.0.9
 [v2.0.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.7...v2.0.8
