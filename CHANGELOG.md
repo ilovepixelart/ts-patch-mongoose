@@ -1,3 +1,19 @@
+<a name="v2.3.0"></a>
+# [v2.3.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.3.0) - 02 Oct 2023
+
+- Merge pull request [#141](https://github.com/ilovepixelart/ts-patch-mongoose/issues/141) from ilovepixelart/feature/dep  ba5316c
+- Test  33636bd
+- Dep  8772aea
+- Merge pull request [#132](https://github.com/ilovepixelart/ts-patch-mongoose/issues/132) from ilovepixelart/feature/dep  e6d0469
+- Monthly  7d29245
+- Dep  5a02586
+- Update changelog for &quot;v2.2.1&quot;  66342c3
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.1...v2.3.0
+
+[Changes][v2.3.0]
+
+
 <a name="v2.2.1"></a>
 # [v2.2.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.2.1) - 01 Sep 2023
 
@@ -560,6 +576,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.3.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.1...v2.3.0
 [v2.2.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.0...v2.2.1
 [v2.2.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.1.0...v2.2.0
 [v2.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.0.9...v2.1.0
