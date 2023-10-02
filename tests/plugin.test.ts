@@ -408,10 +408,8 @@ describe('plugin', () => {
   })
 
   it('should create many', async () => {
-    await User.create([
-      { name: 'Alice', role: 'user' },
-      { name: 'John', role: 'user' }
-    ])
+    await User.create({ name: 'John', role: 'user' })
+    await User.create({ name: 'Alice', role: 'user' })
 
     const history = await History.find({}).sort('doc.name')
     expect(history).toHaveLength(2)
