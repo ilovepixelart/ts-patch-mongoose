@@ -122,10 +122,8 @@ describe('plugin - patch history disabled', () => {
   })
 
   it('should create many', async () => {
-    await User.create([
-      { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' }
-    ])
+    await User.create({ name: 'John', role: 'user' })
+    await User.create({ name: 'Alice', role: 'user' })
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
