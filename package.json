@@ -89,7 +89,7 @@
     "@swc/helpers": "0.5.3",
     "@swc/jest": "0.2.29",
     "@swc/register": "0.1.10",
-    "@types/jest": "29.5.5",
+    "@types/jest": "29.5.7",
     "@types/lodash": "4.14.199",
     "@types/node": "18",
     "@typescript-eslint/eslint-plugin": "6.7.5",
