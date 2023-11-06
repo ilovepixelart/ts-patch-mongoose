@@ -1,14 +1,13 @@
 import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { model } from 'mongoose'
 
-import type { ToObjectOptions } from 'mongoose'
-
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
 
 import em from '../src/em'
 import { USER_DELETED } from './constants/events'
+import { toObjectOptions } from '../src/helpers'
 
 jest.mock('../src/em', () => {
   return {
@@ -16,10 +15,6 @@ jest.mock('../src/em', () => {
   }
 })
 
-const toObjectOptions: ToObjectOptions = {
-  depopulate: true,
-  virtuals: false
-}
 
 describe('plugin - event delete & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
