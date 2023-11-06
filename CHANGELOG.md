@@ -1,3 +1,28 @@
+<a name="v2.4.0"></a>
+# [v2.4.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.4.0) - 06 Nov 2023
+
+- Lint  70360b4
+- Ts  599a51c
+- Merge pull request [#151](https://github.com/ilovepixelart/ts-patch-mongoose/issues/151) from ilovepixelart/feature/mongoose-8  f1824d9
+- Test  0a2a066
+- Latest  63868d8
+- Doc  5b34916
+- Type for lint  7a251dd
+- Code split  e1b28c2
+- Check  2867a1d
+- Mongoose 8  a591eb3
+- Merge pull request [#150](https://github.com/ilovepixelart/ts-patch-mongoose/issues/150) from ilovepixelart/feature/dep  b599b19
+- Fixed versions  4f6f6d1
+- Dep  76a9227
+- Merge pull request [#143](https://github.com/ilovepixelart/ts-patch-mongoose/issues/143) from ilovepixelart/dependabot/npm_and_yarn/babel/traverse-7.23.2  2a66f0f
+- Bump @babel/traverse from 7.22.17 to 7.23.2  e1761f2
+- Update changelog for &quot;v2.3.1&quot;  8560a57
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.1...v2.4.0
+
+[Changes][v2.4.0]
+
+
 <a name="v2.3.1"></a>
 # [v2.3.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.3.1) - 16 Oct 2023
 
@@ -588,6 +613,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.4.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.1...v2.4.0
 [v2.3.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.0...v2.3.1
 [v2.3.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.1...v2.3.0
 [v2.2.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.0...v2.2.1
