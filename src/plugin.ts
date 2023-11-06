@@ -9,7 +9,7 @@ import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 
-import type { HydratedDocument, Model, Schema, ToObjectOptions } from 'mongoose'
+import type { HydratedDocument, Model, Schema } from 'mongoose'
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
 
