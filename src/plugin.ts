@@ -9,7 +9,7 @@ import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 
-import type { HydratedDocument, Model, Schema } from 'mongoose'
+import type { HydratedDocument, Model, Schema, ToObjectOptions } from 'mongoose'
 import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
 
@@ -48,7 +48,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   // In Mongoose 8, doc.deleteOne() returns a query for easier chaining, as well as consistency with doc.updateOne().
   if (isMongooseLessThan8) {
     schema.pre(remove, { document: true, query: false }, async function () {
-      const original = this.toObject(toObjectOptions) as HydratedDocument<T>
+      const original = (this as { toObject: (options: ToObjectOptions) => HydratedDocument<T> }).toObject(toObjectOptions)
   
       if (opts.preDelete && !_.isEmpty(original)) {
         await opts.preDelete([original])

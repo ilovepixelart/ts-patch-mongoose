@@ -159,7 +159,7 @@ describe('plugin - event delete & patch history disabled', () => {
   it('should findOneAndRemove() and emit one delete event', async () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' },
+      { name: 'Alice', role: 'admin' },
       { name: 'Bob', role: 'admin' }
     ])
 
