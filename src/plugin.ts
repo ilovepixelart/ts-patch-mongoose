@@ -47,14 +47,18 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
   // In Mongoose 7, doc.deleteOne() returned a promise that resolved to doc.
   // In Mongoose 8, doc.deleteOne() returns a query for easier chaining, as well as consistency with doc.updateOne().
   if (isMongooseLessThan8) {
+    // @ts-expect-error - Mongoose 7 and below
     schema.pre(remove, { document: true, query: false }, async function () {
-      const original = (this as { toObject: (options: ToObjectOptions) => HydratedDocument<T> }).toObject(toObjectOptions)
+      // @ts-expect-error - Mongoose 7 and below
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      const original = this.toObject(toObjectOptions) as HydratedDocument<T>
   
       if (opts.preDelete && !_.isEmpty(original)) {
         await opts.preDelete([original])
       }
     })
   
+    // @ts-expect-error - Mongoose 7 and below
     schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
       const model = this.constructor as Model<T>
