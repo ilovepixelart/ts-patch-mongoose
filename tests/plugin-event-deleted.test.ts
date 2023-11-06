@@ -1,14 +1,13 @@
 import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { model } from 'mongoose'
 
-import type { ToObjectOptions } from 'mongoose'
-
 import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
 
 import em from '../src/em'
 import { USER_DELETED } from './constants/events'
+import { toObjectOptions } from '../src/helpers'
 
 jest.mock('../src/em', () => {
   return {
@@ -16,10 +15,6 @@ jest.mock('../src/em', () => {
   }
 })
 
-const toObjectOptions: ToObjectOptions = {
-  depopulate: true,
-  virtuals: false
-}
 
 describe('plugin - event delete & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
@@ -164,13 +159,17 @@ describe('plugin - event delete & patch history disabled', () => {
   it('should findOneAndRemove() and emit one delete event', async () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' },
+      { name: 'Alice', role: 'admin' },
       { name: 'Bob', role: 'admin' }
     ])
 
     const [john] = users
 
-    await User.findOneAndRemove({ role: 'user' }).exec()
+    if (isMongooseLessThan7) {
+      await User.findOneAndRemove({ role: 'user' }).exec()
+    } else {
+      await User.findOneAndDelete({ role: 'user' }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -224,7 +223,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findByIdAndRemove(john._id).exec()
+    if (isMongooseLessThan7) {
+      await User.findByIdAndRemove(john._id).exec()
+    } else {
+      await User.findByIdAndDelete(john._id).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -245,7 +248,7 @@ describe('plugin - event delete & patch history disabled', () => {
   it('should deleteOne() and emit one delete event', async () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
-      { name: 'Alice', role: 'user' },
+      { name: 'Alice', role: 'admin' },
       { name: 'Bob', role: 'admin' }
     ])
 
