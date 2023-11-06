@@ -1,3 +1,14 @@
+<a name="v2.4.1"></a>
+# [v2.4.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.4.1) - 06 Nov 2023
+
+- Version  b9621ed
+- Update changelog for &quot;v2.4.0&quot;  9cd3afb
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.0...v2.4.1
+
+[Changes][v2.4.1]
+
+
 <a name="v2.4.0"></a>
 # [v2.4.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.4.0) - 06 Nov 2023
 
@@ -613,6 +624,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.4.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.0...v2.4.1
 [v2.4.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.1...v2.4.0
 [v2.3.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.0...v2.3.1
 [v2.3.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.2.1...v2.3.0
