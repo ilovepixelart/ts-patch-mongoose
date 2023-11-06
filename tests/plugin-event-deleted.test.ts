@@ -170,7 +170,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findOneAndRemove({ role: 'user' }).exec()
+    if (isMongooseLessThan7) {
+      await User.findOneAndRemove({ role: 'user' }).exec()
+    } else {
+      await User.findOneAndDelete({ role: 'user' }).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
@@ -224,7 +228,11 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findByIdAndRemove(john._id).exec()
+    if (isMongooseLessThan7) {
+      await User.findByIdAndRemove(john._id).exec()
+    } else {
+      await User.findByIdAndDelete(john._id).exec()
+    }
 
     const history = await History.find({})
     expect(history).toHaveLength(0)

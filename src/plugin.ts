@@ -8,7 +8,7 @@ import type IContext from './interfaces/IContext'
 import type IHookContext from './interfaces/IHookContext'
 
 import { createPatch, updatePatch, deletePatch } from './patch'
-import { isMongooseLessThan7 } from './version'
+import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
 import em from './em'
 
 const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
@@ -124,7 +124,7 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
 
     const model = this.model as Model<T>
     const filter = this.getFilter()
-    const count = await this.model.count(filter).exec()
+    const count = await this.model.countDocuments(filter).exec()
 
     this._context = {
       op: this.op,
@@ -165,27 +165,29 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
     }
   })
 
-  schema.pre(remove, { document: true, query: false }, async function () {
-    const original = this.toObject(toObjectOptions) as HydratedDocument<T>
-
-    if (opts.preDelete && !_.isEmpty(original)) {
-      await opts.preDelete([original])
-    }
-  })
-
-  schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
-    const original = this.toObject(toObjectOptions) as HydratedDocument<T>
-    const model = this.constructor as Model<T>
-
-    const context: IContext<T> = {
-      op: 'delete',
-      modelName: opts.modelName ?? model.modelName,
-      collectionName: opts.collectionName ?? model.collection.collectionName,
-      deletedDocs: [original]
-    }
-
-    await deletePatch(opts, context)
-  })
+  if (isMongooseLessThan8) {
+    schema.pre(remove, { document: true, query: false }, async function () {
+      const original = this.toObject(toObjectOptions) as HydratedDocument<T>
+  
+      if (opts.preDelete && !_.isEmpty(original)) {
+        await opts.preDelete([original])
+      }
+    })
+  
+    schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
+      const original = this.toObject(toObjectOptions) as HydratedDocument<T>
+      const model = this.constructor as Model<T>
+  
+      const context: IContext<T> = {
+        op: 'delete',
+        modelName: opts.modelName ?? model.modelName,
+        collectionName: opts.collectionName ?? model.collection.collectionName,
+        deletedDocs: [original]
+      }
+  
+      await deletePatch(opts, context)
+    })
+  }
 
   schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
