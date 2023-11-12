@@ -1,3 +1,17 @@
+<a name="v2.5.0"></a>
+# [v2.5.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.0) - 12 Nov 2023
+
+- Merge pull request [#152](https://github.com/ilovepixelart/ts-patch-mongoose/issues/152) from ilovepixelart/feature/tsconfig-eslint  0e62b8e
+- Dep  5285680
+- Engines  e48728f
+- Tsconfig strictest rules  0c1c72c
+- Update changelog for &quot;v2.4.1&quot;  6d0ab41
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.1...v2.5.0
+
+[Changes][v2.5.0]
+
+
 <a name="v2.4.1"></a>
 # [v2.4.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.4.1) - 06 Nov 2023
 
@@ -624,6 +638,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.5.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.1...v2.5.0
 [v2.4.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.0...v2.4.1
 [v2.4.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.1...v2.4.0
 [v2.3.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.3.0...v2.3.1
