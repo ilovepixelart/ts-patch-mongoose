@@ -29,11 +29,11 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      ignoreEvent: options.ignoreEvent as boolean,
-      ignorePatchHistory: options.ignorePatchHistory as boolean
+      ignoreEvent: options['ignoreEvent'] as boolean,
+      ignorePatchHistory: options['ignorePatchHistory'] as boolean
     }
 
-    if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
+    if (['remove', 'deleteMany'].includes(this._context.op) && !options['single']) {
       const docs = await model.find(filter).lean().exec()
       if (!_.isEmpty(docs)) {
         this._context.deletedDocs = docs as HydratedDocument<T>[]

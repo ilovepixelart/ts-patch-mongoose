@@ -63,9 +63,9 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      isNew: options.upsert && count === 0,
-      ignoreEvent: options.ignoreEvent as boolean,
-      ignorePatchHistory: options.ignorePatchHistory as boolean
+      isNew: Boolean(options.upsert) && count === 0,
+      ignoreEvent: options['ignoreEvent'] as boolean,
+      ignorePatchHistory: options['ignorePatchHistory'] as boolean
     }
 
     const updateQuery = this.getUpdate()
