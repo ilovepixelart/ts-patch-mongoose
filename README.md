@@ -54,13 +54,16 @@ yarn add ts-patch-mongoose
 ```bash
 # For mongoose 6
 npm install mongoose@6.12.2
-yarn add mongoose mongoose@6.12.2
+yarn add mongoose@6.12.2
+pnpm add mongoose@6.12.2
 # For mongoose 7
 npm install mongoose@7.6.4
 yarn add mongoose@7.6.4
+pnpm add mongoose@7.6.4
 # For mongoose 8
 npm install mongoose@8.0.0
 yarn add mongoose@8.0.0
+pnpm add mongoose@8.0.0
 ```
 
 ## Example
