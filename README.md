@@ -47,6 +47,7 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```bash
 npm install ts-patch-mongoose
 yarn add ts-patch-mongoose
+pnpm add ts-patch-mongoose
 ```
 
 - This plugin requires mongoose `6.6.x || 7.x || 8.x` to be installed as a peer dependency
