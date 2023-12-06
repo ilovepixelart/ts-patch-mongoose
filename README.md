@@ -32,13 +32,13 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ## Features
 
-- Track changes in mongoose models
-- Save changes in a separate collection as a patch history
-- Emit events when a model is created, updated or deleted
-- Supports typescript
-- Let you omit fields that you don't want to track in patch history
-- Subscribe to one/many types of event
-- You can use events or patch history or both
+- [x] Track changes in mongoose models
+- [x] Save changes in a separate collection as a patch history
+- [x] Emit events when a model is created, updated or deleted
+- [x] Omit fields that you don't want to track in patch history
+- [x] Subscribe to one/many types of event
+- [x] Use events or patch history or both
+- [x] Supports ESM and CommonJS
 
 ## Installation
 
