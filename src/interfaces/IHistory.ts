@@ -3,7 +3,7 @@ import type { Operation } from 'fast-json-patch'
 
 interface IHistory {
   op: string
-  modelName: string,
+  modelName: string
   collectionName: string
   collectionId: Types.ObjectId
   version: number
