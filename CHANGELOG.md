@@ -1,3 +1,16 @@
+<a name="v2.5.3"></a>
+# [v2.5.3](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.3) - 09 Jan 2024
+
+- Audit  4a0886c
+- Merge pull request [#168](https://github.com/ilovepixelart/ts-patch-mongoose/issues/168) from ilovepixelart/feature/esm-bash-and-dep  c57462e
+- ESM bash and Dep  106e562
+- Update changelog for &quot;v2.5.2&quot;  88c418c
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.2...v2.5.3
+
+[Changes][v2.5.3]
+
+
 <a name="v2.5.2"></a>
 # [v2.5.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.2) - 06 Dec 2023
 
@@ -667,6 +680,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.5.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.2...v2.5.3
 [v2.5.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.1...v2.5.2
 [v2.5.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.0...v2.5.1
 [v2.5.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.4.1...v2.5.0
