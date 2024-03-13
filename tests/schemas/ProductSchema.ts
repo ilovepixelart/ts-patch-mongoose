@@ -7,12 +7,12 @@ import type IProduct from '../interfaces/IProduct'
 const ProductSchema = new Schema<IProduct>({
   name: {
     type: String,
-    required: true
+    required: true,
   },
   description: {
     type: DescriptionSchema,
-    required: false
-  }
+    required: false,
+  },
 }, { timestamps: true })
 
 export default ProductSchema
