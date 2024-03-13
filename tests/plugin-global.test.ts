@@ -37,7 +37,7 @@ describe('plugin - global', () => {
   })
 
   it('should save nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1'} })
+    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     product.description = { summary: 'test2' }
@@ -60,7 +60,7 @@ describe('plugin - global', () => {
 
     expect(first.doc).toHaveProperty('_id', product._id)
     expect(first.doc).toHaveProperty('name', 'paper')
-    expect(first.doc).toHaveProperty('description', { summary: 'test1'})
+    expect(first.doc).toHaveProperty('description', { summary: 'test1' })
     expect(first.doc).toHaveProperty('createdAt')
     expect(first.doc).toHaveProperty('updatedAt')
 
@@ -111,7 +111,7 @@ describe('plugin - global', () => {
   })
 
   it('should update nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1'} })
+    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     await product.updateOne({
@@ -136,7 +136,7 @@ describe('plugin - global', () => {
 
     expect(first.doc).toHaveProperty('_id', product._id)
     expect(first.doc).toHaveProperty('name', 'paper')
-    expect(first.doc).toHaveProperty('description', { summary: 'test1'})
+    expect(first.doc).toHaveProperty('description', { summary: 'test1' })
     expect(first.doc).toHaveProperty('createdAt')
     expect(first.doc).toHaveProperty('updatedAt')
 
