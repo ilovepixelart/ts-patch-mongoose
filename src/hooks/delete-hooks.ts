@@ -14,7 +14,7 @@ const deleteMethods = [
   'findByIdAndDelete',
   'findByIdAndRemove',
   'deleteOne',
-  'deleteMany'
+  'deleteMany',
 ]
 
 export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
@@ -30,7 +30,7 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
       ignoreEvent: options['ignoreEvent'] as boolean,
-      ignorePatchHistory: options['ignorePatchHistory'] as boolean
+      ignorePatchHistory: options['ignorePatchHistory'] as boolean,
     }
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options['single']) {
