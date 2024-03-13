@@ -53,7 +53,7 @@ describe('plugin - global', () => {
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
-    
+
     // 1 create
     expect(first.version).toBe(0)
     expect(first.op).toBe('create')
@@ -80,7 +80,7 @@ describe('plugin - global', () => {
 
     expect(second.patch).toHaveLength(1)
     expect(second.patch).toMatchObject([
-      { op: 'add', path: '/groups/0', value: 'office' }
+      { op: 'add', path: '/groups/0', value: 'office' },
     ])
 
     // 3 update
@@ -94,7 +94,7 @@ describe('plugin - global', () => {
 
     expect(third.patch).toHaveLength(1)
     expect(third.patch).toMatchObject([
-      { op: 'add', path: '/groups/1', value: 'school' }
+      { op: 'add', path: '/groups/1', value: 'school' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
@@ -102,12 +102,12 @@ describe('plugin - global', () => {
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: [] }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
-      patch: second.patch
+      patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office', 'school'] }),
-      patch: third.patch
+      patch: third.patch,
     })
   })
 
@@ -116,18 +116,18 @@ describe('plugin - global', () => {
     expect(product.name).toBe('paper')
 
     await product.updateOne({
-      groups: ['office']
+      groups: ['office'],
     }).exec()
 
     await product.updateOne({
-      $push: { groups: 'school' }
+      $push: { groups: 'school' },
     }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
-    
+
     // 1 create
     expect(first.version).toBe(0)
     expect(first.op).toBe('create')
@@ -154,7 +154,7 @@ describe('plugin - global', () => {
 
     expect(second.patch).toHaveLength(1)
     expect(second.patch).toMatchObject([
-      { op: 'add', path: '/groups/0', value: 'office' }
+      { op: 'add', path: '/groups/0', value: 'office' },
     ])
 
     // 3 update
@@ -168,7 +168,7 @@ describe('plugin - global', () => {
 
     expect(third.patch).toHaveLength(1)
     expect(third.patch).toMatchObject([
-      { op: 'add', path: '/groups/1', value: 'school' }
+      { op: 'add', path: '/groups/1', value: 'school' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
@@ -176,12 +176,12 @@ describe('plugin - global', () => {
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: [] }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
-      patch: second.patch
+      patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office', 'school'] }),
-      patch: third.patch
+      patch: third.patch,
     })
   })
 
