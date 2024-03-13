@@ -17,7 +17,7 @@ import em from '../src/em'
 
 jest.mock('../src/em', () => {
   return {
-    emit: jest.fn()
+    emit: jest.fn(),
   }
 })
 
@@ -26,7 +26,7 @@ describe('patch tests', () => {
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
-    patchHistoryDisabled: true
+    patchHistoryDisabled: true,
   })
 
   const User = model('User', UserSchema)
@@ -50,7 +50,7 @@ describe('patch tests', () => {
       const current = await User.create({ name: 'John', role: 'admin' })
 
       const pluginOptions = {
-        omit: ['createdAt']
+        omit: ['createdAt'],
       }
 
       const { currentObject, originalObject } = getObjects(pluginOptions, current, original)
@@ -86,14 +86,14 @@ describe('patch tests', () => {
 
       const pluginOptions: IPluginOptions<IUser> = {
         eventDeleted: USER_DELETED,
-        patchHistoryDisabled: false
+        patchHistoryDisabled: false,
       }
 
       const context: IContext<IUser> = {
         op: 'deleteOne',
         modelName: 'User',
         collectionName: 'users',
-        deletedDocs: [doc]
+        deletedDocs: [doc],
       }
 
       await bulkPatch(pluginOptions, context, 'eventDeleted', 'deletedDocs')
@@ -105,14 +105,14 @@ describe('patch tests', () => {
 
       const pluginOptions: IPluginOptions<IUser> = {
         eventDeleted: USER_DELETED,
-        patchHistoryDisabled: true
+        patchHistoryDisabled: true,
       }
 
       const context: IContext<IUser> = {
         op: 'deleteOne',
         modelName: 'User',
         collectionName: 'users',
-        deletedDocs: [doc]
+        deletedDocs: [doc],
       }
 
       await bulkPatch(pluginOptions, context, 'eventDeleted', 'deletedDocs')
@@ -126,13 +126,13 @@ describe('patch tests', () => {
 
       const pluginOptions: IPluginOptions<IUser> = {
         eventDeleted: USER_DELETED,
-        patchHistoryDisabled: true
+        patchHistoryDisabled: true,
       }
 
       const context: IContext<IUser> = {
         op: 'updateOne',
         modelName: 'User',
-        collectionName: 'users'
+        collectionName: 'users',
       }
 
       await updatePatch(pluginOptions, context, current, {} as HydratedDocument<IUser>)
@@ -145,7 +145,7 @@ describe('patch tests', () => {
       const opts: IPluginOptions<IUser> = {
         getUser: () => ({ name: 'test' }),
         getReason: () => 'test',
-        getMetadata: () => ({ test: 'test' })
+        getMetadata: () => ({ test: 'test' }),
       }
 
       await expect(getUser(opts)).resolves.toEqual({ name: 'test' })
@@ -159,7 +159,7 @@ describe('patch tests', () => {
       const opts: IPluginOptions<IUser> = {
         getUser: () => ({ name: 'test' }),
         getReason: () => 'test',
-        getMetadata: () => ({ test: 'test' })
+        getMetadata: () => ({ test: 'test' }),
       }
 
       await expect(getData(opts)).resolves.toEqual([{ name: 'test' }, 'test', { test: 'test' }])
@@ -171,7 +171,7 @@ describe('patch tests', () => {
         getReason: () => 'test',
         getMetadata: () => {
           throw new Error('test')
-        }
+        },
       }
 
       await expect(getData(opts)).resolves.toEqual([{ name: 'test' }, 'test', undefined])
@@ -181,15 +181,15 @@ describe('patch tests', () => {
       const item1: PromiseSettledResult<User> = {
         status: 'fulfilled',
         value: {
-          name: 'test'
-        }
+          name: 'test',
+        },
       }
 
       expect(getValue(item1)).toEqual({ name: 'test' })
 
       const item2: PromiseSettledResult<User> = {
         status: 'rejected',
-        reason: new Error('test')
+        reason: new Error('test'),
       }
 
       expect(getValue(item2)).toBeUndefined()

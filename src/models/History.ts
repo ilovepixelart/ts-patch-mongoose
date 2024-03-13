@@ -5,40 +5,40 @@ import type IHistory from '../interfaces/IHistory'
 const HistorySchema = new Schema<IHistory>({
   op: {
     type: String,
-    required: true
+    required: true,
   },
   modelName: {
     type: String,
-    required: true
+    required: true,
   },
   collectionName: {
     type: String,
-    required: true
+    required: true,
   },
   collectionId: {
     type: Schema.Types.ObjectId,
-    required: true
+    required: true,
   },
   doc: {
-    type: Object
+    type: Object,
   },
   patch: {
-    type: Array
+    type: Array,
   },
   user: {
-    type: Object
+    type: Object,
   },
   reason: {
-    type: String
+    type: String,
   },
   metadata: {
-    type: Object
+    type: Object,
   },
   version: {
     type: Number,
     min: 0,
-    default: 0
-  }
+    default: 0,
+  },
 }, { timestamps: true })
 
 HistorySchema.index({ collectionId: 1, version: -1 })

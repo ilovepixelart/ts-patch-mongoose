@@ -10,7 +10,7 @@ import { USER_CREATED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return {
-    emit: jest.fn()
+    emit: jest.fn(),
   }
 })
 
@@ -19,7 +19,7 @@ describe('plugin - event created & patch history disabled', () => {
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventCreated: USER_CREATED,
-    patchHistoryDisabled: true
+    patchHistoryDisabled: true,
   })
 
   const User = model('User', UserSchema)
@@ -52,8 +52,8 @@ describe('plugin - event created & patch history disabled', () => {
           name: john.name,
           role: john.role,
           createdAt: john.createdAt,
-          updatedAt: john.updatedAt
-        })
+          updatedAt: john.updatedAt,
+        }),
       })
 
       // Check if the document is saved
@@ -76,8 +76,8 @@ describe('plugin - event created & patch history disabled', () => {
           name: user.name,
           role: user.role,
           createdAt: user.createdAt,
-          updatedAt: user.updatedAt
-        })
+          updatedAt: user.updatedAt,
+        }),
       })
 
       // Check if the document is saved
@@ -91,7 +91,7 @@ describe('plugin - event created & patch history disabled', () => {
       const users = await User.insertMany([
         { name: 'John', role: 'user' },
         { name: 'Alice', role: 'user' },
-        { name: 'Bob', role: 'user' }
+        { name: 'Bob', role: 'user' },
       ], { ordered: true })
 
       const [john, alice, bob] = users
@@ -106,8 +106,8 @@ describe('plugin - event created & patch history disabled', () => {
           name: john.name,
           role: john.role,
           createdAt: john.createdAt,
-          updatedAt: john.updatedAt
-        })
+          updatedAt: john.updatedAt,
+        }),
       })
       expect(em.emit).toHaveBeenNthCalledWith(2, USER_CREATED, {
         doc: expect.objectContaining({
@@ -115,8 +115,8 @@ describe('plugin - event created & patch history disabled', () => {
           name: alice.name,
           role: alice.role,
           createdAt: alice.createdAt,
-          updatedAt: alice.updatedAt
-        })
+          updatedAt: alice.updatedAt,
+        }),
       })
       expect(em.emit).toHaveBeenNthCalledWith(3, USER_CREATED, {
         doc: expect.objectContaining({
@@ -124,8 +124,8 @@ describe('plugin - event created & patch history disabled', () => {
           name: bob.name,
           role: bob.role,
           createdAt: bob.createdAt,
-          updatedAt: bob.updatedAt
-        })
+          updatedAt: bob.updatedAt,
+        }),
       })
 
       // Check if the documents are saved
@@ -151,13 +151,13 @@ describe('plugin - event created & patch history disabled', () => {
         await User.update(
           { name: 'John' },
           { name: 'John', role: 'admin' },
-          { upsert: true }
+          { upsert: true },
         )
       } else {
         await User.findOneAndUpdate(
           { name: 'John' },
           { name: 'John', role: 'admin' },
-          { upsert: true }
+          { upsert: true },
         )
       }
 
@@ -172,9 +172,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
+          role: user?.role,
         // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -188,7 +188,7 @@ describe('plugin - event created & patch history disabled', () => {
       await User.updateOne(
         { name: 'John' },
         { name: 'John', role: 'admin' },
-        { upsert: true }
+        { upsert: true },
       )
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
@@ -202,9 +202,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
+          role: user?.role,
         // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -218,7 +218,7 @@ describe('plugin - event created & patch history disabled', () => {
       await User.replaceOne(
         { name: 'John' },
         { name: 'John', role: 'admin' },
-        { upsert: true }
+        { upsert: true },
       )
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
@@ -232,9 +232,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
+          role: user?.role,
           // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -248,7 +248,7 @@ describe('plugin - event created & patch history disabled', () => {
       await User.updateMany(
         { name: { $in: ['John', 'Alice', 'Bob'] } },
         { name: 'Steve', role: 'admin' },
-        { upsert: true }
+        { upsert: true },
       )
 
       const users = await User.findOne({ name: 'Steve', role: 'admin' })
@@ -261,9 +261,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: users?._id,
           name: users?.name,
-          role: users?.role
+          role: users?.role,
         // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -277,7 +277,7 @@ describe('plugin - event created & patch history disabled', () => {
       await User.findOneAndUpdate(
         { name: 'John' },
         { name: 'John', role: 'admin' },
-        { upsert: true }
+        { upsert: true },
       )
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
@@ -291,9 +291,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
+          role: user?.role,
         // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -307,7 +307,7 @@ describe('plugin - event created & patch history disabled', () => {
       await User.findOneAndReplace(
         { name: 'John' },
         { name: 'John', role: 'admin' },
-        { upsert: true }
+        { upsert: true },
       )
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
@@ -321,9 +321,9 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
+          role: user?.role,
         // Upsert does not set createdAt and updatedAt
-        })
+        }),
       })
 
       // Check if the document is saved
@@ -348,8 +348,8 @@ describe('plugin - event created & patch history disabled', () => {
         doc: expect.objectContaining({
           _id: user?._id,
           name: user?.name,
-          role: user?.role
-        })
+          role: user?.role,
+        }),
       })
 
       // Check if the document is saved

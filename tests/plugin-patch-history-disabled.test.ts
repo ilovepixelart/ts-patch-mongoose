@@ -16,7 +16,7 @@ describe('plugin - patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   UserSchema.plugin(patchHistoryPlugin, {
-    patchHistoryDisabled: true
+    patchHistoryDisabled: true,
   })
 
   const User = model('User', UserSchema)

@@ -11,7 +11,7 @@ import { USER_UPDATED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return {
-    emit: jest.fn()
+    emit: jest.fn(),
   }
 })
 
@@ -21,7 +21,7 @@ describe('plugin - event updated & patch history disabled', () => {
   UserSchema.plugin(patchHistoryPlugin, {
     eventUpdated: USER_UPDATED,
     patchHistoryDisabled: true,
-    omit: ['createdAt', 'updatedAt']
+    omit: ['createdAt', 'updatedAt'],
   })
 
   const User = model('User', UserSchema)
@@ -59,7 +59,7 @@ describe('plugin - event updated & patch history disabled', () => {
         name: 'John',
         role: 'user',
         createdAt: created.createdAt,
-        updatedAt: created.createdAt
+        updatedAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
@@ -67,12 +67,12 @@ describe('plugin - event updated & patch history disabled', () => {
         name: 'John Doe',
         role: 'user',
         createdAt: created.createdAt,
-        updatedAt: updated.updatedAt
+        updatedAt: updated.updatedAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/name', value: 'John' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
-      ])
+        { op: 'replace', path: '/name', value: 'John Doe' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -87,7 +87,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await User.create([
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' }
+      { name: 'John', role: 'user' },
     ], { ordered: true })
 
     if (isMongooseLessThan7) {
@@ -117,7 +117,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await User.create([
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' }
+      { name: 'John', role: 'user' },
     ], { ordered: true })
 
     await User.updateOne({ name: 'Bob' }, { role: 'manager' })
@@ -142,7 +142,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await User.create([
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' }
+      { name: 'John', role: 'user' },
     ], { ordered: true })
 
     await User.replaceOne({ name: 'Bob' }, { name: 'Bob Doe', role: 'manager' })
@@ -160,7 +160,7 @@ describe('plugin - event updated & patch history disabled', () => {
         name: 'Bob',
         role: 'user',
         createdAt: expect.any(Date),
-        updatedAt: expect.any(Date)
+        updatedAt: expect.any(Date),
       }),
       doc: expect.objectContaining({
         __v: 0,
@@ -168,14 +168,14 @@ describe('plugin - event updated & patch history disabled', () => {
         name: 'Bob Doe',
         role: 'manager',
         createdAt: expect.any(Date),
-        updatedAt: expect.any(Date)
+        updatedAt: expect.any(Date),
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/name', value: 'Bob' },
         { op: 'replace', path: '/name', value: 'Bob Doe' },
         { op: 'test', path: '/role', value: 'user' },
-        { op: 'replace', path: '/role', value: 'manager' }
-      ])
+        { op: 'replace', path: '/role', value: 'manager' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -191,7 +191,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await User.create([
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' }
+      { name: 'John', role: 'user' },
     ], { ordered: true })
 
     await User.updateMany({ role: 'user' }, { role: 'manager' })
@@ -229,21 +229,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created._id,
         name: created.name,
         role: created.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: updated?._id,
         name: updated?.name,
         role: updated?.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/role', value: 'user' },
         { op: 'replace', path: '/role', value: 'manager' },
         { op: 'test', path: '/name', value: 'John' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
-      ])
+        { op: 'replace', path: '/name', value: 'John Doe' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -269,7 +269,7 @@ describe('plugin - event updated & patch history disabled', () => {
         name: created.name,
         role: created.role,
         createdAt: created.createdAt,
-        updatedAt: created.createdAt
+        updatedAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
@@ -277,14 +277,14 @@ describe('plugin - event updated & patch history disabled', () => {
         name: updated?.name,
         role: updated?.role,
         createdAt: updated?.createdAt,
-        updatedAt: updated?.updatedAt
+        updatedAt: updated?.updatedAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/name', value: 'John' },
         { op: 'replace', path: '/name', value: 'John Doe' },
         { op: 'test', path: '/role', value: 'user' },
-        { op: 'replace', path: '/role', value: 'manager' }
-      ])
+        { op: 'replace', path: '/role', value: 'manager' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -306,21 +306,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created._id,
         name: created.name,
         role: created.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: created._id,
         name: 'John Doe',
         role: 'manager',
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/name', value: 'Bob' },
         { op: 'replace', path: '/name', value: 'John Doe' },
         { op: 'test', path: '/role', value: 'user' },
-        { op: 'replace', path: '/role', value: 'manager' }
-      ])
+        { op: 'replace', path: '/role', value: 'manager' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -346,21 +346,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created._id,
         name: created.name,
         role: created.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: updated?._id,
         name: updated?.name,
         role: updated?.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/role', value: 'user' },
         { op: 'replace', path: '/role', value: 'manager' },
         { op: 'test', path: '/name', value: 'John' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
-      ])
+        { op: 'replace', path: '/name', value: 'John Doe' },
+      ]),
     })
 
     // Confirm that the document is updated
@@ -387,21 +387,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created1._id,
         name: created1.name,
         role: created1.role,
-        createdAt: created1.createdAt
+        createdAt: created1.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: updated1?._id,
         name: updated1?.name,
         role: updated1?.role,
-        createdAt: created1.createdAt
+        createdAt: created1.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/role', value: 'user' },
         { op: 'replace', path: '/role', value: 'manager' },
         { op: 'test', path: '/name', value: 'John' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
-      ])
+        { op: 'replace', path: '/name', value: 'John Doe' },
+      ]),
     })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
@@ -409,21 +409,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created2._id,
         name: created2.name,
         role: created2.role,
-        createdAt: created2.createdAt
+        createdAt: created2.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: updated2?._id,
         name: updated2?.name,
         role: updated2?.role,
-        createdAt: created2.createdAt
+        createdAt: created2.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/role', value: 'user' },
         { op: 'replace', path: '/role', value: 'manager' },
         { op: 'test', path: '/name', value: 'Bob' },
-        { op: 'replace', path: '/name', value: 'John Doe' }
-      ])
+        { op: 'replace', path: '/name', value: 'John Doe' },
+      ]),
     })
 
     // Confirm that the documents are updated
@@ -452,21 +452,21 @@ describe('plugin - event updated & patch history disabled', () => {
         _id: created._id,
         name: created.name,
         role: created.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       doc: expect.objectContaining({
         __v: 0,
         _id: updated?._id,
         name: updated?.name,
         role: updated?.role,
-        createdAt: created.createdAt
+        createdAt: created.createdAt,
       }),
       patch: expect.arrayContaining([
         { op: 'test', path: '/name', value: 'Bob' },
         { op: 'replace', path: '/name', value: 'John Doe' },
         { op: 'test', path: '/role', value: 'user' },
-        { op: 'replace', path: '/role', value: 'manager' }
-      ])
+        { op: 'replace', path: '/role', value: 'manager' },
+      ]),
     })
 
     // Confirm that the document is updated

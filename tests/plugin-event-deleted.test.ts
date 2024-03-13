@@ -11,17 +11,16 @@ import { toObjectOptions } from '../src/helpers'
 
 jest.mock('../src/em', () => {
   return {
-    emit: jest.fn()
+    emit: jest.fn(),
   }
 })
-
 
 describe('plugin - event delete & patch history disabled', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
-    patchHistoryDisabled: true
+    patchHistoryDisabled: true,
   })
 
   const User = model('User', UserSchema)
@@ -53,7 +52,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -65,7 +64,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john, alice] = users
@@ -81,10 +80,10 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(2)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -102,7 +101,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -118,7 +117,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -133,7 +132,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -145,7 +144,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -160,7 +159,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'admin' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -176,7 +175,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -191,7 +190,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -203,7 +202,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -218,7 +217,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -234,7 +233,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -249,7 +248,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'admin' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -261,7 +260,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -276,7 +275,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john, alice] = users
@@ -288,10 +287,10 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(2)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(alice.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -309,7 +308,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const users = await User.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'admin' }
+      { name: 'Bob', role: 'admin' },
     ])
 
     const [john] = users
@@ -325,7 +324,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted
@@ -350,7 +349,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     expect(em.emit).toHaveBeenCalledTimes(1)
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining(john.toObject(toObjectOptions))
+      oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
 
     // Check if data is deleted

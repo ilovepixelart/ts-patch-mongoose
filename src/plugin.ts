@@ -26,19 +26,19 @@ export const patchEventEmitter = em
  * @param {IPluginOptions} opts
  * @returns {void}
  */
-export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: IPluginOptions<T>): void {
+export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: IPluginOptions<T>): void {
   // Initialize hooks
   saveHooksInitialize(schema, opts)
   updateHooksInitialize(schema, opts)
   deleteHooksInitialize(schema, opts)
-  
+
   // Corner case for insertMany()
   schema.post('insertMany', async function (docs) {
     const context = {
       op: 'create',
       modelName: opts.modelName ?? this.modelName,
       collectionName: opts.collectionName ?? this.collection.collectionName,
-      createdDocs: docs as unknown as HydratedDocument<T>[]
+      createdDocs: docs as unknown as HydratedDocument<T>[],
     }
 
     await createPatch(opts, context)
@@ -52,24 +52,24 @@ export const patchHistoryPlugin = function plugin<T> (schema: Schema<T>, opts: I
       // @ts-expect-error - Mongoose 7 and below
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
-  
+
       if (opts.preDelete && !_.isEmpty(original)) {
         await opts.preDelete([original])
       }
     })
-  
+
     // @ts-expect-error - Mongoose 7 and below
     schema.post(remove, { document: true, query: false }, async function (this: HydratedDocument<T>) {
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
       const model = this.constructor as Model<T>
-  
+
       const context: IContext<T> = {
         op: 'delete',
         modelName: opts.modelName ?? model.modelName,
         collectionName: opts.collectionName ?? model.collection.collectionName,
-        deletedDocs: [original]
+        deletedDocs: [original],
       }
-  
+
       await deletePatch(opts, context)
     })
   }
