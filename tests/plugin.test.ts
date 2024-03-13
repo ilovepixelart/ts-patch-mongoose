@@ -20,7 +20,7 @@ describe('plugin', () => {
     eventCreated: USER_CREATED,
     eventUpdated: USER_UPDATED,
     eventDeleted: USER_DELETED,
-    omit: ['__v', 'role', 'createdAt', 'updatedAt']
+    omit: ['__v', 'role', 'createdAt', 'updatedAt'],
   })
 
   const User = mongoose.model('User', UserSchema)
@@ -82,7 +82,7 @@ describe('plugin', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Alice' }
+      { op: 'replace', path: '/name', value: 'Alice' },
     ])
 
     // 3 update
@@ -97,7 +97,7 @@ describe('plugin', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'Alice' },
-      { op: 'replace', path: '/name', value: 'Bob' }
+      { op: 'replace', path: '/name', value: 'Bob' },
     ])
 
     // 4 delete
@@ -120,15 +120,15 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
-      patch: second.patch
+      patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
-      patch: third.patch
+      patch: third.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' })
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
     })
   })
 
@@ -202,7 +202,7 @@ describe('plugin', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Alice' }
+      { op: 'replace', path: '/name', value: 'Alice' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -210,7 +210,7 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
-      patch: second.patch
+      patch: second.patch,
     })
   })
 
@@ -252,7 +252,7 @@ describe('plugin', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Alice' }
+      { op: 'replace', path: '/name', value: 'Alice' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -260,7 +260,7 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
-      patch: second.patch
+      patch: second.patch,
     })
   })
 
@@ -305,7 +305,7 @@ describe('plugin', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Alice' }
+      { op: 'replace', path: '/name', value: 'Alice' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -313,7 +313,7 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
-      patch: second.patch
+      patch: second.patch,
     })
   })
 
@@ -375,7 +375,7 @@ describe('plugin', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Bob' }
+      { op: 'replace', path: '/name', value: 'Bob' },
     ])
 
     // 4 update
@@ -389,7 +389,7 @@ describe('plugin', () => {
     expect(fourth.patch).toHaveLength(2)
     expect(fourth.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'Alice' },
-      { op: 'replace', path: '/name', value: 'Bob' }
+      { op: 'replace', path: '/name', value: 'Bob' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(4)
@@ -398,12 +398,12 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
-      patch: third.patch
+      patch: third.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
-      patch: fourth.patch
+      patch: fourth.patch,
     })
   })
 
@@ -537,7 +537,7 @@ describe('plugin', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'John' },
-      { op: 'replace', path: '/name', value: 'Bob' }
+      { op: 'replace', path: '/name', value: 'Bob' },
     ])
 
     // 4 update
@@ -552,7 +552,7 @@ describe('plugin', () => {
     expect(fourth.patch).toHaveLength(2)
     expect(fourth.patch).toMatchObject([
       { op: 'test', path: '/name', value: 'Alice' },
-      { op: 'replace', path: '/name', value: 'Bob' }
+      { op: 'replace', path: '/name', value: 'Bob' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(4)
@@ -561,12 +561,12 @@ describe('plugin', () => {
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: john._id, name: 'John', role: 'user' }),
       doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
-      patch: third.patch
+      patch: third.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
       doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
-      patch: fourth.patch
+      patch: fourth.patch,
     })
   })
 })

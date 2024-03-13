@@ -7,7 +7,7 @@ import type IContext from '../interfaces/IContext'
 
 export const saveHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
   schema.pre('save', async function () {
-    if(this.constructor.name !== 'model')
+    if (this.constructor.name !== 'model')
       return
 
     const current = this.toObject(toObjectOptions) as HydratedDocument<T>
@@ -17,7 +17,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T
       op: this.isNew ? 'create' : 'update',
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
-      createdDocs: [current]
+      createdDocs: [current],
     }
 
     if (this.isNew) {

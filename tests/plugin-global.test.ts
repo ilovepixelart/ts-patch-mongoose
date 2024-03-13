@@ -19,7 +19,7 @@ describe('plugin - global', () => {
     eventCreated: GLOBAL_CREATED,
     eventUpdated: GLOBAL_UPDATED,
     eventDeleted: GLOBAL_DELETED,
-    omit: ['__v', 'createdAt', 'updatedAt']
+    omit: ['__v', 'createdAt', 'updatedAt'],
   })
 
   const User = mongoose.model('User', UserSchema)
@@ -186,7 +186,7 @@ describe('plugin - global', () => {
   })
 
   it('should save nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1'} })
+    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     product.description = { summary: 'test2' }
@@ -199,7 +199,7 @@ describe('plugin - global', () => {
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
-    
+
     // 1 create
     expect(first.version).toBe(0)
     expect(first.op).toBe('create')
@@ -209,7 +209,7 @@ describe('plugin - global', () => {
 
     expect(first.doc).toHaveProperty('_id', product._id)
     expect(first.doc).toHaveProperty('name', 'paper')
-    expect(first.doc).toHaveProperty('description', { summary: 'test1'})
+    expect(first.doc).toHaveProperty('description', { summary: 'test1' })
     expect(first.doc).toHaveProperty('createdAt')
     expect(first.doc).toHaveProperty('updatedAt')
 
@@ -227,7 +227,7 @@ describe('plugin - global', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/description/summary', value: 'test1' },
-      { op: 'replace', path: '/description/summary', value: 'test2' }
+      { op: 'replace', path: '/description/summary', value: 'test2' },
     ])
 
     // 3 update
@@ -242,7 +242,7 @@ describe('plugin - global', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch).toMatchObject([
       { op: 'test', path: '/description/summary', value: 'test2' },
-      { op: 'replace', path: '/description/summary', value: 'test3' }
+      { op: 'replace', path: '/description/summary', value: 'test3' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
@@ -250,32 +250,32 @@ describe('plugin - global', () => {
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test1' } }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test2' } }),
-      patch: second.patch
+      patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test2' } }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test3' } }),
-      patch: third.patch
+      patch: third.patch,
     })
   })
 
   it('should update nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1'} })
+    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     await product.updateOne({
-      description: { summary: 'test2' }
+      description: { summary: 'test2' },
     }).exec()
 
     await product.updateOne({
-      $set: { 'description.summary': 'test3' }
+      $set: { 'description.summary': 'test3' },
     }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
-    
+
     // 1 create
     expect(first.version).toBe(0)
     expect(first.op).toBe('create')
@@ -285,7 +285,7 @@ describe('plugin - global', () => {
 
     expect(first.doc).toHaveProperty('_id', product._id)
     expect(first.doc).toHaveProperty('name', 'paper')
-    expect(first.doc).toHaveProperty('description', { summary: 'test1'})
+    expect(first.doc).toHaveProperty('description', { summary: 'test1' })
     expect(first.doc).toHaveProperty('createdAt')
     expect(first.doc).toHaveProperty('updatedAt')
 
@@ -303,7 +303,7 @@ describe('plugin - global', () => {
     expect(second.patch).toHaveLength(2)
     expect(second.patch).toMatchObject([
       { op: 'test', path: '/description/summary', value: 'test1' },
-      { op: 'replace', path: '/description/summary', value: 'test2' }
+      { op: 'replace', path: '/description/summary', value: 'test2' },
     ])
 
     // 3 update
@@ -318,7 +318,7 @@ describe('plugin - global', () => {
     expect(third.patch).toHaveLength(2)
     expect(third.patch).toMatchObject([
       { op: 'test', path: '/description/summary', value: 'test2' },
-      { op: 'replace', path: '/description/summary', value: 'test3' }
+      { op: 'replace', path: '/description/summary', value: 'test3' },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
@@ -326,12 +326,12 @@ describe('plugin - global', () => {
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test1' } }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test2' } }),
-      patch: second.patch
+      patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
       oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test2' } }),
       doc: expect.objectContaining({ _id: product._id, name: 'paper', description: { summary: 'test3' } }),
-      patch: third.patch
+      patch: third.patch,
     })
   })
 })
