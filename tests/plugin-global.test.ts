@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 
+import UserSchema from './schemas/UserSchema'
 import ProductSchema from './schemas/ProductSchema'
 import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
@@ -21,6 +22,7 @@ describe('plugin - global', () => {
     omit: ['__v', 'createdAt', 'updatedAt']
   })
 
+  const User = mongoose.model('User', UserSchema)
   const Product = mongoose.model('Product', ProductSchema)
 
   beforeAll(async () => {
@@ -32,8 +34,155 @@ describe('plugin - global', () => {
   })
 
   beforeEach(async () => {
+    await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('products').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  it('should save array', async () => {
+    const product = await Product.create({ name: 'paper', groups: [] })
+    expect(product.name).toBe('paper')
+
+    product.groups = ['office']
+    await product.save()
+
+    product.groups.push('school')
+    await product.save()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(3)
+
+    const [first, second, third] = history
+    
+    // 1 create
+    expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('Product')
+    expect(first.collectionName).toBe('products')
+    expect(first.collectionId).toEqual(product._id)
+
+    expect(first.doc).toHaveProperty('_id', product._id)
+    expect(first.doc).toHaveProperty('name', 'paper')
+    expect(first.doc).toHaveProperty('groups', [])
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
+    expect(second.version).toBe(1)
+    expect(second.op).toBe('update')
+    expect(second.modelName).toBe('Product')
+    expect(second.collectionName).toBe('products')
+    expect(second.collectionId).toEqual(product._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(1)
+    expect(second.patch).toMatchObject([
+      { op: 'add', path: '/groups/0', value: 'office' }
+    ])
+
+    // 3 update
+    expect(third.version).toBe(2)
+    expect(third.op).toBe('update')
+    expect(third.modelName).toBe('Product')
+    expect(third.collectionName).toBe('products')
+    expect(third.collectionId).toEqual(product._id)
+
+    expect(third.doc).toBeUndefined()
+
+    expect(third.patch).toHaveLength(1)
+    expect(third.patch).toMatchObject([
+      { op: 'add', path: '/groups/1', value: 'school' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(3)
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
+      oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: [] }),
+      doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
+      patch: second.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
+      oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
+      doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office', 'school'] }),
+      patch: third.patch
+    })
+  })
+
+  it('should update array', async () => {
+    const product = await Product.create({ name: 'paper', groups: [] })
+    expect(product.name).toBe('paper')
+
+    await product.updateOne({
+      groups: ['office']
+    }).exec()
+
+    await product.updateOne({
+      $push: { groups: 'school' }
+    }).exec()
+
+    const history = await History.find({})
+    expect(history).toHaveLength(3)
+
+    const [first, second, third] = history
+    
+    // 1 create
+    expect(first.version).toBe(0)
+    expect(first.op).toBe('create')
+    expect(first.modelName).toBe('Product')
+    expect(first.collectionName).toBe('products')
+    expect(first.collectionId).toEqual(product._id)
+
+    expect(first.doc).toHaveProperty('_id', product._id)
+    expect(first.doc).toHaveProperty('name', 'paper')
+    expect(first.doc).toHaveProperty('groups', [])
+    expect(first.doc).toHaveProperty('createdAt')
+    expect(first.doc).toHaveProperty('updatedAt')
+
+    expect(first.patch).toHaveLength(0)
+
+    // 2 update
+    expect(second.version).toBe(1)
+    expect(second.op).toBe('updateOne')
+    expect(second.modelName).toBe('Product')
+    expect(second.collectionName).toBe('products')
+    expect(second.collectionId).toEqual(product._id)
+
+    expect(second.doc).toBeUndefined()
+
+    expect(second.patch).toHaveLength(1)
+    expect(second.patch).toMatchObject([
+      { op: 'add', path: '/groups/0', value: 'office' }
+    ])
+
+    // 3 update
+    expect(third.version).toBe(2)
+    expect(third.op).toBe('updateOne')
+    expect(third.modelName).toBe('Product')
+    expect(third.collectionName).toBe('products')
+    expect(third.collectionId).toEqual(product._id)
+
+    expect(third.doc).toBeUndefined()
+
+    expect(third.patch).toHaveLength(1)
+    expect(third.patch).toMatchObject([
+      { op: 'add', path: '/groups/1', value: 'school' }
+    ])
+
+    expect(em.emit).toHaveBeenCalledTimes(3)
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_CREATED, { doc: first.doc })
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
+      oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: [] }),
+      doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
+      patch: second.patch
+    })
+    expect(em.emit).toHaveBeenCalledWith(GLOBAL_UPDATED, {
+      oldDoc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office'] }),
+      doc: expect.objectContaining({ _id: product._id, name: 'paper', groups: ['office', 'school'] }),
+      patch: third.patch
+    })
   })
 
   it('should save nested schema', async () => {
