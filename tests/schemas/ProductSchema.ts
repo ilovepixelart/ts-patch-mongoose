@@ -11,15 +11,16 @@ const ProductSchema = new Schema<IProduct>({
   },
   groups: {
     type: [String],
-    required: true
+    required: false,
+    default: undefined
   },
   description: {
     type: DescriptionSchema,
-    required: true
+    required: false
   },
   addedBy: {
     type: Schema.Types.ObjectId,
-    required: true,
+    required: false,
     ref: 'User'
   }
 }, { timestamps: true })
