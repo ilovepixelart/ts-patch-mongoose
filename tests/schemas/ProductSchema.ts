@@ -9,19 +9,9 @@ const ProductSchema = new Schema<IProduct>({
     type: String,
     required: true
   },
-  groups: {
-    type: [String],
-    required: false,
-    default: undefined
-  },
   description: {
     type: DescriptionSchema,
     required: false
-  },
-  addedBy: {
-    type: Schema.Types.ObjectId,
-    required: false,
-    ref: 'User'
   }
 }, { timestamps: true })
 
