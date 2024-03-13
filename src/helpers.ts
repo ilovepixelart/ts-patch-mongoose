@@ -6,5 +6,5 @@ export const isHookIgnored = <T>(options: QueryOptions<T>): boolean => {
 
 export const toObjectOptions: ToObjectOptions = {
   depopulate: true,
-  virtuals: false
+  virtuals: false,
 }

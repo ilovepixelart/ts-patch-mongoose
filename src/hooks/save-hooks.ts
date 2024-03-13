@@ -14,7 +14,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T
       op: this.isNew ? 'create' : 'update',
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
-      createdDocs: [current]
+      createdDocs: [current],
     }
 
     if (this.isNew) {

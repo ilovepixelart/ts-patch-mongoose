@@ -20,7 +20,7 @@ describe('plugin - preDelete test', () => {
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
     patchHistoryDisabled: true,
-    preDelete: preDeleteMock
+    preDelete: preDeleteMock,
   })
 
   const User = model('User', UserSchema)
@@ -60,8 +60,8 @@ describe('plugin - preDelete test', () => {
         name: 'Jane',
         role: 'user',
         createdAt: jane?.createdAt,
-        updatedAt: jane?.updatedAt
-      }
+        updatedAt: jane?.updatedAt,
+      },
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: {
@@ -70,8 +70,8 @@ describe('plugin - preDelete test', () => {
         name: 'John',
         role: 'user',
         createdAt: john?.createdAt,
-        updatedAt: john?.updatedAt
-      }
+        updatedAt: john?.updatedAt,
+      },
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: {
@@ -80,8 +80,8 @@ describe('plugin - preDelete test', () => {
         name: 'Jack',
         role: 'user',
         createdAt: jack?.createdAt,
-        updatedAt: jack?.updatedAt
-      }
+        updatedAt: jack?.updatedAt,
+      },
     })
   })
 
@@ -104,8 +104,8 @@ describe('plugin - preDelete test', () => {
         name: 'John',
         role: 'user',
         createdAt: john?.createdAt,
-        updatedAt: john?.updatedAt
-      }
+        updatedAt: john?.updatedAt,
+      },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -116,8 +116,8 @@ describe('plugin - preDelete test', () => {
         name: 'John',
         role: 'user',
         createdAt: john?.createdAt,
-        updatedAt: john?.updatedAt
-      }
+        updatedAt: john?.updatedAt,
+      },
     })
   })
 
@@ -138,8 +138,8 @@ describe('plugin - preDelete test', () => {
         name: 'John',
         role: 'user',
         createdAt: john?.createdAt,
-        updatedAt: john?.updatedAt
-      }
+        updatedAt: john?.updatedAt,
+      },
     ])
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -150,8 +150,8 @@ describe('plugin - preDelete test', () => {
         name: 'John',
         role: 'user',
         createdAt: john?.createdAt,
-        updatedAt: john?.updatedAt
-      }
+        updatedAt: john?.updatedAt,
+      },
     })
   })
 })

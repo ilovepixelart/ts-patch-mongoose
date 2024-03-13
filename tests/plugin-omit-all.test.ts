@@ -16,7 +16,7 @@ describe('plugin - omit all', () => {
   const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
 
   UserSchema.plugin(patchHistoryPlugin, {
-    omit: ['__v', 'name', 'role', 'createdAt', 'updatedAt']
+    omit: ['__v', 'name', 'role', 'createdAt', 'updatedAt'],
   })
 
   const User = model('User', UserSchema)

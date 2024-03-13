@@ -22,7 +22,7 @@ describe('em', () => {
     const context = {
       op: 'test',
       modelName: 'Test',
-      collectionName: 'tests'
+      collectionName: 'tests',
     }
 
     emitEvent(context, 'test', { doc: { name: 'test' } })
@@ -39,7 +39,7 @@ describe('em', () => {
       ignoreEvent: true,
       op: 'test',
       modelName: 'Test',
-      collectionName: 'tests'
+      collectionName: 'tests',
     }
 
     emitEvent(context, 'test', { doc: { name: 'test' } })

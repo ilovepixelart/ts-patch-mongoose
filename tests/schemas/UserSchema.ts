@@ -5,12 +5,12 @@ import type IUser from '../interfaces/IUser'
 const UserSchema = new Schema<IUser>({
   name: {
     type: String,
-    required: true
+    required: true,
   },
   role: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 }, { timestamps: true })
 
 export default UserSchema
