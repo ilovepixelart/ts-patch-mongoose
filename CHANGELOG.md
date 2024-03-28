@@ -1,3 +1,39 @@
+<a name="v2.5.6"></a>
+# [v2.5.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.6) - 14 Mar 2024
+
+- Merge pull request [#195](https://github.com/ilovepixelart/ts-patch-mongoose/issues/195) from ilovepixelart/feature/dep  251bccc
+- tsconfig  2dd7e7d
+- Dep  c10b01f
+- Merge pull request [#194](https://github.com/ilovepixelart/ts-patch-mongoose/issues/194) from ReadWriteError/subdocument-fix  61702eb
+- more eslint fixes  5de47d7
+- Merge branch &[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);main&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39); into subdocument-fix  6341e93
+- eslint fixes  6dae0a6
+- removed unnessisary tests  496fc9b
+- added check in save hook to ignore subdocuments  41b6308
+- Merge pull request [#193](https://github.com/ilovepixelart/ts-patch-mongoose/issues/193) from ilovepixelart/feature/lint  f5d2803
+- added nested schema tests  7f001da
+- added plugin - global array tests  a259ab6
+- made new types not required  c6f36aa
+- Lint  8114c30
+- added new schemas for tests  d80e683
+- Merge pull request [#191](https://github.com/ilovepixelart/ts-patch-mongoose/issues/191) from ilovepixelart/dependabot/npm_and_yarn/swc/cli-0.3.10  7d031bd
+- Merge pull request [#188](https://github.com/ilovepixelart/ts-patch-mongoose/issues/188) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/parser-7.1.0  0216620
+- Bump @typescript-eslint/parser from 7.0.2 to 7.1.0  c1b8810
+- Merge pull request [#189](https://github.com/ilovepixelart/ts-patch-mongoose/issues/189) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.2.0  8de770e
+- Merge pull request [#190](https://github.com/ilovepixelart/ts-patch-mongoose/issues/190) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.11.24  df2015c
+- Merge pull request [#192](https://github.com/ilovepixelart/ts-patch-mongoose/issues/192) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/eslint-plugin-7.1.0  a889ec5
+- Bump @typescript-eslint/eslint-plugin from 7.0.2 to 7.1.0  a927b61
+- Bump @swc/cli from 0.3.9 to 0.3.10  fdf2d80
+- Bump @types/node from 20.8.10 to 20.11.24  944a7ae
+- Bump mongoose from 8.0.0 to 8.2.0  b90e7bc
+- Skip sonar for forked PRs  83be88e
+- Update changelog for v2.5.5  52fb13e
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.5...v2.5.6
+
+[Changes][v2.5.6]
+
+
 <a name="v2.5.5"></a>
 # [v2.5.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.5) - 24 Feb 2024
 
@@ -710,6 +746,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.5.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.5...v2.5.6
 [v2.5.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.4...v2.5.5
 [v2.5.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.3...v2.5.4
 [v2.5.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.2...v2.5.3
