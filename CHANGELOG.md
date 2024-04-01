@@ -1,3 +1,37 @@
+<a name="v2.6.0"></a>
+# [v2.6.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.0) - 01 Apr 2024
+
+- Eslint  01098c7
+- Merge pull request [#200](https://github.com/ilovepixelart/ts-patch-mongoose/issues/200) from ilovepixelart/dependabot/npm_and_yarn/swc/cli-0.3.12  09e485d
+- Merge pull request [#201](https://github.com/ilovepixelart/ts-patch-mongoose/issues/201) from ilovepixelart/dependabot/npm_and_yarn/swc/helpers-0.5.8  a972beb
+- Merge pull request [#202](https://github.com/ilovepixelart/ts-patch-mongoose/issues/202) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.12.2  77a5518
+- Merge pull request [#203](https://github.com/ilovepixelart/ts-patch-mongoose/issues/203) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.2.4  739f63d
+- Merge pull request [#204](https://github.com/ilovepixelart/ts-patch-mongoose/issues/204) from ilovepixelart/dependabot/npm_and_yarn/eslint-plugin-sonarjs-0.25.0  4584669
+- Bump eslint-plugin-sonarjs from 0.24.0 to 0.25.0  1c621e9
+- Bump mongoose from 8.2.3 to 8.2.4  4077fff
+- Bump @types/node from 20.8.10 to 20.12.2  f8d6f9b
+- Bump @swc/helpers from 0.5.7 to 0.5.8  3c66ab8
+- Bump @swc/cli from 0.3.10 to 0.3.12  44efd41
+- Merge pull request [#199](https://github.com/ilovepixelart/ts-patch-mongoose/issues/199) from ReadWriteError/objectId-fix  e1ed3c6
+- Merge branch &[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);main&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39); into objectId-fix  eb097d6
+- Merge pull request [#198](https://github.com/ilovepixelart/ts-patch-mongoose/issues/198) from ilovepixelart/feature/dep  29da5fa
+- Dep  911afc4
+- Merge pull request [#197](https://github.com/ilovepixelart/ts-patch-mongoose/issues/197) from ilovepixelart/snyk-upgrade-2eed03169fe66ddf267ff97db8b1e363  9ea9f1e
+- fix: upgrade mongoose from 8.2.0 to 8.2.1  15e105c
+- Merge pull request [#196](https://github.com/ilovepixelart/ts-patch-mongoose/issues/196) from ilovepixelart/snyk-upgrade-731cbfc854fe13776fa11c4845f76100  ca965c3
+- fix: upgrade mongoose from 8.0.0 to 8.2.0  ac9aaac
+- revised update-hook to pass new objectID tests  404597e
+- added objectID tests  6f05d6f
+- Update changelog for v2.5.6  244d8eb
+- eslint fixes  0f8809b
+- Merge branch &[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39);main&[#39](https://github.com/ilovepixelart/ts-patch-mongoose/issues/39); into objectID-fix  dd5b008
+- Revert &quot;removed unnessisary tests&quot;  16fa25b
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.6...v2.6.0
+
+[Changes][v2.6.0]
+
+
 <a name="v2.5.6"></a>
 # [v2.5.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.5.6) - 14 Mar 2024
 
@@ -746,6 +780,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.6.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.6...v2.6.0
 [v2.5.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.5...v2.5.6
 [v2.5.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.4...v2.5.5
 [v2.5.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.3...v2.5.4
