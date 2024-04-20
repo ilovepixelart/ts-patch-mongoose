@@ -107,9 +107,9 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john] = users
 
     if (isMongooseLessThan7) {
-      await User.remove({ role: 'user' }, { single: true }).exec()
+      await User.remove({ role: 'user', name: 'John' }, { single: true }).exec()
     } else {
-      await User.deleteOne({ role: 'user' }).exec()
+      await User.deleteOne({ role: 'user', name: 'John' }).exec()
     }
 
     const history = await History.find({})
