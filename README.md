@@ -25,7 +25,7 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ```json
 {
-  "node": "16.x || 18.x || 20.x",
+  "node": "18.x || 20.x || 22.x",
   "mongoose": "6.6.x || 7.x || 8.x",
 }
 ```
