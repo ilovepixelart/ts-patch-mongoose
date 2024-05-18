@@ -1,3 +1,29 @@
+<a name="v2.6.1"></a>
+# [v2.6.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.1) - 18 May 2024
+
+- Merge pull request [#212](https://github.com/ilovepixelart/ts-patch-mongoose/issues/212) from ilovepixelart/feature/node22  a76d494
+- Flaky  5673529
+- Doc  ae87f15
+- Node 22  863de14
+- Merge pull request [#211](https://github.com/ilovepixelart/ts-patch-mongoose/issues/211) from ilovepixelart/feature/dep  56e4a3d
+- Dep  6cf63cd
+- Merge pull request [#210](https://github.com/ilovepixelart/ts-patch-mongoose/issues/210) from ilovepixelart/dependabot/npm_and_yarn/stylistic/eslint-plugin-1.8.0  fff0e2f
+- Merge pull request [#209](https://github.com/ilovepixelart/ts-patch-mongoose/issues/209) from ilovepixelart/dependabot/npm_and_yarn/eslint-plugin-jest-28.3.0  1d64d50
+- Merge pull request [#206](https://github.com/ilovepixelart/ts-patch-mongoose/issues/206) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.3.3  52e7ce9
+- Merge pull request [#207](https://github.com/ilovepixelart/ts-patch-mongoose/issues/207) from ilovepixelart/dependabot/npm_and_yarn/types/node-20.12.7  ea4c927
+- Bump @stylistic/eslint-plugin from 1.7.2 to 1.8.0  b06d07d
+- Bump eslint-plugin-jest from 28.2.0 to 28.3.0  57106ea
+- Bump @types/node from 20.12.2 to 20.12.7  b6a528d
+- Bump mongoose from 8.3.2 to 8.3.3  7cf3b91
+- Merge pull request [#205](https://github.com/ilovepixelart/ts-patch-mongoose/issues/205) from ilovepixelart/feature/dep  2fd501b
+- Dep  1678101
+- Update changelog for v2.6.0  92834ea
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.0...v2.6.1
+
+[Changes][v2.6.1]
+
+
 <a name="v2.6.0"></a>
 # [v2.6.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.0) - 01 Apr 2024
 
@@ -780,6 +806,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.6.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.0...v2.6.1
 [v2.6.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.6...v2.6.0
 [v2.5.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.5...v2.5.6
 [v2.5.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.4...v2.5.5
