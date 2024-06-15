@@ -26,7 +26,7 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```json
 {
   "node": "18.x || 20.x || 22.x",
-  "mongoose": "6.6.x || 7.x || 8.x",
+  "mongoose": ">=6.6.x || 7.x || 8.x",
 }
 ```
 
@@ -50,21 +50,21 @@ yarn add ts-patch-mongoose
 pnpm add ts-patch-mongoose
 ```
 
-- This plugin requires mongoose `6.6.x || 7.x || 8.x` to be installed as a peer dependency
+- This plugin requires mongoose `>=6.6.x || 7.x || 8.x` to be installed as a peer dependency
 
 ```bash
-# For mongoose 6
-npm install mongoose@6.12.2
-yarn add mongoose@6.12.2
-pnpm add mongoose@6.12.2
-# For mongoose 7
-npm install mongoose@7.6.4
-yarn add mongoose@7.6.4
-pnpm add mongoose@7.6.4
-# For mongoose 8
-npm install mongoose@8.0.0
-yarn add mongoose@8.0.0
-pnpm add mongoose@8.0.0
+# For latest mongoose 6
+npm install mongoose@6
+yarn add mongoose@6
+pnpm add mongoose@6
+# For latest mongoose 7
+npm install mongoose@7
+yarn add mongoose@7
+pnpm add mongoose@7
+# For latest mongoose 8
+npm install mongoose@8
+yarn add mongoose@8
+pnpm add mongoose@8
 ```
 
 ## Example
