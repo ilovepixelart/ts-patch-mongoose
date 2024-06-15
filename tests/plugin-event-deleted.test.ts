@@ -137,7 +137,7 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findOneAndDelete({ role: 'user' }).exec()
+    await User.findOneAndDelete({ name: 'John' }).exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(0)
