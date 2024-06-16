@@ -58,10 +58,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', user._id)
 
     expect(second.op).toBe('deleteMany')
@@ -71,10 +71,10 @@ describe('plugin - omit all', () => {
     expect(second.version).toBe(0)
     expect(second.patch).toHaveLength(0)
 
-    expect(second.doc).toHaveProperty('name', 'Bob')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('name')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
     expect(second.doc).toHaveProperty('_id', user._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -99,10 +99,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', user._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -126,10 +126,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', user._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -153,10 +153,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', user._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -184,10 +184,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', user._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -217,10 +217,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', john._id)
 
     expect(second.op).toBe('create')
@@ -230,10 +230,10 @@ describe('plugin - omit all', () => {
     expect(second.version).toBe(0)
     expect(second.patch).toHaveLength(0)
 
-    expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('name')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
     expect(second.doc).toHaveProperty('_id', alice._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -255,10 +255,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id')
 
     expect(second.op).toBe('create')
@@ -268,10 +268,10 @@ describe('plugin - omit all', () => {
     expect(second.version).toBe(0)
     expect(second.patch).toHaveLength(0)
 
-    expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('name')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
     expect(second.doc).toHaveProperty('_id')
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -294,8 +294,8 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'Bob')
-    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).toHaveProperty('_id')
 
     expect(em.emit).toHaveBeenCalledTimes(0)
@@ -321,10 +321,10 @@ describe('plugin - omit all', () => {
     expect(first.version).toBe(0)
     expect(first.patch).toHaveLength(0)
 
-    expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('name')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
     expect(first.doc).toHaveProperty('_id', john._id)
 
     expect(second.op).toBe('create')
@@ -334,10 +334,10 @@ describe('plugin - omit all', () => {
     expect(second.version).toBe(0)
     expect(second.patch).toHaveLength(0)
 
-    expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('name')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
     expect(second.doc).toHaveProperty('_id', alice._id)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
