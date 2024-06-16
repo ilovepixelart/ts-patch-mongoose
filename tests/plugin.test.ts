@@ -64,7 +64,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -109,7 +109,7 @@ describe('plugin', () => {
 
     expect(fourth.doc).toHaveProperty('_id', user._id)
     expect(fourth.doc).toHaveProperty('name', 'Bob')
-    expect(fourth.doc).not.toHaveProperty('role', 'user')
+    expect(fourth.doc).not.toHaveProperty('role')
     expect(fourth.doc).not.toHaveProperty('createdAt')
     expect(fourth.doc).not.toHaveProperty('updatedAt')
 
@@ -153,7 +153,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -184,7 +184,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -234,7 +234,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -288,7 +288,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -343,7 +343,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', john._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -358,7 +358,7 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id', alice._id)
     expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).not.toHaveProperty('role', 'user')
+    expect(second.doc).not.toHaveProperty('role')
     expect(second.doc).not.toHaveProperty('createdAt')
     expect(second.doc).not.toHaveProperty('updatedAt')
 
@@ -424,7 +424,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id')
     expect(first.doc).toHaveProperty('name', 'Alice')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -438,7 +438,7 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id')
     expect(second.doc).toHaveProperty('name', 'John')
-    expect(second.doc).not.toHaveProperty('role', 'user')
+    expect(second.doc).not.toHaveProperty('role')
     expect(second.doc).not.toHaveProperty('createdAt')
     expect(second.doc).not.toHaveProperty('updatedAt')
 
@@ -467,7 +467,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id')
     expect(first.doc).toHaveProperty('name', 'Bob')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
 
     // Upsert don't have createdAt and updatedAt and validation errors
     // Investigate this case later
@@ -503,7 +503,7 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', john._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).not.toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
     expect(first.doc).not.toHaveProperty('createdAt')
     expect(first.doc).not.toHaveProperty('updatedAt')
 
@@ -519,7 +519,7 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id', alice._id)
     expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).not.toHaveProperty('role', 'user')
+    expect(second.doc).not.toHaveProperty('role')
     expect(second.doc).not.toHaveProperty('createdAt')
     expect(second.doc).not.toHaveProperty('updatedAt')
 
