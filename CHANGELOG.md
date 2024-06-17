@@ -1,3 +1,30 @@
+<a name="v2.6.2"></a>
+# [v2.6.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.2) - 17 Jun 2024
+
+- Merge pull request [#221](https://github.com/ilovepixelart/ts-patch-mongoose/issues/221) from ilovepixelart/feature/omit-should-work-on-create-delete  806112e
+- Doc  e77d8c5
+- Test  1c3c2b4
+- Should omit props on create, delete  072396a
+- Merge pull request [#220](https://github.com/ilovepixelart/ts-patch-mongoose/issues/220) from ilovepixelart/feature/dep  bbb65b8
+- Doc  0a30d76
+- Dep  92748aa
+- Merge pull request [#218](https://github.com/ilovepixelart/ts-patch-mongoose/issues/218) from ilovepixelart/feature/upgrade-actions  f48e1dc
+- Upgrade actions  3cfbc37
+- Merge pull request [#213](https://github.com/ilovepixelart/ts-patch-mongoose/issues/213) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.4.1  e8e0e69
+- Merge pull request [#215](https://github.com/ilovepixelart/ts-patch-mongoose/issues/215) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/eslint-plugin-7.11.0  90dcc90
+- Bump @typescript-eslint/eslint-plugin from 7.9.0 to 7.11.0  7d82031
+- Merge pull request [#216](https://github.com/ilovepixelart/ts-patch-mongoose/issues/216) from ilovepixelart/dependabot/npm_and_yarn/typescript-eslint/parser-7.11.0  8f0a211
+- Merge pull request [#217](https://github.com/ilovepixelart/ts-patch-mongoose/issues/217) from ilovepixelart/dependabot/npm_and_yarn/swc/core-1.5.24  d4873b5
+- Bump @swc/core from 1.5.7 to 1.5.24  f44cfa7
+- Bump @typescript-eslint/parser from 7.9.0 to 7.11.0  8672015
+- Bump mongoose from 8.4.0 to 8.4.1  51ebcb0
+- Update changelog for v2.6.1  dde3a8e
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.1...v2.6.2
+
+[Changes][v2.6.2]
+
+
 <a name="v2.6.1"></a>
 # [v2.6.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.1) - 18 May 2024
 
@@ -806,6 +833,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.6.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.1...v2.6.2
 [v2.6.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.0...v2.6.1
 [v2.6.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.6...v2.6.0
 [v2.5.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.5.5...v2.5.6
