@@ -16,16 +16,23 @@ function isPatchHistoryEnabled<T>(opts: IPluginOptions<T>, context: IContext<T>)
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
 }
 
-export function getObjects<T>(opts: IPluginOptions<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): { currentObject: Partial<T>, originalObject: Partial<T> } {
-  let currentObject = JSON.parse(JSON.stringify(current)) as Partial<T>
-  let originalObject = JSON.parse(JSON.stringify(original)) as Partial<T>
+export function getJsonOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
+  const object = JSON.parse(JSON.stringify(doc)) as Partial<T>
 
   if (opts.omit) {
-    currentObject = omit(currentObject, opts.omit)
-    originalObject = omit(originalObject, opts.omit)
+    return omit(object, opts.omit)
   }
 
-  return { currentObject, originalObject }
+  return object
+}
+
+export function getObjectOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
+  if (opts.omit) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, @typescript-eslint/unbound-method
+    return omit(_.isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
+  }
+
+  return doc
 }
 
 export async function getUser<T>(opts: IPluginOptions<T>): Promise<User | undefined> {
@@ -96,7 +103,7 @@ export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>
               modelName: context.modelName,
               collectionName: context.collectionName,
               collectionId: doc._id as Types.ObjectId,
-              doc,
+              doc: getObjectOmit(opts, doc),
               user,
               reason,
               metadata,
@@ -120,7 +127,8 @@ export async function createPatch<T>(opts: IPluginOptions<T>, context: IContext<
 export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
   const history = isPatchHistoryEnabled(opts, context)
 
-  const { currentObject, originalObject } = getObjects(opts, current, original)
+  const currentObject = getJsonOmit(opts, current)
+  const originalObject = getJsonOmit(opts, original)
   if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
 
   const patch = jsonpatch.compare(originalObject, currentObject, true)

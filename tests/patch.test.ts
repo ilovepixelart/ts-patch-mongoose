@@ -1,6 +1,6 @@
 import mongoose, { model } from 'mongoose'
 
-import { getUser, getReason, getMetadata, getData, getValue, getObjects, bulkPatch, updatePatch } from '../src/patch'
+import { getUser, getReason, getMetadata, getData, getValue, getJsonOmit, bulkPatch, updatePatch } from '../src/patch'
 import { patchHistoryPlugin } from '../src/plugin'
 
 import UserSchema from './schemas/UserSchema'
@@ -53,7 +53,8 @@ describe('patch tests', () => {
         omit: ['createdAt'],
       }
 
-      const { currentObject, originalObject } = getObjects(pluginOptions, current, original)
+      const currentObject = getJsonOmit(pluginOptions, current)
+      const originalObject = getJsonOmit(pluginOptions, original)
 
       expect(currentObject.name).toBe('John')
       expect(currentObject.role).toBe('admin')
@@ -68,7 +69,10 @@ describe('patch tests', () => {
       const original = await User.create({ name: 'John', role: 'user' })
       const current = await User.create({ name: 'John', role: 'admin' })
 
-      const { currentObject, originalObject } = getObjects({}, current, original)
+      const pluginOptions = {}
+
+      const currentObject = getJsonOmit(pluginOptions, current)
+      const originalObject = getJsonOmit(pluginOptions, original)
 
       expect(currentObject.name).toBe('John')
       expect(currentObject.role).toBe('admin')

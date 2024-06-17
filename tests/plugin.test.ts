@@ -64,9 +64,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -109,26 +109,26 @@ describe('plugin', () => {
 
     expect(fourth.doc).toHaveProperty('_id', user._id)
     expect(fourth.doc).toHaveProperty('name', 'Bob')
-    expect(fourth.doc).toHaveProperty('role', 'user')
-    expect(fourth.doc).toHaveProperty('createdAt')
-    expect(fourth.doc).toHaveProperty('updatedAt')
+    expect(fourth.doc).not.toHaveProperty('role')
+    expect(fourth.doc).not.toHaveProperty('createdAt')
+    expect(fourth.doc).not.toHaveProperty('updatedAt')
 
     expect(fourth.patch).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(4)
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
-      oldDoc: expect.objectContaining({ _id: user._id, name: 'John', role: 'user' }),
-      doc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'John' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Alice' }),
       patch: second.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
-      oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice', role: 'user' }),
-      doc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'Alice' }),
+      doc: expect.objectContaining({ _id: user._id, name: 'Bob' }),
       patch: third.patch,
     })
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
-      oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob', role: 'user' }),
+      oldDoc: expect.objectContaining({ _id: user._id, name: 'Bob' }),
     })
   })
 
@@ -153,9 +153,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -184,9 +184,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -234,9 +234,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -288,9 +288,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', user._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -343,9 +343,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', john._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -358,9 +358,9 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id', alice._id)
     expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
 
     expect(second.patch).toHaveLength(0)
 
@@ -424,9 +424,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id')
     expect(first.doc).toHaveProperty('name', 'Alice')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -438,9 +438,9 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id')
     expect(second.doc).toHaveProperty('name', 'John')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
 
     expect(second.patch).toHaveLength(0)
 
@@ -467,12 +467,12 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id')
     expect(first.doc).toHaveProperty('name', 'Bob')
-    expect(first.doc).toHaveProperty('role', 'user')
+    expect(first.doc).not.toHaveProperty('role')
 
     // Upsert don't have createdAt and updatedAt and validation errors
     // Investigate this case later
-    // expect(first.doc).toHaveProperty('createdAt')
-    // expect(first.doc).toHaveProperty('updatedAt')
+    // expect(first.doc).not.toHaveProperty('createdAt')
+    // expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -503,9 +503,9 @@ describe('plugin', () => {
 
     expect(first.doc).toHaveProperty('_id', john._id)
     expect(first.doc).toHaveProperty('name', 'John')
-    expect(first.doc).toHaveProperty('role', 'user')
-    expect(first.doc).toHaveProperty('createdAt')
-    expect(first.doc).toHaveProperty('updatedAt')
+    expect(first.doc).not.toHaveProperty('role')
+    expect(first.doc).not.toHaveProperty('createdAt')
+    expect(first.doc).not.toHaveProperty('updatedAt')
 
     expect(first.patch).toHaveLength(0)
 
@@ -519,9 +519,9 @@ describe('plugin', () => {
 
     expect(second.doc).toHaveProperty('_id', alice._id)
     expect(second.doc).toHaveProperty('name', 'Alice')
-    expect(second.doc).toHaveProperty('role', 'user')
-    expect(second.doc).toHaveProperty('createdAt')
-    expect(second.doc).toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('role')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
 
     expect(second.patch).toHaveLength(0)
 

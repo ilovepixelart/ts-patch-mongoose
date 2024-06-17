@@ -46,8 +46,9 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ```bash
 npm install ts-patch-mongoose
-yarn add ts-patch-mongoose
 pnpm add ts-patch-mongoose
+yarn add ts-patch-mongoose
+bun add ts-patch-mongoose
 ```
 
 - This plugin requires mongoose `>=6.6.x || 7.x || 8.x` to be installed as a peer dependency
@@ -55,16 +56,19 @@ pnpm add ts-patch-mongoose
 ```bash
 # For latest mongoose 6
 npm install mongoose@6
-yarn add mongoose@6
 pnpm add mongoose@6
+yarn add mongoose@6
+bun add mongoose@6
 # For latest mongoose 7
 npm install mongoose@7
-yarn add mongoose@7
 pnpm add mongoose@7
+yarn add mongoose@7
+bun add mongoose@7
 # For latest mongoose 8
 npm install mongoose@8
-yarn add mongoose@8
 pnpm add mongoose@8
+yarn add mongoose@8
+bun add mongoose@8
 ```
 
 ## Example
