@@ -87,7 +87,7 @@
     "@shelf/jest-mongodb": "4.3.2",
     "@stylistic/eslint-plugin": "2.2.0",
     "@swc/cli": "0.3.12",
-    "@swc/core": "1.6.0",
+    "@swc/core": "1.6.6",
     "@swc/helpers": "0.5.11",
     "@swc/jest": "0.2.36",
     "@swc/register": "0.1.10",
