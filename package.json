@@ -88,7 +88,7 @@
     "@stylistic/eslint-plugin": "2.3.0",
     "@swc/cli": "0.4.0",
     "@swc/core": "1.6.7",
-    "@swc/helpers": "0.5.11",
+    "@swc/helpers": "0.5.12",
     "@swc/jest": "0.2.36",
     "@swc/register": "0.1.10",
     "@types/jest": "29.5.12",
