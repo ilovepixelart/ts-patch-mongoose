@@ -91,7 +91,7 @@
     "@types/lodash": "4.17.7",
     "@types/node": "22",
     "@types/semver": "7.5.8",
-    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/eslint-plugin": "8.8.0",
     "@typescript-eslint/parser": "7.18.0",
     "eslint": "8.57.0",
     "eslint-plugin-jest": "28.8.3",
