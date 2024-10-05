@@ -1,23 +1,16 @@
 import _ from 'lodash'
 
-import { deletePatch } from '../patch'
 import { isHookIgnored } from '../helpers'
+import { deletePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema } from 'mongoose'
-import type IPluginOptions from '../interfaces/IPluginOptions'
 import type IHookContext from '../interfaces/IHookContext'
+import type IPluginOptions from '../interfaces/IPluginOptions'
 
-const deleteMethods = [
-  'remove',
-  'findOneAndDelete',
-  'findOneAndRemove',
-  'findByIdAndDelete',
-  'findByIdAndRemove',
-  'deleteOne',
-  'deleteMany',
-]
+const deleteMethods = ['remove', 'findOneAndDelete', 'findOneAndRemove', 'findByIdAndDelete', 'findByIdAndRemove', 'deleteOne', 'deleteMany']
 
 export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: later
   schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
@@ -29,11 +22,11 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
       op: this.op,
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      ignoreEvent: options['ignoreEvent'] as boolean,
-      ignorePatchHistory: options['ignorePatchHistory'] as boolean,
+      ignoreEvent: options.ignoreEvent as boolean,
+      ignorePatchHistory: options.ignorePatchHistory as boolean,
     }
 
-    if (['remove', 'deleteMany'].includes(this._context.op) && !options['single']) {
+    if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
       const docs = await model.find(filter).lean().exec()
       if (!_.isEmpty(docs)) {
         this._context.deletedDocs = docs as HydratedDocument<T>[]

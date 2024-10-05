@@ -1,13 +1,13 @@
-import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { model } from 'mongoose'
+import { isMongooseLessThan7 } from '../src/version'
 
-import UserSchema from './schemas/UserSchema'
-import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
-import { USER_DELETED } from './constants/events'
 import { toObjectOptions } from '../src/helpers'
+import { USER_DELETED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return {

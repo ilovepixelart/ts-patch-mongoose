@@ -1,17 +1,17 @@
 import _ from 'lodash'
 import em from './em'
 
+import { toObjectOptions } from './helpers'
 import { createPatch, deletePatch } from './patch'
 import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
-import { toObjectOptions } from './helpers'
 
+import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
-import { deleteHooksInitialize } from './hooks/delete-hooks'
 
 import type { HydratedDocument, Model, Schema } from 'mongoose'
-import type IPluginOptions from './interfaces/IPluginOptions'
 import type IContext from './interfaces/IContext'
+import type IPluginOptions from './interfaces/IPluginOptions'
 
 const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 
@@ -50,7 +50,6 @@ export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: IP
     // @ts-expect-error - Mongoose 7 and below
     schema.pre(remove, { document: true, query: false }, async function () {
       // @ts-expect-error - Mongoose 7 and below
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
 
       if (opts.preDelete && !_.isEmpty(original)) {

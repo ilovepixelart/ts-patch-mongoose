@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import mongoose, { model } from 'mongoose'
 
-import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import { USER_CREATED } from './constants/events'
 

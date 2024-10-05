@@ -1,9 +1,9 @@
-import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { Types, model } from 'mongoose'
+import { isMongooseLessThan7 } from '../src/version'
 
-import UserSchema from './schemas/UserSchema'
-import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
 import { USER_CREATED } from './constants/events'
@@ -88,11 +88,14 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should insertMany() and emit three create events', async () => {
-      const users = await User.insertMany([
-        { name: 'John', role: 'user' },
-        { name: 'Alice', role: 'user' },
-        { name: 'Bob', role: 'user' },
-      ], { ordered: true })
+      const users = await User.insertMany(
+        [
+          { name: 'John', role: 'user' },
+          { name: 'Alice', role: 'user' },
+          { name: 'Bob', role: 'user' },
+        ],
+        { ordered: true },
+      )
 
       const [john, alice, bob] = users
 
@@ -148,17 +151,9 @@ describe('plugin - event created & patch history disabled', () => {
   describe('upsert cases', () => {
     it('should update() + upsert and emit one create event', async () => {
       if (isMongooseLessThan7) {
-        await User.update(
-          { name: 'John' },
-          { name: 'John', role: 'admin' },
-          { upsert: true },
-        )
+        await User.update({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
       } else {
-        await User.findOneAndUpdate(
-          { name: 'John' },
-          { name: 'John', role: 'admin' },
-          { upsert: true },
-        )
+        await User.findOneAndUpdate({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
       }
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
@@ -173,7 +168,7 @@ describe('plugin - event created & patch history disabled', () => {
           _id: user?._id,
           name: user?.name,
           role: user?.role,
-        // Upsert does not set createdAt and updatedAt
+          // Upsert does not set createdAt and updatedAt
         }),
       })
 
@@ -185,11 +180,7 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should updateOne() + upsert and emit one create event', async () => {
-      await User.updateOne(
-        { name: 'John' },
-        { name: 'John', role: 'admin' },
-        { upsert: true },
-      )
+      await User.updateOne({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
       expect(user).not.toBeNull()
@@ -203,7 +194,7 @@ describe('plugin - event created & patch history disabled', () => {
           _id: user?._id,
           name: user?.name,
           role: user?.role,
-        // Upsert does not set createdAt and updatedAt
+          // Upsert does not set createdAt and updatedAt
         }),
       })
 
@@ -215,11 +206,7 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should replaceOne() + upsert and emit one create event', async () => {
-      await User.replaceOne(
-        { name: 'John' },
-        { name: 'John', role: 'admin' },
-        { upsert: true },
-      )
+      await User.replaceOne({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
       expect(user).not.toBeNull()
@@ -245,11 +232,7 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should updateMany() + upsert and emit one create event', async () => {
-      await User.updateMany(
-        { name: { $in: ['John', 'Alice', 'Bob'] } },
-        { name: 'Steve', role: 'admin' },
-        { upsert: true },
-      )
+      await User.updateMany({ name: { $in: ['John', 'Alice', 'Bob'] } }, { name: 'Steve', role: 'admin' }, { upsert: true })
 
       const users = await User.findOne({ name: 'Steve', role: 'admin' })
 
@@ -262,7 +245,7 @@ describe('plugin - event created & patch history disabled', () => {
           _id: users?._id,
           name: users?.name,
           role: users?.role,
-        // Upsert does not set createdAt and updatedAt
+          // Upsert does not set createdAt and updatedAt
         }),
       })
 
@@ -274,11 +257,7 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should findOneAndUpdate() + upsert and emit one create event', async () => {
-      await User.findOneAndUpdate(
-        { name: 'John' },
-        { name: 'John', role: 'admin' },
-        { upsert: true },
-      )
+      await User.findOneAndUpdate({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
       expect(user).not.toBeNull()
@@ -292,7 +271,7 @@ describe('plugin - event created & patch history disabled', () => {
           _id: user?._id,
           name: user?.name,
           role: user?.role,
-        // Upsert does not set createdAt and updatedAt
+          // Upsert does not set createdAt and updatedAt
         }),
       })
 
@@ -304,11 +283,7 @@ describe('plugin - event created & patch history disabled', () => {
     })
 
     it('should findOneAndReplace() + upsert and emit one create event', async () => {
-      await User.findOneAndReplace(
-        { name: 'John' },
-        { name: 'John', role: 'admin' },
-        { upsert: true },
-      )
+      await User.findOneAndReplace({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
 
       const user = await User.findOne({ name: 'John', role: 'admin' })
       expect(user).not.toBeNull()
@@ -322,7 +297,7 @@ describe('plugin - event created & patch history disabled', () => {
           _id: user?._id,
           name: user?.name,
           role: user?.role,
-        // Upsert does not set createdAt and updatedAt
+          // Upsert does not set createdAt and updatedAt
         }),
       })
 

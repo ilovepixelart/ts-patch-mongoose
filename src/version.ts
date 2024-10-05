@@ -1,5 +1,5 @@
-import { satisfies } from 'semver'
 import mongoose from 'mongoose'
+import { satisfies } from 'semver'
 
 export const isMongooseLessThan8 = satisfies(mongoose.version, '<8')
 export const isMongooseLessThan7 = satisfies(mongoose.version, '<7')
