@@ -2,9 +2,9 @@ import { isMongooseLessThan7 } from '../src/version'
 
 import mongoose, { Types, model } from 'mongoose'
 
-import UserSchema from './schemas/UserSchema'
-import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
 import { USER_UPDATED } from './constants/events'
@@ -84,11 +84,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should update() and emit three update event', async () => {
-    await User.create([
-      { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' },
-    ], { ordered: true })
+    await User.create(
+      [
+        { name: 'Alice', role: 'user' },
+        { name: 'Bob', role: 'user' },
+        { name: 'John', role: 'user' },
+      ],
+      { ordered: true },
+    )
 
     if (isMongooseLessThan7) {
       await User.update({ role: 'user' }, { role: 'manager' })
@@ -114,11 +117,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should updateOne() and emit one update event', async () => {
-    await User.create([
-      { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' },
-    ], { ordered: true })
+    await User.create(
+      [
+        { name: 'Alice', role: 'user' },
+        { name: 'Bob', role: 'user' },
+        { name: 'John', role: 'user' },
+      ],
+      { ordered: true },
+    )
 
     await User.updateOne({ name: 'Bob' }, { role: 'manager' })
     const users = await User.find({ role: 'manager' })
@@ -139,11 +145,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should replaceOne() and emit two update event', async () => {
-    await User.create([
-      { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' },
-    ], { ordered: true })
+    await User.create(
+      [
+        { name: 'Alice', role: 'user' },
+        { name: 'Bob', role: 'user' },
+        { name: 'John', role: 'user' },
+      ],
+      { ordered: true },
+    )
 
     await User.replaceOne({ name: 'Bob' }, { name: 'Bob Doe', role: 'manager' })
     const users = await User.find({ role: 'manager' })
@@ -188,11 +197,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should updateMany() and emit two update event', async () => {
-    await User.create([
-      { name: 'Alice', role: 'user' },
-      { name: 'Bob', role: 'user' },
-      { name: 'John', role: 'user' },
-    ], { ordered: true })
+    await User.create(
+      [
+        { name: 'Alice', role: 'user' },
+        { name: 'Bob', role: 'user' },
+        { name: 'John', role: 'user' },
+      ],
+      { ordered: true },
+    )
 
     await User.updateMany({ role: 'user' }, { role: 'manager' })
     const users = await User.find({ role: 'manager' })

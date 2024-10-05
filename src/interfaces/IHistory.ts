@@ -1,5 +1,5 @@
-import type { Types } from 'mongoose'
 import type { Operation } from 'fast-json-patch'
+import type { Types } from 'mongoose'
 
 interface IHistory {
   op: string

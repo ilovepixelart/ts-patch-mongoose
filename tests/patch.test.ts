@@ -1,6 +1,6 @@
 import mongoose, { model } from 'mongoose'
 
-import { getUser, getReason, getMetadata, getData, getValue, getJsonOmit, bulkPatch, updatePatch } from '../src/patch'
+import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
 import { patchHistoryPlugin } from '../src/plugin'
 
 import UserSchema from './schemas/UserSchema'
@@ -8,10 +8,10 @@ import UserSchema from './schemas/UserSchema'
 import { USER_DELETED } from './constants/events'
 
 import type { HydratedDocument } from 'mongoose'
+import type IContext from '../src/interfaces/IContext'
 import type { User } from '../src/interfaces/IPluginOptions'
 import type IPluginOptions from '../src/interfaces/IPluginOptions'
 import type IUser from './interfaces/IUser'
-import type IContext from '../src/interfaces/IContext'
 
 import em from '../src/em'
 

@@ -2,12 +2,12 @@ import { isMongooseLessThan7 } from '../src/version'
 
 import mongoose from 'mongoose'
 
-import UserSchema from './schemas/UserSchema'
-import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
-import { USER_CREATED, USER_UPDATED, USER_DELETED } from './constants/events'
+import { USER_CREATED, USER_DELETED, USER_UPDATED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return { emit: jest.fn() }

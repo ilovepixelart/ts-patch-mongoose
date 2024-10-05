@@ -1,12 +1,12 @@
 import mongoose from 'mongoose'
 
-import UserSchema from './schemas/UserSchema'
-import ProductSchema from './schemas/ProductSchema'
-import { patchHistoryPlugin } from '../src/plugin'
 import History from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
+import ProductSchema from './schemas/ProductSchema'
+import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
-import { GLOBAL_CREATED, GLOBAL_UPDATED, GLOBAL_DELETED } from './constants/events'
+import { GLOBAL_CREATED, GLOBAL_DELETED, GLOBAL_UPDATED } from './constants/events'
 
 jest.mock('../src/em', () => {
   return { emit: jest.fn() }
@@ -79,9 +79,7 @@ describe('plugin - global', () => {
     expect(second.doc).toBeUndefined()
 
     expect(second.patch).toHaveLength(1)
-    expect(second.patch).toMatchObject([
-      { op: 'add', path: '/groups/0', value: 'office' },
-    ])
+    expect(second.patch).toMatchObject([{ op: 'add', path: '/groups/0', value: 'office' }])
 
     // 3 update
     expect(third.version).toBe(2)
@@ -93,9 +91,7 @@ describe('plugin - global', () => {
     expect(third.doc).toBeUndefined()
 
     expect(third.patch).toHaveLength(1)
-    expect(third.patch).toMatchObject([
-      { op: 'add', path: '/groups/1', value: 'school' },
-    ])
+    expect(third.patch).toMatchObject([{ op: 'add', path: '/groups/1', value: 'school' }])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_CREATED, { doc: first.doc })
@@ -115,13 +111,17 @@ describe('plugin - global', () => {
     const product = await Product.create({ name: 'paper', groups: [] })
     expect(product.name).toBe('paper')
 
-    await product.updateOne({
-      groups: ['office'],
-    }).exec()
+    await product
+      .updateOne({
+        groups: ['office'],
+      })
+      .exec()
 
-    await product.updateOne({
-      $push: { groups: 'school' },
-    }).exec()
+    await product
+      .updateOne({
+        $push: { groups: 'school' },
+      })
+      .exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(3)
@@ -153,9 +153,7 @@ describe('plugin - global', () => {
     expect(second.doc).toBeUndefined()
 
     expect(second.patch).toHaveLength(1)
-    expect(second.patch).toMatchObject([
-      { op: 'add', path: '/groups/0', value: 'office' },
-    ])
+    expect(second.patch).toMatchObject([{ op: 'add', path: '/groups/0', value: 'office' }])
 
     // 3 update
     expect(third.version).toBe(2)
@@ -167,9 +165,7 @@ describe('plugin - global', () => {
     expect(third.doc).toBeUndefined()
 
     expect(third.patch).toHaveLength(1)
-    expect(third.patch).toMatchObject([
-      { op: 'add', path: '/groups/1', value: 'school' },
-    ])
+    expect(third.patch).toMatchObject([{ op: 'add', path: '/groups/1', value: 'school' }])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
     expect(em.emit).toHaveBeenCalledWith(GLOBAL_CREATED, { doc: first.doc })
@@ -263,13 +259,17 @@ describe('plugin - global', () => {
     const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
-    await product.updateOne({
-      description: { summary: 'test2' },
-    }).exec()
+    await product
+      .updateOne({
+        description: { summary: 'test2' },
+      })
+      .exec()
 
-    await product.updateOne({
-      $set: { 'description.summary': 'test3' },
-    }).exec()
+    await product
+      .updateOne({
+        $set: { 'description.summary': 'test3' },
+      })
+      .exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(3)
@@ -431,13 +431,17 @@ describe('plugin - global', () => {
     const product = await Product.create({ name: 'paper', addedBy: john })
     expect(product.name).toBe('paper')
 
-    await product.updateOne({
-      addedBy: alice,
-    }).exec()
+    await product
+      .updateOne({
+        addedBy: alice,
+      })
+      .exec()
 
-    await product.updateOne({
-      addedBy: { _id: john._id, name: 'John', role: 'manager' },
-    }).exec()
+    await product
+      .updateOne({
+        addedBy: { _id: john._id, name: 'John', role: 'manager' },
+      })
+      .exec()
 
     const history = await History.find({})
     expect(history).toHaveLength(5)

@@ -1,22 +1,14 @@
 import _ from 'lodash'
 import { assign } from 'power-assign'
 
-import { createPatch, updatePatch } from '../patch'
 import { isHookIgnored, toObjectOptions } from '../helpers'
+import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
-import type IPluginOptions from '../interfaces/IPluginOptions'
 import type IHookContext from '../interfaces/IHookContext'
+import type IPluginOptions from '../interfaces/IPluginOptions'
 
-const updateMethods = [
-  'update',
-  'updateOne',
-  'replaceOne',
-  'updateMany',
-  'findOneAndUpdate',
-  'findOneAndReplace',
-  'findByIdAndUpdate',
-]
+const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
   let updated = assign(document.toObject(toObjectOptions), update)
@@ -29,13 +21,11 @@ export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQue
   })
 
   const doc = document.set(updated).toObject(toObjectOptions) as HydratedDocument<T> & { createdAt?: Date }
-  if (update['createdAt'])
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    doc.createdAt = update['createdAt']
+  if (update.createdAt) doc.createdAt = update.createdAt
   return doc
 }
 
-export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipeline | UpdateQuery<T> | null): { update: UpdateQuery<T>, commands: Record<string, unknown>[] } => {
+export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipeline | UpdateQuery<T> | null): { update: UpdateQuery<T>; commands: Record<string, unknown>[] } => {
   let update: UpdateQuery<T> = {}
   const commands: Record<string, unknown>[] = []
 
@@ -45,7 +35,6 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
     if (!_.isEmpty(keys)) {
       _.forEach(keys, (key) => {
         commands.push({ [key]: update[key] as unknown })
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete update[key]
       })
     }
@@ -68,8 +57,8 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
       modelName: opts.modelName ?? this.model.modelName,
       collectionName: opts.collectionName ?? this.model.collection.collectionName,
       isNew: Boolean(options.upsert) && count === 0,
-      ignoreEvent: options['ignoreEvent'] as boolean,
-      ignorePatchHistory: options['ignorePatchHistory'] as boolean,
+      ignoreEvent: options.ignoreEvent as boolean,
+      ignorePatchHistory: options.ignorePatchHistory as boolean,
     }
 
     const updateQuery = this.getUpdate()

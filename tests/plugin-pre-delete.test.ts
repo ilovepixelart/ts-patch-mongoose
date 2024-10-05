@@ -1,8 +1,8 @@
-import { isMongooseLessThan7 } from '../src/version'
 import mongoose, { model } from 'mongoose'
+import { isMongooseLessThan7 } from '../src/version'
 
-import UserSchema from './schemas/UserSchema'
 import { patchHistoryPlugin } from '../src/plugin'
+import UserSchema from './schemas/UserSchema'
 
 import { USER_DELETED } from './constants/events'
 
