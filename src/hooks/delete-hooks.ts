@@ -10,7 +10,6 @@ import type IPluginOptions from '../interfaces/IPluginOptions'
 const deleteMethods = ['remove', 'findOneAndDelete', 'findOneAndRemove', 'findByIdAndDelete', 'findByIdAndRemove', 'deleteOne', 'deleteMany']
 
 export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: later
   schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
