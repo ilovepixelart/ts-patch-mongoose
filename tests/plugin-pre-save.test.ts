@@ -10,7 +10,7 @@ import { USER_CREATED } from './constants/events'
 import em from '../src/em'
 import server from './mongo/server'
 
-vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
 describe('plugin - preSave test', () => {
   const instance = server('plugin-pre-save')

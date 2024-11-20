@@ -13,7 +13,7 @@ import server from './mongo/server'
 
 const preDeleteMock = vi.fn()
 
-vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
 describe('plugin - preDelete test', () => {
   const instance = server('plugin-pre-delete')

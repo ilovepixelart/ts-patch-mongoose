@@ -13,7 +13,7 @@ import { USER_CREATED, USER_DELETED, USER_UPDATED } from './constants/events'
 import em from '../src/em'
 import server from './mongo/server'
 
-vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
 describe('plugin', () => {
   const instance = server('plugin')
