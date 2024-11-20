@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import mongoose from 'mongoose'
 
 import History from '../src/models/History'
@@ -5,15 +7,15 @@ import { patchHistoryPlugin } from '../src/plugin'
 import ProductSchema from './schemas/ProductSchema'
 import UserSchema from './schemas/UserSchema'
 
-import em from '../src/em'
 import { GLOBAL_CREATED, GLOBAL_DELETED, GLOBAL_UPDATED } from './constants/events'
 
-jest.mock('../src/em', () => {
-  return { emit: jest.fn() }
-})
+import em from '../src/em'
+import server from './mongo/server'
+
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
 describe('plugin - global', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-global')
 
   mongoose.plugin(patchHistoryPlugin, {
     eventCreated: GLOBAL_CREATED,
@@ -26,17 +28,21 @@ describe('plugin - global', () => {
   const Product = mongoose.model('Product', ProductSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('products').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
   })
 
   it('should save array', async () => {

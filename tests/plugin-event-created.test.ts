@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import mongoose, { Types, model } from 'mongoose'
 import { isMongooseLessThan7 } from '../src/version'
 
@@ -5,17 +7,15 @@ import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
 import UserSchema from './schemas/UserSchema'
 
-import em from '../src/em'
 import { USER_CREATED } from './constants/events'
 
-jest.mock('../src/em', () => {
-  return {
-    emit: jest.fn(),
-  }
-})
+import em from '../src/em'
+import server from './mongo/server'
+
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
 describe('plugin - event created & patch history disabled', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-event-created')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventCreated: USER_CREATED,
@@ -25,16 +25,20 @@ describe('plugin - event created & patch history disabled', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   describe('normal cases', () => {
@@ -151,6 +155,7 @@ describe('plugin - event created & patch history disabled', () => {
   describe('upsert cases', () => {
     it('should update() + upsert and emit one create event', async () => {
       if (isMongooseLessThan7) {
+        // @ts-expect-error update() not available in Mongoose v6 and below
         await User.update({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })
       } else {
         await User.findOneAndUpdate({ name: 'John' }, { name: 'John', role: 'admin' }, { upsert: true })

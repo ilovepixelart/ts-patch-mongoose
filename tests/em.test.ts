@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest'
+
 import { emitEvent } from '../src/patch'
 import { patchEventEmitter } from '../src/plugin'
 
@@ -16,7 +18,7 @@ describe('em', () => {
   })
 
   it('emitEvent', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
     patchEventEmitter.on('test', fn)
 
     const context = {
@@ -32,7 +34,7 @@ describe('em', () => {
   })
 
   it('emitEvent ignore', async () => {
-    const fn = jest.fn()
+    const fn = vi.fn()
     patchEventEmitter.on('test', fn)
 
     const context = {
