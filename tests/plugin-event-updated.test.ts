@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { isMongooseLessThan7 } from '../src/version'
 
 import mongoose, { Types, model } from 'mongoose'
@@ -6,17 +8,15 @@ import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
 import UserSchema from './schemas/UserSchema'
 
-import em from '../src/em'
 import { USER_UPDATED } from './constants/events'
 
-jest.mock('../src/em', () => {
-  return {
-    emit: jest.fn(),
-  }
-})
+import em from '../src/em'
+import server from './mongo/server'
+
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('plugin - event updated & patch history disabled', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-event-updated')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventUpdated: USER_UPDATED,
@@ -27,16 +27,20 @@ describe('plugin - event updated & patch history disabled', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+  
+  afterEach(async () => {
+    vi.resetAllMocks()
   })
 
   it('should save() and emit one update event', async () => {
@@ -94,6 +98,7 @@ describe('plugin - event updated & patch history disabled', () => {
     )
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.update({ role: 'user' }, { role: 'manager' })
     } else {
       await User.updateMany({ role: 'user' }, { role: 'manager' })

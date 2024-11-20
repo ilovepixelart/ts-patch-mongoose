@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { isMongooseLessThan7 } from '../src/version'
 
 import mongoose, { model } from 'mongoose'
@@ -7,13 +9,12 @@ import { patchHistoryPlugin } from '../src/plugin'
 import UserSchema from './schemas/UserSchema'
 
 import em from '../src/em'
+import server from './mongo/server'
 
-jest.mock('../src/em', () => {
-  return { emit: jest.fn() }
-})
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('plugin - patch history disabled', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-patch-history-disabled')
 
   UserSchema.plugin(patchHistoryPlugin, {
     patchHistoryDisabled: true,
@@ -22,16 +23,20 @@ describe('plugin - patch history disabled', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(async () => {
+    vi.resetAllMocks()
   })
 
   it('should createHistory', async () => {
@@ -94,6 +99,7 @@ describe('plugin - patch history disabled', () => {
     expect(user.name).toBe('John')
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
     } else {
       await User.findOneAndUpdate({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
@@ -110,6 +116,7 @@ describe('plugin - patch history disabled', () => {
     expect(alice.name).toBe('Alice')
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
     } else {
       await User.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()

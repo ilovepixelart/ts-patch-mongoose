@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import mongoose, { model } from 'mongoose'
 import { isMongooseLessThan7 } from '../src/version'
 
@@ -5,18 +7,16 @@ import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
 import UserSchema from './schemas/UserSchema'
 
-import em from '../src/em'
 import { toObjectOptions } from '../src/helpers'
 import { USER_DELETED } from './constants/events'
 
-jest.mock('../src/em', () => {
-  return {
-    emit: jest.fn(),
-  }
-})
+import em from '../src/em'
+import server from './mongo/server'
+
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('plugin - event delete & patch history disabled', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-event-deleted')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
@@ -26,11 +26,11 @@ describe('plugin - event delete & patch history disabled', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
@@ -38,10 +38,15 @@ describe('plugin - event delete & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
+  afterEach(async () => {
+    vi.resetAllMocks()
+  })
+
   it('should remove() and emit one delete event', async () => {
     const john = await User.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await john.remove()
     } else {
       await john.deleteOne()
@@ -70,6 +75,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john, alice] = users
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.remove({ role: 'user' }).exec()
     } else {
       await User.deleteMany({ role: 'user' }).exec()
@@ -107,6 +113,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john] = users
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.remove({ role: 'user', name: 'John' }, { single: true }).exec()
     } else {
       await User.deleteOne({ role: 'user', name: 'John' }).exec()
@@ -165,6 +172,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john] = users
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.findOneAndRemove({ role: 'user' }).exec()
     } else {
       await User.findOneAndDelete({ role: 'user' }).exec()
@@ -223,6 +231,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john] = users
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.findByIdAndRemove(john._id).exec()
     } else {
       await User.findByIdAndDelete(john._id).exec()
@@ -339,6 +348,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const john = await User.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await john.delete()
     } else {
       await john.deleteOne()

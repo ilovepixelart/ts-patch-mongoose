@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import mongoose, { model } from 'mongoose'
 import { isMongooseLessThan7 } from '../src/version'
 
@@ -7,15 +9,14 @@ import UserSchema from './schemas/UserSchema'
 import { USER_DELETED } from './constants/events'
 
 import em from '../src/em'
+import server from './mongo/server'
 
-const preDeleteMock = jest.fn()
+const preDeleteMock = vi.fn()
 
-jest.mock('../src/em', () => {
-  return { emit: jest.fn() }
-})
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('plugin - preDelete test', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin-pre-delete')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
@@ -26,16 +27,20 @@ describe('plugin - preDelete test', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(async () => {
+    vi.resetAllMocks()
   })
 
   it('should deleteMany and execute preDelete', async () => {
@@ -125,6 +130,7 @@ describe('plugin - preDelete test', () => {
     const john = await User.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await john?.remove()
     } else {
       await john?.deleteOne()

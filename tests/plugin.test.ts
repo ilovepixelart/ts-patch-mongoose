@@ -1,3 +1,5 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import { isMongooseLessThan7 } from '../src/version'
 
 import mongoose from 'mongoose'
@@ -6,15 +8,15 @@ import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
 import UserSchema from './schemas/UserSchema'
 
-import em from '../src/em'
 import { USER_CREATED, USER_DELETED, USER_UPDATED } from './constants/events'
 
-jest.mock('../src/em', () => {
-  return { emit: jest.fn() }
-})
+import em from '../src/em'
+import server from './mongo/server'
+
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('plugin', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('plugin')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventCreated: USER_CREATED,
@@ -26,16 +28,20 @@ describe('plugin', () => {
   const User = mongoose.model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(async () => {
+    vi.resetAllMocks()
   })
 
   it('should createHistory', async () => {
@@ -269,6 +275,7 @@ describe('plugin', () => {
     expect(user.name).toBe('John')
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
     } else {
       await User.findOneAndUpdate({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
@@ -324,6 +331,7 @@ describe('plugin', () => {
     expect(alice.name).toBe('Alice')
 
     if (isMongooseLessThan7) {
+      // @ts-expect-error not available in Mongoose 6 and below
       await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
     } else {
       await User.findOneAndUpdate({ role: 'user' }, { $set: { name: 'Bob' } }).exec()

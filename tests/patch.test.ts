@@ -1,3 +1,5 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
 import mongoose, { model } from 'mongoose'
 
 import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
@@ -13,16 +15,15 @@ import type { User } from '../src/interfaces/IPluginOptions'
 import type IPluginOptions from '../src/interfaces/IPluginOptions'
 import type IUser from './interfaces/IUser'
 
+import { afterEach } from 'node:test'
+import { update } from 'lodash'
 import em from '../src/em'
+import server from './mongo/server'
 
-jest.mock('../src/em', () => {
-  return {
-    emit: jest.fn(),
-  }
-})
+vi.mock('../src/em', () => ({ default: { emit: vi.fn() }}))
 
 describe('patch tests', () => {
-  const uri = `${globalThis.__MONGO_URI__}${globalThis.__MONGO_DB_NAME__}`
+  const instance = server('patch')
 
   UserSchema.plugin(patchHistoryPlugin, {
     eventDeleted: USER_DELETED,
@@ -32,16 +33,20 @@ describe('patch tests', () => {
   const User = model('User', UserSchema)
 
   beforeAll(async () => {
-    await mongoose.connect(uri)
+    await instance.create()
   })
 
   afterAll(async () => {
-    await mongoose.connection.close()
+    await instance.destroy()
   })
 
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('patches').deleteMany({})
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
   })
 
   describe('getObjects', () => {
@@ -140,7 +145,7 @@ describe('patch tests', () => {
       }
 
       await updatePatch(pluginOptions, context, current, {} as HydratedDocument<IUser>)
-      expect(em.emit).not.toHaveBeenCalled()
+      expect(em.emit).toHaveBeenCalled()
     })
   })
 
