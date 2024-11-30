@@ -84,15 +84,15 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@types/lodash": "4.17.13",
-    "@types/node": "22.9.3",
+    "@types/node": "22.10.1",
     "@types/semver": "7.5.8",
-    "@vitest/coverage-v8": "2.1.5",
+    "@vitest/coverage-v8": "2.1.6",
     "merge": "2.1.1",
     "mongodb-memory-server": "10.1.2",
-    "mongoose": "8.8.2",
+    "mongoose": "8.8.3",
     "open-cli": "8.0.0",
     "typescript": "5.7.2",
-    "vitest": "2.1.5"
+    "vitest": "2.1.6"
   },
   "peerDependencies": {
     "mongoose": ">=6.6.0 < 9"
