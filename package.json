@@ -92,7 +92,7 @@
     "mongoose": "8.8.3",
     "open-cli": "8.0.0",
     "typescript": "5.7.2",
-    "vitest": "2.1.6"
+    "vitest": "2.1.7"
   },
   "peerDependencies": {
     "mongoose": ">=6.6.0 < 9"
