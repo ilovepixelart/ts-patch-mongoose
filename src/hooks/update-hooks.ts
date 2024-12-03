@@ -83,7 +83,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
 
     const filter = assignUpdate(model.hydrate({}), update, commands)
     if (!_.isEmpty(filter)) {
-      const current = await model.findOne(update).lean().exec()
+      const current = await model.findOne(update).exec()
       if (current) {
         this._context.createdDocs = [current] as HydratedDocument<T>[]
 

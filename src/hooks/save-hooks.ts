@@ -22,7 +22,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T
     if (this.isNew) {
       await createPatch(opts, context)
     } else {
-      const original = await model.findById(current._id).lean().exec()
+      const original = await model.findById(current._id).exec()
       if (original) {
         await updatePatch(opts, context, current, original as HydratedDocument<T>)
       }
