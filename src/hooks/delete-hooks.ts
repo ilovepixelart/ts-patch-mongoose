@@ -26,12 +26,12 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
     }
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
-      const docs = await model.find(filter).lean().exec()
+      const docs = await model.find<T>(filter).lean().exec()
       if (!_.isEmpty(docs)) {
         this._context.deletedDocs = docs as HydratedDocument<T>[]
       }
     } else {
-      const doc = await model.findOne(filter).lean().exec()
+      const doc = await model.findOne<T>(filter).lean().exec()
       if (!_.isEmpty(doc)) {
         this._context.deletedDocs = [doc] as HydratedDocument<T>[]
       }
