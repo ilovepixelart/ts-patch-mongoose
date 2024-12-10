@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import { useTTL } from '../src/helpers'
-import History from '../src/models/History'
 import ms from 'ms'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import History from '../src/models/History'
+
+import { useTTL } from '../src/helpers'
 
 import type { Mock, MockInstance } from 'vitest'
 
 vi.mock('../src/models/History', () => ({
-  default: { 
+  default: {
     collection: {
       indexes: vi.fn(),
       dropIndex: vi.fn(),
@@ -66,7 +68,7 @@ describe('useTTL', () => {
 
     const expireAfterSecondsBefore = ms(ttlBefore) / 1000
     const expireAfterSecondsAfter = ms(ttlAfter) / 1000
-  
+
     indexes.mockResolvedValue([{ name, expireAfterSeconds: expireAfterSecondsBefore }])
     const opts = { historyTTL: ttlAfter }
 
@@ -77,7 +79,7 @@ describe('useTTL', () => {
 
   it('should create the index if it does not exist', async () => {
     const opts = { historyTTL: '1h' }
-    const expireAfterSeconds = ms(opts.historyTTL) / 1000;
+    const expireAfterSeconds = ms(opts.historyTTL) / 1000
 
     indexes.mockResolvedValue([])
 
