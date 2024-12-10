@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import em from './em'
 
-import { toObjectOptions } from './helpers'
+import { toObjectOptions, useTTL } from './helpers'
 import { createPatch, deletePatch } from './patch'
 import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
 
@@ -27,6 +27,9 @@ export const patchEventEmitter = em
  * @returns {void}
  */
 export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: IPluginOptions<T>): void {
+  // Create TTL index for history collection
+  useTTL(opts)
+
   // Initialize hooks
   saveHooksInitialize(schema, opts)
   updateHooksInitialize(schema, opts)
