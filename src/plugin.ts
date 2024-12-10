@@ -1,5 +1,8 @@
 import _ from 'lodash'
+import ms from 'ms'
 import em from './em'
+
+import History from './models/History'
 
 import { toObjectOptions } from './helpers'
 import { createPatch, deletePatch } from './patch'
@@ -27,6 +30,20 @@ export const patchEventEmitter = em
  * @returns {void}
  */
 export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: IPluginOptions<T>): void {
+  // If opts historyTTL is set than index is created
+  const name = 'createdAt_1_TTL' // To avoid collision with user defined index / manually created index
+  if (opts.historyTTL != null) {
+    const expireAfterSeconds = ms(opts.historyTTL as string) / 1000
+    History.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name }).catch((err) => {
+      console.error("Couldn't create index for history collection", err)
+    })
+  } else {
+    // Lets remove the index if it exists and we changed the mind about historyTTL
+    History.collection.dropIndex(name).catch((err) => {
+      console.error("Couldn't drop index for history collection", err)
+    })
+  }
+
   // Initialize hooks
   saveHooksInitialize(schema, opts)
   updateHooksInitialize(schema, opts)
