@@ -44,9 +44,10 @@ export const useTTL = async <T>(opts: IPluginOptions<T>) => {
     if (existingIndex) {
       // Drop the existing index if it exists and TTL is different
       await History.collection.dropIndex(name)
-      // Create a new index with the correct TTL
-      await History.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
     }
+
+    // Create a new index with the correct TTL if it doesn't exist or if the TTL is different
+    await History.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
   } catch (err) {
     console.error("Couldn't create or update index for history collection", err)
   }
