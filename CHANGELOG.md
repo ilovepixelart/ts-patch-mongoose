@@ -1,3 +1,26 @@
+<a id="v2.6.8"></a>
+# [v2.6.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.8) - 2024-12-12
+
+- Merge pull request [#274](https://github.com/ilovepixelart/ts-patch-mongoose/issues/274) from ilovepixelart/feature/make-ttl-global  21d57b4
+- Update tests  05f48b3
+- Make ttl global  1130e37
+- Merge pull request [#273](https://github.com/ilovepixelart/ts-patch-mongoose/issues/273) from ilovepixelart/271-ttl-or-expiration-config-for-history-documents  727df5c
+- Biome fix  849a322
+- Tests  46eb8b3
+- Fix biome  1e76877
+- Refactor and move to helpers  9c763f1
+- TTL for history collection  dc64e39
+- Merge pull request [#272](https://github.com/ilovepixelart/ts-patch-mongoose/issues/272) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.8.4  2511477
+- Bump mongoose from 8.8.3 to 8.8.4  988ea02
+- Update changelog for v2.6.7  6ec8bb9
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.7...v2.6.8
+
+[Changes][v2.6.8]
+
+
 <a id="v2.6.7"></a>
 # [v2.6.7](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.7) - 2024-12-04
 
@@ -934,6 +957,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.6.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.7...v2.6.8
 [v2.6.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.6...v2.6.7
 [v2.6.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.5...v2.6.6
 [v2.6.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.4...v2.6.5
