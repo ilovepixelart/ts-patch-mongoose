@@ -105,8 +105,14 @@ import { Schema, model } from 'mongoose'
 import type { HydratedDocument, Types } from 'mongoose'
 import type IBook from '../interfaces/IBook'
 
-import { patchHistoryPlugin } from 'ts-patch-mongoose'
+import { patchHistoryPlugin, setPatchHistoryTTL } from 'ts-patch-mongoose'
 import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
+
+// You can set patch history TTL in plain english or in milliseconds as you wish.
+// This will determine how long you want to keep patch history.
+// You don't need to use this global config in case you want to keep patch history forever.
+// Execute this method after you connected to you database somewhere in your application.
+setPatchHistoryTTL('1 month')
 
 const BookSchema = new Schema<IBook>({
   name: {
@@ -127,10 +133,6 @@ BookSchema.plugin(patchHistoryPlugin, {
   eventCreated: BOOK_CREATED,
   eventUpdated: BOOK_UPDATED,
   eventDeleted: BOOK_DELETED,
-
-  // You can set historyTTL in plain english or in milliseconds as you wish. This will determine how long you want to keep patch history.
-  // You don't need to use this option in case you want to keep patch history forever.
-  historyTTL: '1 month',
   
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt'],
