@@ -127,6 +127,10 @@ BookSchema.plugin(patchHistoryPlugin, {
   eventCreated: BOOK_CREATED,
   eventUpdated: BOOK_UPDATED,
   eventDeleted: BOOK_DELETED,
+
+  // You can set historyTTL in plain english or in milliseconds as you wish. This will determine how long you want to keep patch history.
+  // You don't need to use this option in case you want to keep patch history forever.
+  historyTTL: '1 month',
   
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt'],
