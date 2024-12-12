@@ -4,7 +4,6 @@ export type User = Record<string, unknown>
 export type Metadata = Record<string, unknown>
 
 interface IPluginOptions<T> {
-  historyTTL?: number | string
   modelName?: string
   collectionName?: string
   eventUpdated?: string
