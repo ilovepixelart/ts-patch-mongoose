@@ -86,7 +86,7 @@
     "@biomejs/biome": "1.9.4",
     "@types/lodash": "4.17.13",
     "@types/ms": "0.7.34",
-    "@types/node": "22.10.1",
+    "@types/node": "22.10.2",
     "@types/semver": "7.5.8",
     "@vitest/coverage-v8": "2.1.8",
     "merge": "2.1.1",
