@@ -2,7 +2,7 @@ import jsonpatch from 'fast-json-patch'
 import { chunk, isEmpty, isFunction } from 'lodash'
 import omit from 'omit-deep'
 
-import type { HydratedDocument, Types } from 'mongoose'
+import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 
 import type IContext from './interfaces/IContext'
 import type IEvent from './interfaces/IEvent'
@@ -108,7 +108,9 @@ export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>
     }
 
     if (history && !isEmpty(bulk)) {
-      await History.bulkWrite(bulk, { ordered: false })
+      await History.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
+        console.error(error.message)
+      })
     }
   }
 }
