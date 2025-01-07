@@ -12,7 +12,7 @@ import { USER_CREATED } from './constants/events'
 import em from '../src/em'
 import server from './mongo/server'
 
-vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
+vi.mock('../src/em', () => ({ default: { emit: vi.fn((event: string, data: Record<string, unknown>) => console.log(event, data)) } }))
 
 describe('plugin - event created & patch history disabled', () => {
   const instance = server('plugin-event-created')
@@ -337,6 +337,38 @@ describe('plugin - event created & patch history disabled', () => {
       expect(found).not.toBeNull()
       expect(found?.name).toBe('John')
       expect(found?.role).toBe('admin')
+    })
+
+    it('should findOneAndUpdate() with $set + upsert and emit one create event', async () => {
+      const _id = new Types.ObjectId()
+      const john = await User.create({ _id, name: 'John', role: 'admin' })
+
+      if (isMongooseLessThan7) {
+        // @ts-expect-error update() not available in Mongoose v6 and below
+        await User.update({ name: 'Alex', role: 'user' }, { $set: { name: 'Alex', role: 'user' } }, { upsert: true, setDefaultsOnInsert: false, overwriteDiscriminatorKey: true }).exec()
+      } else {
+        await User.findOneAndUpdate({ name: 'Alex', role: 'user' }, { $set: { name: 'Alex', role: 'user' } }, { upsert: true, setDefaultsOnInsert: false, overwriteDiscriminatorKey: true }).exec()
+      }
+
+      const alex = await User.findOne({ name: 'Alex', role: 'user' })
+      expect(alex).not.toBeNull()
+
+      const history = await History.find({})
+      expect(history).toHaveLength(0)
+
+      expect(em.emit).toHaveBeenCalledTimes(2)
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          name: john?.name,
+          role: john?.role,
+        }),
+      })
+      expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
+        doc: expect.objectContaining({
+          name: alex?.name,
+          role: alex?.role,
+        }),
+      })
     })
   })
 })
