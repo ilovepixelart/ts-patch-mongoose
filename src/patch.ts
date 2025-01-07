@@ -1,5 +1,5 @@
 import jsonpatch from 'fast-json-patch'
-import { isFunction, isEmpty, chunk } from 'lodash'
+import { chunk, isEmpty, isFunction } from 'lodash'
 import omit from 'omit-deep'
 
 import type { HydratedDocument, Types } from 'mongoose'

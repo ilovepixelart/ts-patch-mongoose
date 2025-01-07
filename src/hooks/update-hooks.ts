@@ -1,4 +1,4 @@
-import { forEach, isEmpty, isArray, isObjectLike, cloneDeep, keys } from 'lodash'
+import { cloneDeep, forEach, isArray, isEmpty, isObjectLike, keys } from 'lodash'
 import { assign } from 'power-assign'
 
 import { isHookIgnored, toObjectOptions } from '../helpers'
@@ -84,7 +84,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
 
     const combined = assignUpdate(model.hydrate({}), update, commands)
     if (!isEmpty(combined)) {
-      const current = await model.findOne(combined).lean().exec() as HydratedDocument<T>
+      const current = (await model.findOne(combined).lean().exec()) as HydratedDocument<T>
       if (current) {
         this._context.createdDocs = [current] as HydratedDocument<T>[]
 

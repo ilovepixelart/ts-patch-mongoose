@@ -342,7 +342,7 @@ describe('plugin - event created & patch history disabled', () => {
     it('should findOneAndUpdate() with $set + upsert and emit one create event', async () => {
       const _id = new Types.ObjectId()
       const john = await User.create({ _id, name: 'John', role: 'admin' })
-  
+
       if (isMongooseLessThan7) {
         // @ts-expect-error update() not available in Mongoose v6 and below
         await User.update({ name: 'Alex', role: 'user' }, { $set: { name: 'Alex', role: 'user' } }, { upsert: true, setDefaultsOnInsert: false, overwriteDiscriminatorKey: true }).exec()
