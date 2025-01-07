@@ -1,3 +1,32 @@
+<a id="v2.6.9"></a>
+# [v2.6.9](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.9) - 2025-01-07
+
+- Merge pull request [#282](https://github.com/ilovepixelart/ts-patch-mongoose/issues/282) from ilovepixelart/feature/fix-case-with-set-upsert  8831c0f
+- Biome fix  5ca5a24
+- Fix for $set with upsert - Destruct lodash - Check if bulk has items before attempting to bulkWrite  41a2333
+- Merge pull request [#280](https://github.com/ilovepixelart/ts-patch-mongoose/issues/280) from ilovepixelart/dependabot/npm_and_yarn/mongodb-memory-server-10.1.3  dca0c05
+- Bump mongodb-memory-server from 10.1.2 to 10.1.3  ef69e7b
+- Merge pull request [#278](https://github.com/ilovepixelart/ts-patch-mongoose/issues/278) from ilovepixelart/dependabot/npm_and_yarn/types/lodash-4.17.14  889a699
+- Merge pull request [#279](https://github.com/ilovepixelart/ts-patch-mongoose/issues/279) from ilovepixelart/dependabot/npm_and_yarn/types/node-22.10.5  f845d11
+- Merge pull request [#281](https://github.com/ilovepixelart/ts-patch-mongoose/issues/281) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.9.3  c961d37
+- Bump mongoose from 8.9.2 to 8.9.3  e390915
+- Bump @types/node from 22.10.2 to 22.10.5  41a7b81
+- Bump @types/lodash from 4.17.13 to 4.17.14  6e5d63d
+- Merge pull request [#277](https://github.com/ilovepixelart/ts-patch-mongoose/issues/277) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.9.2  781ce5d
+- Bump mongoose from 8.9.0 to 8.9.2  ef1f845
+- Merge pull request [#275](https://github.com/ilovepixelart/ts-patch-mongoose/issues/275) from ilovepixelart/dependabot/npm_and_yarn/mongoose-8.9.0  f8c6bb3
+- Merge pull request [#276](https://github.com/ilovepixelart/ts-patch-mongoose/issues/276) from ilovepixelart/dependabot/npm_and_yarn/types/node-22.10.2  1886f73
+- Bump @types/node from 22.10.1 to 22.10.2  4de48fa
+- Bump mongoose from 8.8.4 to 8.9.0  f1305ce
+- Update changelog for v2.6.8  d720027
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.8...v2.6.9
+
+[Changes][v2.6.9]
+
+
 <a id="v2.6.8"></a>
 # [v2.6.8](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.8) - 2024-12-12
 
@@ -957,6 +986,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.6.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.8...v2.6.9
 [v2.6.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.7...v2.6.8
 [v2.6.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.6...v2.6.7
 [v2.6.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.5...v2.6.6
