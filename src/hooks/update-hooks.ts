@@ -1,4 +1,4 @@
-import _ from 'lodash'
+import { forEach, isEmpty, isArray, isObjectLike, cloneDeep, keys } from 'lodash'
 import { assign } from 'power-assign'
 
 import { isHookIgnored, toObjectOptions } from '../helpers'
@@ -12,7 +12,8 @@ const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findO
 
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
   let updated = assign(document.toObject(toObjectOptions), update)
-  _.forEach(commands, (command) => {
+  // Try catch not working for of loop, keep it as is
+  forEach(commands, (command) => {
     try {
       updated = assign(updated, command)
     } catch {
@@ -29,11 +30,11 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   let update: UpdateQuery<T> = {}
   const commands: Record<string, unknown>[] = []
 
-  if (!_.isEmpty(updateQuery) && !_.isArray(updateQuery) && _.isObjectLike(updateQuery)) {
-    update = _.cloneDeep(updateQuery)
-    const keys = _.keys(update).filter((key) => key.startsWith('$'))
-    if (!_.isEmpty(keys)) {
-      _.forEach(keys, (key) => {
+  if (!isEmpty(updateQuery) && !isArray(updateQuery) && isObjectLike(updateQuery)) {
+    update = cloneDeep(updateQuery)
+    const keysWithDollarSign = keys(update).filter((key) => key.startsWith('$'))
+    if (!isEmpty(keysWithDollarSign)) {
+      forEach(keysWithDollarSign, (key) => {
         commands.push({ [key]: update[key] as unknown })
         delete update[key]
       })
@@ -81,9 +82,9 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
-    const filter = assignUpdate(model.hydrate({}), update, commands)
-    if (!_.isEmpty(filter)) {
-      const current = await model.findOne(update).lean().exec()
+    const combined = assignUpdate(model.hydrate({}), update, commands)
+    if (!isEmpty(combined)) {
+      const current = await model.findOne(combined).lean().exec() as HydratedDocument<T>
       if (current) {
         this._context.createdDocs = [current] as HydratedDocument<T>[]
 

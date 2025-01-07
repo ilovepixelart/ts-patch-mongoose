@@ -1,5 +1,5 @@
 import jsonpatch from 'fast-json-patch'
-import _ from 'lodash'
+import { isFunction, isEmpty, chunk } from 'lodash'
 import omit from 'omit-deep'
 
 import type { HydratedDocument, Types } from 'mongoose'
@@ -28,28 +28,28 @@ export function getJsonOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>
 
 export function getObjectOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
   if (opts.omit) {
-    return omit(_.isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
+    return omit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
   }
 
   return doc
 }
 
 export async function getUser<T>(opts: IPluginOptions<T>): Promise<User | undefined> {
-  if (_.isFunction(opts.getUser)) {
+  if (isFunction(opts.getUser)) {
     return await opts.getUser()
   }
   return undefined
 }
 
 export async function getReason<T>(opts: IPluginOptions<T>): Promise<string | undefined> {
-  if (_.isFunction(opts.getReason)) {
+  if (isFunction(opts.getReason)) {
     return await opts.getReason()
   }
   return undefined
 }
 
 export async function getMetadata<T>(opts: IPluginOptions<T>): Promise<Metadata | undefined> {
-  if (_.isFunction(opts.getMetadata)) {
+  if (isFunction(opts.getMetadata)) {
     return await opts.getMetadata()
   }
   return undefined
@@ -77,11 +77,11 @@ export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>
   const docs = context[docsKey]
   const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
 
-  if (_.isEmpty(docs) || (!event && !history)) return
+  if (isEmpty(docs) || (!event && !history)) return
 
   const [user, reason, metadata] = await getData(opts)
 
-  const chunks = _.chunk(docs, 1000)
+  const chunks = chunk(docs, 1000)
   for await (const chunk of chunks) {
     const bulk = []
 
@@ -107,7 +107,7 @@ export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>
       }
     }
 
-    if (history) {
+    if (history && !isEmpty(bulk)) {
       await History.bulkWrite(bulk, { ordered: false })
     }
   }
@@ -122,10 +122,10 @@ export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<
 
   const currentObject = getJsonOmit(opts, current)
   const originalObject = getJsonOmit(opts, original)
-  if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
+  if (isEmpty(originalObject) || isEmpty(currentObject)) return
 
   const patch = jsonpatch.compare(originalObject, currentObject, true)
-  if (_.isEmpty(patch)) return
+  if (isEmpty(patch)) return
 
   emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
 
