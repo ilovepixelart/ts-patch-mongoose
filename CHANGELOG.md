@@ -1,3 +1,17 @@
+<a id="v2.7.0"></a>
+# [v2.7.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.7.0) - 2025-01-07
+
+- Merge pull request [#283](https://github.com/ilovepixelart/ts-patch-mongoose/issues/283) from ilovepixelart/feature/retry  9ca8fb2
+- Retry  1025423
+- Update changelog for v2.6.9  ba97a7f
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.9...v2.7.0
+
+[Changes][v2.7.0]
+
+
 <a id="v2.6.9"></a>
 # [v2.6.9](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.6.9) - 2025-01-07
 
@@ -986,6 +1000,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.7.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.9...v2.7.0
 [v2.6.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.8...v2.6.9
 [v2.6.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.7...v2.6.8
 [v2.6.7]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.6...v2.6.7
