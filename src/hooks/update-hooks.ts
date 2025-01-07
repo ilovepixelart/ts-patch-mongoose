@@ -82,14 +82,26 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
+    let current: HydratedDocument<T> | null = null
+    const filter = this.getFilter()
     const combined = assignUpdate(model.hydrate({}), update, commands)
-    if (!isEmpty(combined)) {
-      const current = (await model.findOne(combined).lean().exec()) as HydratedDocument<T>
-      if (current) {
-        this._context.createdDocs = [current] as HydratedDocument<T>[]
+    if (!isEmpty(update) && !current) {
+      current = (await model.findOne(update).sort('desc').lean().exec()) as HydratedDocument<T>
+    }
 
-        await createPatch(opts, this._context)
-      }
+    if (!isEmpty(combined) && !current) {
+      current = (await model.findOne(combined).sort('desc').lean().exec()) as HydratedDocument<T>
+    }
+
+    if (!isEmpty(filter) && !current) {
+      console.log('filter', filter)
+      current = (await model.findOne(filter).sort('desc').lean().exec()) as HydratedDocument<T>
+    }
+
+    if (current) {
+      this._context.createdDocs = [current] as HydratedDocument<T>[]
+
+      await createPatch(opts, this._context)
     }
   })
 }
