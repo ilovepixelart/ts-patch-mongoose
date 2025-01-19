@@ -34,6 +34,7 @@ export interface PatchContext<T> {
 export type HookContext<T> = Query<T, T> & { op: string; _context: PatchContext<T> }
 
 export type User = Record<string, unknown>
+
 export type Metadata = Record<string, unknown>
 
 export interface PluginOptions<T> {

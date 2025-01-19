@@ -25,7 +25,6 @@
     "nosql",
     "ts",
     "typescript",
-    "swc",
     "patch",
     "history",
     "event",
@@ -43,7 +42,6 @@
     "dist",
     "src",
     "tests",
-    ".swcrc",
     "tsconfig.json",
     "vite.config.mts",
     "biome.json"
