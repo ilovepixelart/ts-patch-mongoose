@@ -1,14 +1,13 @@
 import ms from 'ms'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import History from '../src/models/History'
-
 import { setPatchHistoryTTL } from '../src/helpers'
+import { HistoryModel } from '../src/models/History'
 
 import type { Mock, MockInstance } from 'vitest'
 
 vi.mock('../src/models/History', () => ({
-  default: {
+  HistoryModel: {
     collection: {
       indexes: vi.fn(),
       dropIndex: vi.fn(),
@@ -22,12 +21,12 @@ const name = 'createdAt_1_TTL'
 describe('useTTL', () => {
   let dropIndexSpy: MockInstance
   let createIndexSpy: MockInstance
-  const indexes = History.collection.indexes as Mock
+  const indexes = HistoryModel.collection.indexes as Mock
 
   beforeEach(() => {
     vi.clearAllMocks()
-    dropIndexSpy = vi.spyOn(History.collection, 'dropIndex')
-    createIndexSpy = vi.spyOn(History.collection, 'createIndex')
+    dropIndexSpy = vi.spyOn(HistoryModel.collection, 'dropIndex')
+    createIndexSpy = vi.spyOn(HistoryModel.collection, 'createIndex')
   })
 
   afterEach(() => {

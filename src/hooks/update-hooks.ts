@@ -5,8 +5,7 @@ import { isHookIgnored, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
-import type IHookContext from '../interfaces/IHookContext'
-import type IPluginOptions from '../interfaces/IPluginOptions'
+import type { HookContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
@@ -44,8 +43,8 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   return { update, commands }
 }
 
-export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
-  schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
+export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
+  schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 
@@ -72,7 +71,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
     })
   })
 
-  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: IHookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 

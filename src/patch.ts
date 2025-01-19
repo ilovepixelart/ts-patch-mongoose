@@ -3,20 +3,16 @@ import { chunk, isEmpty, isFunction } from 'lodash'
 import omit from 'omit-deep'
 
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
-
-import type IContext from './interfaces/IContext'
-import type IEvent from './interfaces/IEvent'
-import type IPluginOptions from './interfaces/IPluginOptions'
-import type { Metadata, User } from './interfaces/IPluginOptions'
+import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 import em from './em'
-import History from './models/History'
+import { HistoryModel } from './models/History'
 
-function isPatchHistoryEnabled<T>(opts: IPluginOptions<T>, context: IContext<T>): boolean {
+function isPatchHistoryEnabled<T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
 }
 
-export function getJsonOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
+export function getJsonOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
   const object = JSON.parse(JSON.stringify(doc)) as Partial<T>
 
   if (opts.omit) {
@@ -26,7 +22,7 @@ export function getJsonOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>
   return object
 }
 
-export function getObjectOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
+export function getObjectOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
   if (opts.omit) {
     return omit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
   }
@@ -34,21 +30,21 @@ export function getObjectOmit<T>(opts: IPluginOptions<T>, doc: HydratedDocument<
   return doc
 }
 
-export async function getUser<T>(opts: IPluginOptions<T>): Promise<User | undefined> {
+export async function getUser<T>(opts: PluginOptions<T>): Promise<User | undefined> {
   if (isFunction(opts.getUser)) {
     return await opts.getUser()
   }
   return undefined
 }
 
-export async function getReason<T>(opts: IPluginOptions<T>): Promise<string | undefined> {
+export async function getReason<T>(opts: PluginOptions<T>): Promise<string | undefined> {
   if (isFunction(opts.getReason)) {
     return await opts.getReason()
   }
   return undefined
 }
 
-export async function getMetadata<T>(opts: IPluginOptions<T>): Promise<Metadata | undefined> {
+export async function getMetadata<T>(opts: PluginOptions<T>): Promise<Metadata | undefined> {
   if (isFunction(opts.getMetadata)) {
     return await opts.getMetadata()
   }
@@ -59,19 +55,19 @@ export function getValue<T>(item: PromiseSettledResult<T>): T | undefined {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export async function getData<T>(opts: IPluginOptions<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
+export async function getData<T>(opts: PluginOptions<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
   return Promise.allSettled([getUser(opts), getReason(opts), getMetadata(opts)]).then(([user, reason, metadata]) => {
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
 }
 
-export function emitEvent<T>(context: IContext<T>, event: string | undefined, data: IEvent<T>): void {
+export function emitEvent<T>(context: PatchContext<T>, event: string | undefined, data: PatchEvent<T>): void {
   if (event && !context.ignoreEvent) {
     em.emit(event, data)
   }
 }
 
-export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
+export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
   const docs = context[docsKey]
@@ -108,18 +104,18 @@ export async function bulkPatch<T>(opts: IPluginOptions<T>, context: IContext<T>
     }
 
     if (history && !isEmpty(bulk)) {
-      await History.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
+      await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
         console.error(error.message)
       })
     }
   }
 }
 
-export async function createPatch<T>(opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
+export async function createPatch<T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> {
   await bulkPatch(opts, context, 'eventCreated', 'createdDocs')
 }
 
-export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
+export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> {
   const history = isPatchHistoryEnabled(opts, context)
 
   const currentObject = getJsonOmit(opts, current)
@@ -134,7 +130,7 @@ export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<
   if (history) {
     let version = 0
 
-    const lastHistory = await History.findOne({ collectionId: original._id as Types.ObjectId })
+    const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId })
       .sort('-version')
       .exec()
 
@@ -144,7 +140,7 @@ export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<
 
     const [user, reason, metadata] = await getData(opts)
 
-    await History.create({
+    await HistoryModel.create({
       op: context.op,
       modelName: context.modelName,
       collectionName: context.collectionName,
@@ -158,6 +154,6 @@ export async function updatePatch<T>(opts: IPluginOptions<T>, context: IContext<
   }
 }
 
-export async function deletePatch<T>(opts: IPluginOptions<T>, context: IContext<T>): Promise<void> {
+export async function deletePatch<T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> {
   await bulkPatch(opts, context, 'eventDeleted', 'deletedDocs')
 }

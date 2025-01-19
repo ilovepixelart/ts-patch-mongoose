@@ -4,13 +4,12 @@ import { isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema } from 'mongoose'
-import type IHookContext from '../interfaces/IHookContext'
-import type IPluginOptions from '../interfaces/IPluginOptions'
+import type { HookContext, PluginOptions } from '../types'
 
 const deleteMethods = ['remove', 'findOneAndDelete', 'findOneAndRemove', 'findByIdAndDelete', 'findByIdAndRemove', 'deleteOne', 'deleteMany']
 
-export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
-  schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
+export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
+  schema.pre(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 
@@ -42,7 +41,7 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions
     }
   })
 
-  schema.post(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: IHookContext<T>) {
+  schema.post(deleteMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 

@@ -1,17 +1,16 @@
+import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import mongoose, { model } from 'mongoose'
+import { toObjectOptions } from '../src/helpers'
+import { HistoryModel } from '../src/models/History'
+import { patchHistoryPlugin } from '../src/plugin'
 import { isMongooseLessThan7 } from '../src/version'
 
-import History from '../src/models/History'
-import { patchHistoryPlugin } from '../src/plugin'
-import UserSchema from './schemas/UserSchema'
-
-import { toObjectOptions } from '../src/helpers'
-import { USER_DELETED } from './constants/events'
-
 import em from '../src/em'
+import { USER_DELETED } from './constants/events'
 import server from './mongo/server'
+
+import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
@@ -23,7 +22,7 @@ describe('plugin - event delete & patch history disabled', () => {
     patchHistoryDisabled: true,
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -43,7 +42,7 @@ describe('plugin - event delete & patch history disabled', () => {
   })
 
   it('should remove() and emit one delete event', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
@@ -52,7 +51,7 @@ describe('plugin - event delete & patch history disabled', () => {
       await john.deleteOne()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -61,12 +60,12 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const user = await User.findById(john._id)
+    const user = await UserModel.findById(john._id)
     expect(user).toBeNull()
   })
 
   it('should remove() and emit two delete events', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -76,12 +75,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.remove({ role: 'user' }).exec()
+      await UserModel.remove({ role: 'user' }).exec()
     } else {
-      await User.deleteMany({ role: 'user' }).exec()
+      await UserModel.deleteMany({ role: 'user' }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -93,18 +92,18 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const deletedAlice = await User.findById(alice._id)
+    const deletedAlice = await UserModel.findById(alice._id)
     expect(deletedAlice).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(1)
   })
 
   it('should remove() and emit one delete event { single: true }', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -114,12 +113,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.remove({ role: 'user', name: 'John' }, { single: true }).exec()
+      await UserModel.remove({ role: 'user', name: 'John' }, { single: true }).exec()
     } else {
-      await User.deleteOne({ role: 'user', name: 'John' }).exec()
+      await UserModel.deleteOne({ role: 'user', name: 'John' }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -128,15 +127,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(2)
   })
 
   it('should findOneAndDelete() and emit one delete event', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -144,9 +143,9 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findOneAndDelete({ name: 'John' }).exec()
+    await UserModel.findOneAndDelete({ name: 'John' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -155,15 +154,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(2)
   })
 
   it('should findOneAndRemove() and emit one delete event', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'admin' },
       { name: 'Bob', role: 'admin' },
@@ -173,12 +172,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.findOneAndRemove({ role: 'user' }).exec()
+      await UserModel.findOneAndRemove({ role: 'user' }).exec()
     } else {
-      await User.findOneAndDelete({ role: 'user' }).exec()
+      await UserModel.findOneAndDelete({ role: 'user' }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -187,15 +186,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    const remaining = await UserModel.find({ name: { $in: ['Alice', 'Bob'] } })
     expect(remaining).toHaveLength(2)
   })
 
   it('should findByIdAndDelete() and emit one delete event', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -203,9 +202,9 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.findByIdAndDelete(john._id).exec()
+    await UserModel.findByIdAndDelete(john._id).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -214,15 +213,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    const remaining = await UserModel.find({ name: { $in: ['Alice', 'Bob'] } })
     expect(remaining).toHaveLength(2)
   })
 
   it('should findByIdAndRemove() and emit one delete event', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -232,12 +231,12 @@ describe('plugin - event delete & patch history disabled', () => {
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.findByIdAndRemove(john._id).exec()
+      await UserModel.findByIdAndRemove(john._id).exec()
     } else {
-      await User.findByIdAndDelete(john._id).exec()
+      await UserModel.findByIdAndDelete(john._id).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -246,15 +245,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    const remaining = await UserModel.find({ name: { $in: ['Alice', 'Bob'] } })
     expect(remaining).toHaveLength(2)
   })
 
   it('should deleteOne() and emit one delete event', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'admin' },
       { name: 'Bob', role: 'admin' },
@@ -262,9 +261,9 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john] = users
 
-    await User.deleteOne({ role: 'user' }).exec()
+    await UserModel.deleteOne({ role: 'user' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -273,15 +272,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({ name: { $in: ['Alice', 'Bob'] } })
+    const remaining = await UserModel.find({ name: { $in: ['Alice', 'Bob'] } })
     expect(remaining).toHaveLength(2)
   })
 
   it('should deleteMany() and emit two delete events', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -289,9 +288,9 @@ describe('plugin - event delete & patch history disabled', () => {
 
     const [john, alice] = users
 
-    await User.deleteMany({ role: 'user' }).exec()
+    await UserModel.deleteMany({ role: 'user' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -303,18 +302,18 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const deletedAlice = await User.findById(alice._id)
+    const deletedAlice = await UserModel.findById(alice._id)
     expect(deletedAlice).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(1)
   })
 
   it('should deleteMany() and emit one delete event { single: true }', async () => {
-    const users = await User.create([
+    const users = await UserModel.create([
       { name: 'John', role: 'user' },
       { name: 'Alice', role: 'user' },
       { name: 'Bob', role: 'admin' },
@@ -323,12 +322,12 @@ describe('plugin - event delete & patch history disabled', () => {
     const [john] = users
 
     if (isMongooseLessThan7) {
-      await User.deleteMany({ name: 'John' }, { single: true }).exec()
+      await UserModel.deleteMany({ name: 'John' }, { single: true }).exec()
     } else {
-      await User.deleteOne({ name: 'John' }).exec()
+      await UserModel.deleteOne({ name: 'John' }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -337,15 +336,15 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(2)
   })
 
   it('should create then delete and emit one delete event', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
@@ -354,7 +353,7 @@ describe('plugin - event delete & patch history disabled', () => {
       await john.deleteOne()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -363,41 +362,41 @@ describe('plugin - event delete & patch history disabled', () => {
     })
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(0)
   })
 
   it('should ignoreHook option on deleteMany', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
-    await User.deleteMany({ role: 'user' }, { ignoreHook: true }).exec()
+    const john = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.deleteMany({ role: 'user' }, { ignoreHook: true }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
   })
 
   it('should ignoreHook option on deleteOne', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
-    await User.deleteOne({ role: 'user' }, { ignoreHook: true }).exec()
+    const john = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.deleteOne({ role: 'user' }, { ignoreHook: true }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
 
     // Check if data is deleted
-    const deletedJohn = await User.findById(john._id)
+    const deletedJohn = await UserModel.findById(john._id)
     expect(deletedJohn).toBeNull()
 
-    const remaining = await User.find({})
+    const remaining = await UserModel.find({})
     expect(remaining).toHaveLength(0)
   })
 })

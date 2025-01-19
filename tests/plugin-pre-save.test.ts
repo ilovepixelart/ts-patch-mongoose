@@ -1,14 +1,13 @@
+import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import mongoose, { model } from 'mongoose'
-
 import { patchHistoryPlugin } from '../src/plugin'
-import UserSchema from './schemas/UserSchema'
-
-import { USER_CREATED } from './constants/events'
 
 import em from '../src/em'
+import { USER_CREATED } from './constants/events'
 import server from './mongo/server'
+
+import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
@@ -20,7 +19,7 @@ describe('plugin - preSave test', () => {
     omit: ['__v', 'role'],
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -40,7 +39,7 @@ describe('plugin - preSave test', () => {
   })
 
   it('should create a User and execute save, and omit User role in history', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
     // @ts-expect-error __v is a hidden field in Mongoose model
     const { __v, role, ...doc } = john.toJSON()
 

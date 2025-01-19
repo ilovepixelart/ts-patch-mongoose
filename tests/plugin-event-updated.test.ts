@@ -1,17 +1,15 @@
+import mongoose, { Types, model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { patchHistoryPlugin } from '../src/plugin'
 import { isMongooseLessThan7 } from '../src/version'
 
-import mongoose, { Types, model } from 'mongoose'
-
-import History from '../src/models/History'
-import { patchHistoryPlugin } from '../src/plugin'
-import UserSchema from './schemas/UserSchema'
-
-import { USER_UPDATED } from './constants/events'
-
 import em from '../src/em'
+import { USER_UPDATED } from './constants/events'
 import server from './mongo/server'
+
+import { HistoryModel } from '../src/models/History'
+import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
@@ -24,7 +22,7 @@ describe('plugin - event updated & patch history disabled', () => {
     omit: ['createdAt', 'updatedAt'],
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -44,14 +42,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should save() and emit one update event', async () => {
-    await User.create({ name: 'Bob', role: 'user' })
-    const user = new User({ name: 'John', role: 'user' })
+    await UserModel.create({ name: 'Bob', role: 'user' })
+    const user = new UserModel({ name: 'John', role: 'user' })
     const created = await user.save()
 
     user.name = 'John Doe'
     const updated = await user.save()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -80,7 +78,7 @@ describe('plugin - event updated & patch history disabled', () => {
     })
 
     // Confirm that the document is updated
-    const users = await User.find({})
+    const users = await UserModel.find({})
     expect(users).toHaveLength(2)
     const [bob, john] = users
     expect(bob.name).toBe('Bob')
@@ -88,7 +86,7 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should update() and emit three update event', async () => {
-    await User.create(
+    await UserModel.create(
       [
         { name: 'Alice', role: 'user' },
         { name: 'Bob', role: 'user' },
@@ -99,21 +97,21 @@ describe('plugin - event updated & patch history disabled', () => {
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.update({ role: 'user' }, { role: 'manager' })
+      await UserModel.update({ role: 'user' }, { role: 'manager' })
     } else {
-      await User.updateMany({ role: 'user' }, { role: 'manager' })
+      await UserModel.updateMany({ role: 'user' }, { role: 'manager' })
     }
 
-    const users = await User.find({ role: 'manager' })
+    const users = await UserModel.find({ role: 'manager' })
     expect(users).toHaveLength(3)
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(3)
 
     // Confirm that the document is updated
-    const updated = await User.find({}).sort({ name: 1 })
+    const updated = await UserModel.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('manager')
@@ -122,7 +120,7 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should updateOne() and emit one update event', async () => {
-    await User.create(
+    await UserModel.create(
       [
         { name: 'Alice', role: 'user' },
         { name: 'Bob', role: 'user' },
@@ -131,17 +129,17 @@ describe('plugin - event updated & patch history disabled', () => {
       { ordered: true },
     )
 
-    await User.updateOne({ name: 'Bob' }, { role: 'manager' })
-    const users = await User.find({ role: 'manager' })
+    await UserModel.updateOne({ name: 'Bob' }, { role: 'manager' })
+    const users = await UserModel.find({ role: 'manager' })
     expect(users).toHaveLength(1)
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
 
     // Confirm that the document is updated
-    const updated = await User.find({}).sort({ name: 1 })
+    const updated = await UserModel.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('user')
@@ -150,7 +148,7 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should replaceOne() and emit two update event', async () => {
-    await User.create(
+    await UserModel.create(
       [
         { name: 'Alice', role: 'user' },
         { name: 'Bob', role: 'user' },
@@ -159,11 +157,11 @@ describe('plugin - event updated & patch history disabled', () => {
       { ordered: true },
     )
 
-    await User.replaceOne({ name: 'Bob' }, { name: 'Bob Doe', role: 'manager' })
-    const users = await User.find({ role: 'manager' })
+    await UserModel.replaceOne({ name: 'Bob' }, { name: 'Bob Doe', role: 'manager' })
+    const users = await UserModel.find({ role: 'manager' })
     expect(users).toHaveLength(1)
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -193,7 +191,7 @@ describe('plugin - event updated & patch history disabled', () => {
     })
 
     // Confirm that the document is updated
-    const updated = await User.find({}).sort({ name: 1 })
+    const updated = await UserModel.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('user')
@@ -202,7 +200,7 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should updateMany() and emit two update event', async () => {
-    await User.create(
+    await UserModel.create(
       [
         { name: 'Alice', role: 'user' },
         { name: 'Bob', role: 'user' },
@@ -211,17 +209,17 @@ describe('plugin - event updated & patch history disabled', () => {
       { ordered: true },
     )
 
-    await User.updateMany({ role: 'user' }, { role: 'manager' })
-    const users = await User.find({ role: 'manager' })
+    await UserModel.updateMany({ role: 'user' }, { role: 'manager' })
+    const users = await UserModel.find({ role: 'manager' })
     expect(users).toHaveLength(3)
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(3)
 
     // Confirm that the document is updated
-    const updated = await User.find({}).sort({ name: 1 })
+    const updated = await UserModel.find({}).sort({ name: 1 })
     expect(updated).toHaveLength(3)
     const [alice, bob, john] = updated
     expect(alice.role).toBe('manager')
@@ -230,13 +228,13 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should findOneAndUpdate() and emit one update event', async () => {
-    await User.create({ name: 'Bob', role: 'user' })
-    const created = await User.create({ name: 'John', role: 'user' })
-    await User.findOneAndUpdate({ _id: created._id }, { name: 'John Doe', role: 'manager' })
-    const updated = await User.findById(created._id).exec()
+    await UserModel.create({ name: 'Bob', role: 'user' })
+    const created = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.findOneAndUpdate({ _id: created._id }, { name: 'John Doe', role: 'manager' })
+    const updated = await UserModel.findById(created._id).exec()
     expect(updated).not.toBeNull()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -269,13 +267,13 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should findOneAndReplace() and emit one update event', async () => {
-    await User.create({ name: 'Bob', role: 'user' })
-    const created = await User.create({ name: 'John', role: 'user' })
-    await User.findOneAndReplace({ _id: created._id }, { name: 'John Doe', role: 'manager' })
-    const updated = await User.findById(created._id).exec()
+    await UserModel.create({ name: 'Bob', role: 'user' })
+    const created = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.findOneAndReplace({ _id: created._id }, { name: 'John Doe', role: 'manager' })
+    const updated = await UserModel.findById(created._id).exec()
     expect(updated).not.toBeNull()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -310,10 +308,10 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should findByIdAndUpdate() and emit one update event', async () => {
-    const created = await User.create({ name: 'Bob', role: 'user' })
-    await User.findByIdAndUpdate(created._id, { name: 'John Doe', role: 'manager' })
+    const created = await UserModel.create({ name: 'Bob', role: 'user' })
+    await UserModel.findByIdAndUpdate(created._id, { name: 'John Doe', role: 'manager' })
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -341,19 +339,19 @@ describe('plugin - event updated & patch history disabled', () => {
     })
 
     // Confirm that the document is updated
-    const updated = await User.findById(created._id).exec()
+    const updated = await UserModel.findById(created._id).exec()
     expect(updated?.name).toBe('John Doe')
     expect(updated?.role).toBe('manager')
   })
 
   it('should update and emit one update event', async () => {
-    await User.create({ name: 'Bob', role: 'user' })
-    const created = await User.create({ name: 'John', role: 'user' })
-    await User.updateOne({ _id: created._id }, { name: 'John Doe', role: 'manager' })
-    const updated = await User.findById(created._id).exec()
+    await UserModel.create({ name: 'Bob', role: 'user' })
+    const created = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.updateOne({ _id: created._id }, { name: 'John Doe', role: 'manager' })
+    const updated = await UserModel.findById(created._id).exec()
     expect(updated).not.toBeNull()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -386,15 +384,15 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should updateMany and emit two update events', async () => {
-    const created1 = await User.create({ name: 'John', role: 'user' })
-    const created2 = await User.create({ name: 'Bob', role: 'user' })
-    await User.updateMany({}, { name: 'John Doe', role: 'manager' })
-    const updated1 = await User.findById(created1._id).exec()
+    const created1 = await UserModel.create({ name: 'John', role: 'user' })
+    const created2 = await UserModel.create({ name: 'Bob', role: 'user' })
+    await UserModel.updateMany({}, { name: 'John Doe', role: 'manager' })
+    const updated1 = await UserModel.findById(created1._id).exec()
     expect(updated1).not.toBeNull()
-    const updated2 = await User.findById(created2._id).exec()
+    const updated2 = await UserModel.findById(created2._id).exec()
     expect(updated2).not.toBeNull()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(2)
@@ -452,14 +450,14 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should findOneAndUpdate $set and emit one update event', async () => {
-    const created = await User.create({ name: 'Bob', role: 'user' })
-    await User.findOneAndUpdate({ _id: created._id }, { $set: { name: 'John Doe', role: 'manager' } })
-    const updated = await User.findById(created._id).exec()
+    const created = await UserModel.create({ name: 'Bob', role: 'user' })
+    await UserModel.findOneAndUpdate({ _id: created._id }, { $set: { name: 'John Doe', role: 'manager' } })
+    const updated = await UserModel.findById(created._id).exec()
     expect(updated).not.toBeNull()
     expect(updated?.name).toBe('John Doe')
     expect(updated?.role).toBe('manager')
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(1)
@@ -492,16 +490,16 @@ describe('plugin - event updated & patch history disabled', () => {
   })
 
   it('should ignoreHook option on updateMany', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
-    await User.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
+    const john = await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
     expect(em.emit).toHaveBeenCalledTimes(0)
 
     // Confirm that the document is updated
-    const updated = await User.findById(john._id).exec()
+    const updated = await UserModel.findById(john._id).exec()
     expect(updated?.role).toBe('admin')
   })
 })

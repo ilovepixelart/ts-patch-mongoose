@@ -1,16 +1,15 @@
+import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import mongoose from 'mongoose'
-
-import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
-import ProductSchema from './schemas/ProductSchema'
-import UserSchema from './schemas/UserSchema'
-
-import { GLOBAL_CREATED, GLOBAL_DELETED, GLOBAL_UPDATED } from './constants/events'
 
 import em from '../src/em'
+import { GLOBAL_CREATED, GLOBAL_DELETED, GLOBAL_UPDATED } from './constants/events'
 import server from './mongo/server'
+
+import { HistoryModel } from '../src/models/History'
+import { type Product, ProductSchema } from './schemas/Product'
+import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
@@ -24,8 +23,8 @@ describe('plugin - global', () => {
     omit: ['__v', 'createdAt', 'updatedAt'],
   })
 
-  const User = mongoose.model('User', UserSchema)
-  const Product = mongoose.model('Product', ProductSchema)
+  const UserModel = model<User>('User', UserSchema)
+  const ProductModel = model<Product>('Product', ProductSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -46,7 +45,7 @@ describe('plugin - global', () => {
   })
 
   it('should save array', async () => {
-    const product = await Product.create({ name: 'paper', groups: [] })
+    const product = await ProductModel.create({ name: 'paper', groups: [] })
     expect(product.name).toBe('paper')
 
     product.groups = ['office']
@@ -55,7 +54,7 @@ describe('plugin - global', () => {
     product.groups.push('school')
     await product.save()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
@@ -114,7 +113,7 @@ describe('plugin - global', () => {
   })
 
   it('should update array', async () => {
-    const product = await Product.create({ name: 'paper', groups: [] })
+    const product = await ProductModel.create({ name: 'paper', groups: [] })
     expect(product.name).toBe('paper')
 
     await product
@@ -129,7 +128,7 @@ describe('plugin - global', () => {
       })
       .exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
@@ -188,7 +187,7 @@ describe('plugin - global', () => {
   })
 
   it('should save nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
+    const product = await ProductModel.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     product.description = { summary: 'test2' }
@@ -197,7 +196,7 @@ describe('plugin - global', () => {
     product.description.summary = 'test3'
     await product.save()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
@@ -262,7 +261,7 @@ describe('plugin - global', () => {
   })
 
   it('should update nested schema', async () => {
-    const product = await Product.create({ name: 'paper', description: { summary: 'test1' } })
+    const product = await ProductModel.create({ name: 'paper', description: { summary: 'test1' } })
     expect(product.name).toBe('paper')
 
     await product
@@ -277,7 +276,7 @@ describe('plugin - global', () => {
       })
       .exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(3)
 
     const [first, second, third] = history
@@ -342,17 +341,17 @@ describe('plugin - global', () => {
   })
 
   it('should save objectID', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
     expect(john.name).toBe('John')
-    const alice = await User.create({ name: 'Alice', role: 'user' })
+    const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
-    const product = await Product.create({ name: 'paper', addedBy: john })
+    const product = await ProductModel.create({ name: 'paper', addedBy: john })
     expect(product.name).toBe('paper')
 
     product.addedBy = alice._id
     await product.save()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(4)
 
     const [first, second, third, fourth] = history
@@ -430,11 +429,11 @@ describe('plugin - global', () => {
   })
 
   it('should update objectID', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
     expect(john.name).toBe('John')
-    const alice = await User.create({ name: 'Alice', role: 'user' })
+    const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
-    const product = await Product.create({ name: 'paper', addedBy: john })
+    const product = await ProductModel.create({ name: 'paper', addedBy: john })
     expect(product.name).toBe('paper')
 
     await product
@@ -449,7 +448,7 @@ describe('plugin - global', () => {
       })
       .exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(5)
 
     const [first, second, third, fourth, fifth] = history

@@ -1,15 +1,14 @@
+import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import mongoose, { model } from 'mongoose'
+import { patchHistoryPlugin } from '../src/plugin'
 import { isMongooseLessThan7 } from '../src/version'
 
-import { patchHistoryPlugin } from '../src/plugin'
-import UserSchema from './schemas/UserSchema'
-
-import { USER_DELETED } from './constants/events'
-
 import em from '../src/em'
+import { USER_DELETED } from './constants/events'
 import server from './mongo/server'
+
+import { type User, UserSchema } from './schemas/User'
 
 const preDeleteMock = vi.fn()
 
@@ -24,7 +23,7 @@ describe('plugin - preDelete test', () => {
     preDelete: preDeleteMock,
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -44,16 +43,16 @@ describe('plugin - preDelete test', () => {
   })
 
   it('should deleteMany and execute preDelete', async () => {
-    await User.create({ name: 'John', role: 'user' })
-    await User.create({ name: 'Jane', role: 'user' })
-    await User.create({ name: 'Jack', role: 'user' })
+    await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.create({ name: 'Jane', role: 'user' })
+    await UserModel.create({ name: 'Jack', role: 'user' })
 
-    const users = await User.find({}).sort().lean().exec()
+    const users = await UserModel.find({}).sort().lean().exec()
     expect(users).toHaveLength(3)
 
     const [john, jane, jack] = users
 
-    await User.deleteMany({ role: 'user' })
+    await UserModel.deleteMany({ role: 'user' })
     expect(preDeleteMock).toHaveBeenCalledTimes(1)
     expect(preDeleteMock).toHaveBeenCalledWith([john, jane, jack])
 
@@ -91,16 +90,16 @@ describe('plugin - preDelete test', () => {
   })
 
   it('should deleteOne and execute preDelete', async () => {
-    await User.create({ name: 'John', role: 'user' })
-    await User.create({ name: 'Jane', role: 'user' })
-    await User.create({ name: 'Jack', role: 'user' })
+    await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.create({ name: 'Jane', role: 'user' })
+    await UserModel.create({ name: 'Jack', role: 'user' })
 
-    const users = await User.find({}).sort().lean().exec()
+    const users = await UserModel.find({}).sort().lean().exec()
     expect(users).toHaveLength(3)
 
     const [john] = users
 
-    await User.deleteOne({ name: 'John' })
+    await UserModel.deleteOne({ name: 'John' })
     expect(preDeleteMock).toHaveBeenCalledTimes(1)
     expect(preDeleteMock).toHaveBeenCalledWith([
       {
@@ -127,7 +126,7 @@ describe('plugin - preDelete test', () => {
   })
 
   it('should remove and execute preDelete', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
