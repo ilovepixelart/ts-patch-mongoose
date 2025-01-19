@@ -1,4 +1,4 @@
-import { Schema, model } from 'mongoose'
+import { Schema } from 'mongoose'
 import { DescriptionSchema } from './Description'
 
 import type { Types } from 'mongoose'
@@ -6,7 +6,7 @@ import type { Description } from './Description'
 
 export interface Product {
   name: string
-  groups?: [string]
+  groups?: string[]
   description?: Description
   addedBy?: Types.ObjectId
   createdAt?: Date
