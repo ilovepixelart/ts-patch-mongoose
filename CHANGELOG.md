@@ -1,3 +1,22 @@
+<a id="v2.7.1"></a>
+# [v2.7.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.7.1) - 2025-01-19
+
+- Adjust type and parsing  b94f55a
+- Merge pull request [#285](https://github.com/ilovepixelart/ts-patch-mongoose/issues/285) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-0bc38f1f4e  75b8371
+- Update dependencies: Bump the all-dependencies group with 5 updates  28ad3f9
+- Dependabot  b304a08
+- Update settings  8bd1bce
+- Merge pull request [#284](https://github.com/ilovepixelart/ts-patch-mongoose/issues/284) from ilovepixelart/feature/update-action-and-dep  65960af
+- Action and Dep  e04ee87
+- Update changelog for v2.7.0  add76b3
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.0...v2.7.1
+
+[Changes][v2.7.1]
+
+
 <a id="v2.7.0"></a>
 # [v2.7.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.7.0) - 2025-01-07
 
@@ -1000,6 +1019,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.7.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.0...v2.7.1
 [v2.7.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.9...v2.7.0
 [v2.6.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.8...v2.6.9
 [v2.6.8]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.7...v2.6.8
