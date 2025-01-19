@@ -13,7 +13,7 @@ export const toObjectOptions: ToObjectOptions = {
   virtuals: false,
 }
 
-export const setPatchHistoryTTL = async (ttl: number | string): Promise<void> => {
+export const setPatchHistoryTTL = async (ttl: number | ms.StringValue): Promise<void> => {
   const name = 'createdAt_1_TTL' // To avoid collision with user defined index / manually created index
   try {
     const indexes = await History.collection.indexes()
@@ -25,7 +25,7 @@ export const setPatchHistoryTTL = async (ttl: number | string): Promise<void> =>
       return
     }
 
-    const milliseconds = ms(ttl as string)
+    const milliseconds = typeof ttl === 'string' ? ms(ttl) : ttl
 
     // Drop the index if historyTTL is less than 1 second and index exists
     if (milliseconds < 1000 && existingIndex) {
