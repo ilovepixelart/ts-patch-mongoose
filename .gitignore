@@ -10,9 +10,9 @@ coverage
 # npm debug logs
 npm-debug.log
 
-# Webstorm
+# WebStorm
 .idea
 .env
 
-# Inmemmory mongo config
+# In-memory mongo config
 /globalConfig.json

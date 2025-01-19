@@ -1,8 +1,8 @@
 import { Schema, model } from 'mongoose'
 
-import type IHistory from '../interfaces/IHistory'
+import type { History } from '../types'
 
-const HistorySchema = new Schema<IHistory>(
+export const HistorySchema = new Schema<History>(
   {
     op: {
       type: String,
@@ -47,6 +47,4 @@ const HistorySchema = new Schema<IHistory>(
 HistorySchema.index({ collectionId: 1, version: -1 })
 HistorySchema.index({ op: 1, modelName: 1, collectionName: 1, collectionId: 1, reason: 1, version: 1 })
 
-const History = model('History', HistorySchema, 'history')
-
-export default History
+export const HistoryModel = model<History>('History', HistorySchema, 'history')

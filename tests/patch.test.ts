@@ -1,23 +1,18 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import mongoose, { model } from 'mongoose'
+import mongoose from 'mongoose'
 
 import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
 import { patchHistoryPlugin } from '../src/plugin'
 
-import UserSchema from './schemas/UserSchema'
-
 import { USER_DELETED } from './constants/events'
+import { type User, UserSchema } from './schemas/User'
 
 import type { HydratedDocument } from 'mongoose'
-import type IContext from '../src/interfaces/IContext'
-import type { User } from '../src/interfaces/IPluginOptions'
-import type IPluginOptions from '../src/interfaces/IPluginOptions'
-import type IUser from './interfaces/IUser'
 
 import { afterEach } from 'node:test'
-import { update } from 'lodash'
 import em from '../src/em'
+import type { PatchContext, PluginOptions } from '../src/types'
 import server from './mongo/server'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
@@ -30,7 +25,7 @@ describe('patch tests', () => {
     patchHistoryDisabled: true,
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = mongoose.model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -51,8 +46,8 @@ describe('patch tests', () => {
 
   describe('getObjects', () => {
     it('should omit properties from currentObject and originalObject based on the opts', async () => {
-      const original = await User.create({ name: 'John', role: 'user' })
-      const current = await User.create({ name: 'John', role: 'admin' })
+      const original = await UserModel.create({ name: 'John', role: 'user' })
+      const current = await UserModel.create({ name: 'John', role: 'admin' })
 
       const pluginOptions = {
         omit: ['createdAt'],
@@ -71,8 +66,8 @@ describe('patch tests', () => {
     })
 
     it('should not omit properties from currentObject and originalObject if opts is empty', async () => {
-      const original = await User.create({ name: 'John', role: 'user' })
-      const current = await User.create({ name: 'John', role: 'admin' })
+      const original = await UserModel.create({ name: 'John', role: 'user' })
+      const current = await UserModel.create({ name: 'John', role: 'admin' })
 
       const pluginOptions = {}
 
@@ -91,14 +86,14 @@ describe('patch tests', () => {
 
   describe('bulkPatch', () => {
     it('should emit eventDeleted if opts.patchHistoryDisabled is false', async () => {
-      const doc = new User({ name: 'John', role: 'user' })
+      const doc = new UserModel({ name: 'John', role: 'user' })
 
-      const pluginOptions: IPluginOptions<IUser> = {
+      const pluginOptions: PluginOptions<User> = {
         eventDeleted: USER_DELETED,
         patchHistoryDisabled: false,
       }
 
-      const context: IContext<IUser> = {
+      const context: PatchContext<User> = {
         op: 'deleteOne',
         modelName: 'User',
         collectionName: 'users',
@@ -110,14 +105,14 @@ describe('patch tests', () => {
     })
 
     it('should emit eventDeleted if opts.patchHistoryDisabled is true', async () => {
-      const doc = new User({ name: 'John', role: 'user' })
+      const doc = new UserModel({ name: 'John', role: 'user' })
 
-      const pluginOptions: IPluginOptions<IUser> = {
+      const pluginOptions: PluginOptions<User> = {
         eventDeleted: USER_DELETED,
         patchHistoryDisabled: true,
       }
 
-      const context: IContext<IUser> = {
+      const context: PatchContext<User> = {
         op: 'deleteOne',
         modelName: 'User',
         collectionName: 'users',
@@ -131,27 +126,27 @@ describe('patch tests', () => {
 
   describe('updatePatch', () => {
     it('should return if one object is empty', async () => {
-      const current = await User.create({ name: 'John', role: 'user' })
+      const current = await UserModel.create({ name: 'John', role: 'user' })
 
-      const pluginOptions: IPluginOptions<IUser> = {
+      const pluginOptions: PluginOptions<User> = {
         eventDeleted: USER_DELETED,
         patchHistoryDisabled: true,
       }
 
-      const context: IContext<IUser> = {
+      const context: PatchContext<User> = {
         op: 'updateOne',
         modelName: 'User',
         collectionName: 'users',
       }
 
-      await updatePatch(pluginOptions, context, current, {} as HydratedDocument<IUser>)
+      await updatePatch(pluginOptions, context, current, {} as HydratedDocument<User>)
       expect(em.emit).toHaveBeenCalled()
     })
   })
 
   describe('should getUser()', () => {
     it('should return user, reason, metadata', async () => {
-      const opts: IPluginOptions<IUser> = {
+      const opts: PluginOptions<User> = {
         getUser: () => ({ name: 'test' }),
         getReason: () => 'test',
         getMetadata: () => ({ test: 'test' }),
@@ -165,7 +160,7 @@ describe('patch tests', () => {
 
   describe('should getData()', () => {
     it('should return user, reason, metadata', async () => {
-      const opts: IPluginOptions<IUser> = {
+      const opts: PluginOptions<User> = {
         getUser: () => ({ name: 'test' }),
         getReason: () => 'test',
         getMetadata: () => ({ test: 'test' }),
@@ -175,7 +170,7 @@ describe('patch tests', () => {
     })
 
     it('should return user, reason, metadata undefined', async () => {
-      const opts: IPluginOptions<IUser> = {
+      const opts: PluginOptions<User> = {
         getUser: () => ({ name: 'test' }),
         getReason: () => 'test',
         getMetadata: () => {

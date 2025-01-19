@@ -2,17 +2,16 @@ import { toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, Schema } from 'mongoose'
-import type IContext from '../interfaces/IContext'
-import type IPluginOptions from '../interfaces/IPluginOptions'
+import type { PatchContext, PluginOptions } from '../types'
 
-export const saveHooksInitialize = <T>(schema: Schema<T>, opts: IPluginOptions<T>): void => {
+export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
   schema.pre('save', async function () {
     if (this.constructor.name !== 'model') return
 
     const current = this.toObject(toObjectOptions) as HydratedDocument<T>
     const model = this.constructor as Model<T>
 
-    const context: IContext<T> = {
+    const context: PatchContext<T> = {
       op: this.isNew ? 'create' : 'update',
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,

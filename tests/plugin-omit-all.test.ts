@@ -1,15 +1,14 @@
+import mongoose, { Types, model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { isMongooseLessThan7 } from '../src/version'
-
-import mongoose, { Types, model } from 'mongoose'
-
-import History from '../src/models/History'
 import { patchHistoryPlugin } from '../src/plugin'
-import UserSchema from './schemas/UserSchema'
+import { isMongooseLessThan7 } from '../src/version'
 
 import em from '../src/em'
 import server from './mongo/server'
+
+import { HistoryModel } from '../src/models/History'
+import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
@@ -20,7 +19,7 @@ describe('plugin - omit all', () => {
     omit: ['__v', 'name', 'role', 'createdAt', 'updatedAt'],
   })
 
-  const User = model('User', UserSchema)
+  const UserModel = model<User>('User', UserSchema)
 
   beforeAll(async () => {
     await instance.create()
@@ -40,7 +39,7 @@ describe('plugin - omit all', () => {
   })
 
   it('should createHistory', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+    const user = await UserModel.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
     user.name = 'Alice'
@@ -49,9 +48,9 @@ describe('plugin - omit all', () => {
     user.name = 'Bob'
     await user.save()
 
-    await User.deleteMany({ role: 'user' }).exec()
+    await UserModel.deleteMany({ role: 'user' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(2)
 
     const [first, second] = history
@@ -86,13 +85,13 @@ describe('plugin - omit all', () => {
   })
 
   it('should omit update of role', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+    const user = await UserModel.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
     user.role = 'manager'
     await user.save()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(1)
 
     const [first] = history
@@ -114,12 +113,12 @@ describe('plugin - omit all', () => {
   })
 
   it('should updateOne', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+    const user = await UserModel.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await User.updateOne({ _id: user._id }, { name: 'Alice' }).exec()
+    await UserModel.updateOne({ _id: user._id }, { name: 'Alice' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(1)
 
     const [first] = history
@@ -141,12 +140,12 @@ describe('plugin - omit all', () => {
   })
 
   it('should findOneAndUpdate', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+    const user = await UserModel.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
-    await User.findOneAndUpdate({ _id: user._id }, { name: 'Alice' }).exec()
+    await UserModel.findOneAndUpdate({ _id: user._id }, { name: 'Alice' }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(1)
 
     const [first] = history
@@ -168,17 +167,17 @@ describe('plugin - omit all', () => {
   })
 
   it('should update deprecated', async () => {
-    const user = await User.create({ name: 'John', role: 'user' })
+    const user = await UserModel.create({ name: 'John', role: 'user' })
     expect(user.name).toBe('John')
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+      await UserModel.update({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
     } else {
-      await User.findOneAndUpdate({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
+      await UserModel.findOneAndUpdate({ _id: user._id }, { $set: { name: 'Alice' } }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(1)
 
     const [first] = history
@@ -200,19 +199,19 @@ describe('plugin - omit all', () => {
   })
 
   it('should updated deprecated with multi flag', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
     expect(john.name).toBe('John')
-    const alice = await User.create({ name: 'Alice', role: 'user' })
+    const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
 
     if (isMongooseLessThan7) {
       // @ts-expect-error not available in Mongoose 6 and below
-      await User.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
+      await UserModel.update({ role: 'user' }, { $set: { name: 'Bob' } }, { multi: true }).exec()
     } else {
-      await User.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
+      await UserModel.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
     }
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(2)
 
     const [first, second] = history
@@ -247,10 +246,10 @@ describe('plugin - omit all', () => {
   })
 
   it('should create many', async () => {
-    await User.create({ name: 'John', role: 'user' })
-    await User.create({ name: 'Alice', role: 'user' })
+    await UserModel.create({ name: 'John', role: 'user' })
+    await UserModel.create({ name: 'Alice', role: 'user' })
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(2)
 
     const [first, second] = history
@@ -285,11 +284,11 @@ describe('plugin - omit all', () => {
   })
 
   it('should findOneAndUpdate upsert', async () => {
-    await User.findOneAndUpdate({ name: 'John', role: 'user' }, { name: 'Bob', role: 'user' }, { upsert: true, runValidators: true }).exec()
-    const documents = await User.find({})
+    await UserModel.findOneAndUpdate({ name: 'John', role: 'user' }, { name: 'Bob', role: 'user' }, { upsert: true, runValidators: true }).exec()
+    const documents = await UserModel.find({})
     expect(documents).toHaveLength(1)
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(1)
 
     const [first] = history
@@ -309,14 +308,14 @@ describe('plugin - omit all', () => {
   })
 
   it('should update many', async () => {
-    const john = await User.create({ name: 'John', role: 'user' })
+    const john = await UserModel.create({ name: 'John', role: 'user' })
     expect(john.name).toBe('John')
-    const alice = await User.create({ name: 'Alice', role: 'user' })
+    const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
 
-    await User.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
+    await UserModel.updateMany({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
 
-    const history = await History.find({})
+    const history = await HistoryModel.find({})
     expect(history).toHaveLength(2)
 
     const [first, second] = history

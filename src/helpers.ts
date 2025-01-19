@@ -1,6 +1,6 @@
 import ms from 'ms'
 
-import History from './models/History'
+import { HistoryModel } from './models/History'
 
 import type { QueryOptions, ToObjectOptions } from 'mongoose'
 
@@ -16,12 +16,12 @@ export const toObjectOptions: ToObjectOptions = {
 export const setPatchHistoryTTL = async (ttl: number | ms.StringValue): Promise<void> => {
   const name = 'createdAt_1_TTL' // To avoid collision with user defined index / manually created index
   try {
-    const indexes = await History.collection.indexes()
+    const indexes = await HistoryModel.collection.indexes()
     const existingIndex = indexes?.find((index) => index.name === name)
 
     // Drop the index if historyTTL is not set and index exists
     if (!ttl && existingIndex) {
-      await History.collection.dropIndex(name)
+      await HistoryModel.collection.dropIndex(name)
       return
     }
 
@@ -29,7 +29,7 @@ export const setPatchHistoryTTL = async (ttl: number | ms.StringValue): Promise<
 
     // Drop the index if historyTTL is less than 1 second and index exists
     if (milliseconds < 1000 && existingIndex) {
-      await History.collection.dropIndex(name)
+      await HistoryModel.collection.dropIndex(name)
       return
     }
 
@@ -42,11 +42,11 @@ export const setPatchHistoryTTL = async (ttl: number | ms.StringValue): Promise<
 
     if (existingIndex) {
       // Drop the existing index if it exists and TTL is different
-      await History.collection.dropIndex(name)
+      await HistoryModel.collection.dropIndex(name)
     }
 
     // Create a new index with the correct TTL if it doesn't exist or if the TTL is different
-    await History.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
+    await HistoryModel.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
   } catch (err) {
     console.error("Couldn't create or update index for history collection", err)
   }
