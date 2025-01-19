@@ -1,3 +1,21 @@
+<a id="v2.8.0"></a>
+# [v2.8.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.8.0) - 2025-01-19
+
+- Cleanup  06d01ff
+- Biome  ee6c77a
+- Remove unused  f75042f
+- Merge pull request [#286](https://github.com/ilovepixelart/ts-patch-mongoose/issues/286) from ilovepixelart/feature/move-types-to-one-file  c4d8d73
+- Remove unused  891d9de
+- Refactor interfaces and schemas: remove unused interfaces, update naming conventions: - IContext -&gt; PatchContext - IEvent -&gt; PatchEvent - IPluginOptions -&gt; PluginOptions - IHookContext -&gt; HookContext  518a61d
+- Update changelog for v2.7.1  44f536c
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.1...v2.8.0
+
+[Changes][v2.8.0]
+
+
 <a id="v2.7.1"></a>
 # [v2.7.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.7.1) - 2025-01-19
 
@@ -1019,6 +1037,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.8.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.1...v2.8.0
 [v2.7.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.0...v2.7.1
 [v2.7.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.9...v2.7.0
 [v2.6.9]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.6.8...v2.6.9
