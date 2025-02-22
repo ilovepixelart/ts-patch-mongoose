@@ -2,8 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 
 import mongoose from 'mongoose'
 
+import { patchHistoryPlugin } from '../src/index'
 import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
-import { patchHistoryPlugin } from '../src/plugin'
 
 import { USER_DELETED } from './constants/events'
 import { type User, UserSchema } from './schemas/User'

@@ -21,6 +21,8 @@ export const patchEventEmitter = em
 
 export { setPatchHistoryTTL } from './helpers'
 
+export * from './types'
+
 /**
  * @description Mongoose plugin to track and manage patch history for documents.
  * This plugin initializes hooks for save, update, and delete operations to create
