@@ -71,7 +71,7 @@ bun add mongoose@8
 
 ## Example
 
-How to use it with express [ts-express-swc](https://github.com/ilovepixelart/ts-express-swc)
+How to use it with express [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
 
 Create your event constants `events.ts`
 
