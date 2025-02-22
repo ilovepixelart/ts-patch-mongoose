@@ -2,8 +2,8 @@ import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { toObjectOptions } from '../src/helpers'
+import { patchHistoryPlugin } from '../src/index'
 import { HistoryModel } from '../src/models/History'
-import { patchHistoryPlugin } from '../src/plugin'
 import { isMongooseLessThan7 } from '../src/version'
 
 import em from '../src/em'

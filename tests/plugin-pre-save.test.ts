@@ -1,7 +1,7 @@
 import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { patchHistoryPlugin } from '../src/plugin'
+import { patchHistoryPlugin } from '../src/index'
 
 import em from '../src/em'
 import { USER_CREATED } from './constants/events'
