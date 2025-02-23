@@ -7,7 +7,7 @@ import { isMongooseLessThan7 } from '../src/version'
 import em from '../src/em'
 import server from './mongo/server'
 
-import { HistoryModel } from '../src/models/History'
+import { HistoryModel } from '../src/model'
 import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))

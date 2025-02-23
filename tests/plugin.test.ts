@@ -8,7 +8,7 @@ import em from '../src/em'
 import { USER_CREATED, USER_DELETED, USER_UPDATED } from './constants/events'
 import server from './mongo/server'
 
-import { HistoryModel } from '../src/models/History'
+import { HistoryModel } from '../src/model'
 import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))

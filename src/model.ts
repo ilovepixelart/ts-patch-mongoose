@@ -1,6 +1,6 @@
 import { Schema, model } from 'mongoose'
 
-import type { History } from '../types'
+import type { History } from './types'
 
 export const HistorySchema = new Schema<History>(
   {

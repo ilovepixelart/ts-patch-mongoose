@@ -6,7 +6,7 @@ import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 import em from './em'
-import { HistoryModel } from './models/History'
+import { HistoryModel } from './model'
 
 function isPatchHistoryEnabled<T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
