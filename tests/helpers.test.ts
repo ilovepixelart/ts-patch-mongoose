@@ -2,11 +2,11 @@ import ms from 'ms'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setPatchHistoryTTL } from '../src/helpers'
-import { HistoryModel } from '../src/models/History'
+import { HistoryModel } from '../src/model'
 
 import type { Mock, MockInstance } from 'vitest'
 
-vi.mock('../src/models/History', () => ({
+vi.mock('../src/model', () => ({
   HistoryModel: {
     collection: {
       indexes: vi.fn(),

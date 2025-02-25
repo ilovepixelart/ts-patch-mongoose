@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { patchEventEmitter } from '../src/index'
 import { emitEvent } from '../src/patch'
-import { patchEventEmitter } from '../src/plugin'
 
 describe('em', () => {
   it('should subscribe and count', async () => {

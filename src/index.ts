@@ -21,6 +21,8 @@ export const patchEventEmitter = em
 
 export { setPatchHistoryTTL } from './helpers'
 
+export * from './types'
+
 /**
  * @description Mongoose plugin to track and manage patch history for documents.
  * This plugin initializes hooks for save, update, and delete operations to create
@@ -53,6 +55,7 @@ export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: Pl
     await createPatch(opts, context)
   })
 
+  /* v8 ignore start */
   // In Mongoose 7, doc.deleteOne() returned a promise that resolved to doc.
   // In Mongoose 8, doc.deleteOne() returns a query for easier chaining, as well as consistency with doc.updateOne().
   if (isMongooseLessThan8) {
@@ -90,4 +93,5 @@ export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: Pl
       await deletePatch(opts, context)
     })
   }
+  /* v8 ignore end */
 }
