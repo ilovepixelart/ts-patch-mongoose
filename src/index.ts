@@ -1,4 +1,4 @@
-import { isEmpty } from 'lodash'
+import _ from 'lodash'
 import em from './em'
 
 import { toObjectOptions } from './helpers'
@@ -68,7 +68,7 @@ export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: Pl
       // @ts-expect-error - Mongoose 7 and below
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
 
-      if (opts.preDelete && !isEmpty(original)) {
+      if (opts.preDelete && !_.isEmpty(original)) {
         await opts.preDelete([original])
       }
     })

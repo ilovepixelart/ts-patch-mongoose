@@ -1,5 +1,5 @@
 import jsonpatch from 'fast-json-patch'
-import { chunk, isEmpty, isFunction } from 'lodash'
+import _ from 'lodash'
 import omit from 'omit-deep'
 
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
@@ -24,28 +24,28 @@ export function getJsonOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>)
 
 export function getObjectOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> {
   if (opts.omit) {
-    return omit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
+    return omit(_.isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
   }
 
   return doc
 }
 
 export async function getUser<T>(opts: PluginOptions<T>): Promise<User | undefined> {
-  if (isFunction(opts.getUser)) {
+  if (_.isFunction(opts.getUser)) {
     return await opts.getUser()
   }
   return undefined
 }
 
 export async function getReason<T>(opts: PluginOptions<T>): Promise<string | undefined> {
-  if (isFunction(opts.getReason)) {
+  if (_.isFunction(opts.getReason)) {
     return await opts.getReason()
   }
   return undefined
 }
 
 export async function getMetadata<T>(opts: PluginOptions<T>): Promise<Metadata | undefined> {
-  if (isFunction(opts.getMetadata)) {
+  if (_.isFunction(opts.getMetadata)) {
     return await opts.getMetadata()
   }
   return undefined
@@ -73,11 +73,11 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
   const docs = context[docsKey]
   const key = eventKey === 'eventCreated' ? 'doc' : 'oldDoc'
 
-  if (isEmpty(docs) || (!event && !history)) return
+  if (_.isEmpty(docs) || (!event && !history)) return
 
   const [user, reason, metadata] = await getData(opts)
 
-  const chunks = chunk(docs, 1000)
+  const chunks = _.chunk(docs, 1000)
   for await (const chunk of chunks) {
     const bulk = []
 
@@ -103,7 +103,7 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
       }
     }
 
-    if (history && !isEmpty(bulk)) {
+    if (history && !_.isEmpty(bulk)) {
       await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
         console.error(error.message)
       })
@@ -120,10 +120,10 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
 
   const currentObject = getJsonOmit(opts, current)
   const originalObject = getJsonOmit(opts, original)
-  if (isEmpty(originalObject) || isEmpty(currentObject)) return
+  if (_.isEmpty(originalObject) || _.isEmpty(currentObject)) return
 
   const patch = jsonpatch.compare(originalObject, currentObject, true)
-  if (isEmpty(patch)) return
+  if (_.isEmpty(patch)) return
 
   emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
 

@@ -1,4 +1,4 @@
-import { isArray, isEmpty } from 'lodash'
+import _ from 'lodash'
 
 import { isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
@@ -26,17 +26,17 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
       const docs = await model.find<T>(filter).lean().exec()
-      if (!isEmpty(docs)) {
+      if (!_.isEmpty(docs)) {
         this._context.deletedDocs = docs as HydratedDocument<T>[]
       }
     } else {
       const doc = await model.findOne<T>(filter).lean().exec()
-      if (!isEmpty(doc)) {
+      if (!_.isEmpty(doc)) {
         this._context.deletedDocs = [doc] as HydratedDocument<T>[]
       }
     }
 
-    if (opts.preDelete && isArray(this._context.deletedDocs) && !isEmpty(this._context.deletedDocs)) {
+    if (opts.preDelete && _.isArray(this._context.deletedDocs) && !_.isEmpty(this._context.deletedDocs)) {
       await opts.preDelete(this._context.deletedDocs)
     }
   })
