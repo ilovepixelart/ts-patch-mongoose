@@ -140,14 +140,14 @@ BookSchema.plugin(patchHistoryPlugin, {
 
   // Code bellow is abstract example, you can use any other way to get user, reason, metadata
   // These three properties will be added to patch history document automatically and give you flexibility to track who, why and when made changes to your documents
-  getUser: async () => {
+  getUser: async (doc: HydratedDocument<Book>) => {
     // For example: get user from http context
     // You should return an object, in case you want to save user to patch history
     return httpContext.get('user') as Record<string, unknown>
   },
 
   // Reason of document (create/update/delete) like: 'Excel upload', 'Manual update', 'API call', etc.
-  getReason: async () => {
+  getReason: async (doc: HydratedDocument<Book>) => {
     // For example: get reason from http context, or any other place of your application
     // You shout return a string, in case you want to save reason to patch history
     return httpContext.get('reason') as string

@@ -43,8 +43,8 @@ export interface PluginOptions<T> {
   eventUpdated?: string
   eventCreated?: string
   eventDeleted?: string
-  getUser?: () => Promise<User> | User
-  getReason?: () => Promise<string> | string
+  getUser?: (doc: HydratedDocument<T>) => Promise<User> | User
+  getReason?: (doc: HydratedDocument<T>) => Promise<string> | string
   getMetadata?: (doc: HydratedDocument<T>) => Promise<Metadata> | Metadata
   omit?: string[]
   patchHistoryDisabled?: boolean

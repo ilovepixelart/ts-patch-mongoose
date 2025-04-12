@@ -30,16 +30,16 @@ export function getObjectOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T
   return doc
 }
 
-export async function getUser<T>(opts: PluginOptions<T>): Promise<User | undefined> {
+export async function getUser<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<User | undefined> {
   if (_.isFunction(opts.getUser)) {
-    return await opts.getUser()
+    return await opts.getUser(doc)
   }
   return undefined
 }
 
-export async function getReason<T>(opts: PluginOptions<T>): Promise<string | undefined> {
+export async function getReason<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<string | undefined> {
   if (_.isFunction(opts.getReason)) {
-    return await opts.getReason()
+    return await opts.getReason(doc)
   }
   return undefined
 }
@@ -56,7 +56,7 @@ export function getValue<T>(item: PromiseSettledResult<T>): T | undefined {
 }
 
 export async function getData<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
-  return Promise.allSettled([getUser(opts), getReason(opts), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
+  return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
 }
