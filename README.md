@@ -81,20 +81,18 @@ export const BOOK_UPDATED = 'book-updated'
 export const BOOK_DELETED = 'book-deleted'
 ```
 
-Create your interface `IBook.ts`
+Create your type `Book` in `types.ts`
 
 ```typescript
 import type { Types } from 'mongoose'
 
-interface IBook {
+export type Book = {
   title: string
   description?: string
   authorId: Types.ObjectId
   createdAt?: Date
   updatedAt?: Date
 }
-
-export default IBook
 ```
 
 Setup your mongoose model `Book.ts`
@@ -103,7 +101,7 @@ Setup your mongoose model `Book.ts`
 import { Schema, model } from 'mongoose'
 
 import type { HydratedDocument, Types } from 'mongoose'
-import type IBook from '../interfaces/IBook'
+import type { Book } from '../types'
 
 import { patchHistoryPlugin, setPatchHistoryTTL } from 'ts-patch-mongoose'
 import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
@@ -114,7 +112,7 @@ import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
 // Execute this method after you connected to you database somewhere in your application.
 setPatchHistoryTTL('1 month')
 
-const BookSchema = new Schema<IBook>({
+const BookSchema = new Schema<Book>({
   name: {
     title: String,
     required: true
@@ -156,7 +154,7 @@ BookSchema.plugin(patchHistoryPlugin, {
   },
 
   // You can provide any information you want to save in along with patch history
-  getMetadata: async () => {
+  getMetadata: async (doc: HydratedDocument<Book>) => {
     // For example: get metadata from http context, or any other place of your application
     // You should return an object, in case you want to save metadata to patch history
     return httpContext.get('metadata') as Record<string, unknown>
