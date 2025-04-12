@@ -1,3 +1,19 @@
+<a id="v2.9.0"></a>
+# [v2.9.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.0) - 2025-04-12
+
+- Merge pull request [#300](https://github.com/ilovepixelart/ts-patch-mongoose/issues/300) from ilovepixelart/feature/metadata-update  aef9056
+- Align  7192d10
+- Update the rest of the functions  76eeae8
+- Update metadata to support batch operations  831277e
+- Update changelog for v2.8.2  2cb7eee
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.2...v2.9.0
+
+[Changes][v2.9.0]
+
+
 <a id="v2.8.2"></a>
 # [v2.8.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.8.2) - 2025-04-05
 
@@ -1098,6 +1114,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.9.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.2...v2.9.0
 [v2.8.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.1...v2.8.2
 [v2.8.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.0...v2.8.1
 [v2.8.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.7.1...v2.8.0
