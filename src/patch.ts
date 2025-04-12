@@ -138,7 +138,6 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
     }
 
     const [user, reason, metadata] = await getData(opts, current)
-
     await HistoryModel.create({
       op: context.op,
       modelName: context.modelName,
