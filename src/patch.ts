@@ -30,23 +30,23 @@ export function getObjectOmit<T>(opts: PluginOptions<T>, doc: HydratedDocument<T
   return doc
 }
 
-export async function getUser<T>(opts: PluginOptions<T>): Promise<User | undefined> {
+export async function getUser<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<User | undefined> {
   if (_.isFunction(opts.getUser)) {
-    return await opts.getUser()
+    return await opts.getUser(doc)
   }
   return undefined
 }
 
-export async function getReason<T>(opts: PluginOptions<T>): Promise<string | undefined> {
+export async function getReason<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<string | undefined> {
   if (_.isFunction(opts.getReason)) {
-    return await opts.getReason()
+    return await opts.getReason(doc)
   }
   return undefined
 }
 
-export async function getMetadata<T>(opts: PluginOptions<T>): Promise<Metadata | undefined> {
+export async function getMetadata<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<Metadata | undefined> {
   if (_.isFunction(opts.getMetadata)) {
-    return await opts.getMetadata()
+    return await opts.getMetadata(doc)
   }
   return undefined
 }
@@ -55,8 +55,8 @@ export function getValue<T>(item: PromiseSettledResult<T>): T | undefined {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export async function getData<T>(opts: PluginOptions<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
-  return Promise.allSettled([getUser(opts), getReason(opts), getMetadata(opts)]).then(([user, reason, metadata]) => {
+export async function getData<T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> {
+  return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
 }
@@ -75,8 +75,6 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
 
   if (_.isEmpty(docs) || (!event && !history)) return
 
-  const [user, reason, metadata] = await getData(opts)
-
   const chunks = _.chunk(docs, 1000)
   for await (const chunk of chunks) {
     const bulk = []
@@ -85,6 +83,7 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
       emitEvent(context, event, { [key]: doc })
 
       if (history) {
+        const [user, reason, metadata] = await getData(opts, doc)
         bulk.push({
           insertOne: {
             document: {
@@ -138,8 +137,7 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
       version = lastHistory.version + 1
     }
 
-    const [user, reason, metadata] = await getData(opts)
-
+    const [user, reason, metadata] = await getData(opts, current)
     await HistoryModel.create({
       op: context.op,
       modelName: context.modelName,
