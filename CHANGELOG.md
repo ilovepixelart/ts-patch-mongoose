@@ -1,3 +1,33 @@
+<a id="v2.9.1"></a>
+# [v2.9.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.1) - 2025-06-14
+
+- Merge pull request [#310](https://github.com/ilovepixelart/ts-patch-mongoose/issues/310) from ilovepixelart/feature/dep  4f9e22b
+- Dep and Node 24.x  9cf0c6a
+- Merge pull request [#309](https://github.com/ilovepixelart/ts-patch-mongoose/issues/309) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-c9ebab5556  ff646a3
+- Update dependencies: Bump the all-dependencies group with 3 updates  96b3ffc
+- Merge pull request [#308](https://github.com/ilovepixelart/ts-patch-mongoose/issues/308) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-469e2e205b  0d2759b
+- Update dependencies: Bump the all-dependencies group with 4 updates  e0ccbb2
+- Merge pull request [#306](https://github.com/ilovepixelart/ts-patch-mongoose/issues/306) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-7c3a905ce5  11ffb93
+- Update dependencies: Bump the all-dependencies group with 4 updates  323f02f
+- Merge pull request [#305](https://github.com/ilovepixelart/ts-patch-mongoose/issues/305) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-3256147601  a2ed164
+- Update dependencies: Bump the all-dependencies group with 3 updates  f391de8
+- Merge pull request [#304](https://github.com/ilovepixelart/ts-patch-mongoose/issues/304) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-33afe67225  f8bddcb
+- Update dependencies: Bump the all-dependencies group with 4 updates  a1f1470
+- Merge pull request [#303](https://github.com/ilovepixelart/ts-patch-mongoose/issues/303) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-f648f400e0  ee83939
+- Update dependencies: Bump mongoose in the all-dependencies group  ce67ff5
+- Merge pull request [#302](https://github.com/ilovepixelart/ts-patch-mongoose/issues/302) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-e54b05eba7  43b9578
+- Update dependencies: Bump the all-dependencies group with 4 updates  488a78b
+- Merge pull request [#301](https://github.com/ilovepixelart/ts-patch-mongoose/issues/301) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-c918f85024  cb2e4de
+- Update dependencies: Bump the all-dependencies group with 2 updates  ea0d4c0
+- Update changelog for v2.9.0  2fadefb
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.0...v2.9.1
+
+[Changes][v2.9.1]
+
+
 <a id="v2.9.0"></a>
 # [v2.9.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.0) - 2025-04-12
 
@@ -1114,6 +1144,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.9.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.0...v2.9.1
 [v2.9.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.2...v2.9.0
 [v2.8.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.1...v2.8.2
 [v2.8.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.0...v2.8.1
