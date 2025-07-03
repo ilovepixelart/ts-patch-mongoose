@@ -1,13 +1,11 @@
 import _ from 'lodash'
 import em from './em'
-
 import { toObjectOptions } from './helpers'
-import { createPatch, deletePatch } from './patch'
-import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
-
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
+import { createPatch, deletePatch } from './patch'
+import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
 
 import type { HydratedDocument, Model, Schema } from 'mongoose'
 import type { PatchContext, PluginOptions } from './types'
@@ -20,7 +18,6 @@ const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 export const patchEventEmitter = em
 
 export { setPatchHistoryTTL } from './helpers'
-
 export * from './types'
 
 /**

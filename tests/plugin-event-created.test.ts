@@ -1,14 +1,12 @@
-import mongoose, { Types, model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { patchHistoryPlugin } from '../src/index'
-import { isMongooseLessThan7 } from '../src/version'
-
+import mongoose, { model, Types } from 'mongoose'
 import em from '../src/em'
+import { patchHistoryPlugin } from '../src/index'
+import { HistoryModel } from '../src/model'
+import { isMongooseLessThan7 } from '../src/version'
 import { USER_CREATED } from './constants/events'
 import server from './mongo/server'
-
-import { HistoryModel } from '../src/model'
 import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn((event: string, data: Record<string, unknown>) => console.log(event, data)) } }))

@@ -1,5 +1,4 @@
 import ms from 'ms'
-
 import { HistoryModel } from './model'
 
 import type { QueryOptions, ToObjectOptions } from 'mongoose'

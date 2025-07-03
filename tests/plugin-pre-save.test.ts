@@ -1,12 +1,10 @@
-import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { patchHistoryPlugin } from '../src/index'
-
+import mongoose, { model } from 'mongoose'
 import em from '../src/em'
+import { patchHistoryPlugin } from '../src/index'
 import { USER_CREATED } from './constants/events'
 import server from './mongo/server'
-
 import { type User, UserSchema } from './schemas/User'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
@@ -40,7 +38,7 @@ describe('plugin - preSave test', () => {
 
   it('should create a User and execute save, and omit User role in history', async () => {
     const john = await UserModel.create({ name: 'John', role: 'user' })
-    // @ts-expect-error __v is a hidden field in Mongoose model
+    // biome-ignore lint/correctness/noUnusedVariables: fine 
     const { __v, role, ...doc } = john.toJSON()
 
     expect(em.emit).toHaveBeenCalledTimes(1)

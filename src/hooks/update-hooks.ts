@@ -1,6 +1,5 @@
 import _ from 'lodash'
 import { assign } from 'power-assign'
-
 import { isHookIgnored, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 

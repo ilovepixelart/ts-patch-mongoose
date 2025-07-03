@@ -1,12 +1,11 @@
 import jsonpatch from 'fast-json-patch'
 import _ from 'lodash'
 import omit from 'omit-deep'
+import em from './em'
+import { HistoryModel } from './model'
 
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
-
-import em from './em'
-import { HistoryModel } from './model'
 
 function isPatchHistoryEnabled<T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory

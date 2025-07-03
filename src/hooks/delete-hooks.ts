@@ -1,5 +1,4 @@
 import _ from 'lodash'
-
 import { isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
 
