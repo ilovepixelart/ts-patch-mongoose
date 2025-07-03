@@ -1,10 +1,9 @@
-import ms from 'ms'
+import type { Mock, MockInstance } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import ms from 'ms'
 import { setPatchHistoryTTL } from '../src/helpers'
 import { HistoryModel } from '../src/model'
-
-import type { Mock, MockInstance } from 'vitest'
 
 vi.mock('../src/model', () => ({
   HistoryModel: {

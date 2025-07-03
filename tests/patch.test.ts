@@ -1,19 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { afterEach } from 'node:test'
 import mongoose from 'mongoose'
-
+import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
 import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
-
 import { USER_DELETED } from './constants/events'
+import server from './mongo/server'
 import { type User, UserSchema } from './schemas/User'
 
 import type { HydratedDocument } from 'mongoose'
-
-import { afterEach } from 'node:test'
-import em from '../src/em'
 import type { PatchContext, PluginOptions } from '../src/types'
-import server from './mongo/server'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 

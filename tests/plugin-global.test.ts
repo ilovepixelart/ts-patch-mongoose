@@ -1,13 +1,11 @@
-import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { patchHistoryPlugin } from '../src/index'
-
+import mongoose, { model } from 'mongoose'
 import em from '../src/em'
+import { patchHistoryPlugin } from '../src/index'
+import { HistoryModel } from '../src/model'
 import { GLOBAL_CREATED, GLOBAL_DELETED, GLOBAL_UPDATED } from './constants/events'
 import server from './mongo/server'
-
-import { HistoryModel } from '../src/model'
 import { type Product, ProductSchema } from './schemas/Product'
 import { type User, UserSchema } from './schemas/User'
 

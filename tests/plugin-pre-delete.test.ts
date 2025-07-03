@@ -1,13 +1,11 @@
-import mongoose, { model } from 'mongoose'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import mongoose, { model } from 'mongoose'
+import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
 import { isMongooseLessThan7 } from '../src/version'
-
-import em from '../src/em'
 import { USER_DELETED } from './constants/events'
 import server from './mongo/server'
-
 import { type User, UserSchema } from './schemas/User'
 
 const preDeleteMock = vi.fn()
