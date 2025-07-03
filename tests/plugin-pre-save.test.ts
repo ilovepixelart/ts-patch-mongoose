@@ -38,7 +38,6 @@ describe('plugin - preSave test', () => {
 
   it('should create a User and execute save, and omit User role in history', async () => {
     const john = await UserModel.create({ name: 'John', role: 'user' })
-    // biome-ignore lint/correctness/noUnusedVariables: fine 
     const { __v, role, ...doc } = john.toJSON()
 
     expect(em.emit).toHaveBeenCalledTimes(1)
