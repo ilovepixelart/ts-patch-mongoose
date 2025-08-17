@@ -82,8 +82,8 @@
     "semver": "7.7.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.4",
-    "@types/node": "24.2.1",
+    "@biomejs/biome": "2.2.0",
+    "@types/node": "24.3.0",
     "@vitest/coverage-v8": "3.2.4",
     "mongodb-memory-server": "10.2.0",
     "mongoose": "8.17.1",
