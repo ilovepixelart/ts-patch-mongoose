@@ -1,3 +1,30 @@
+<a id="v2.9.2"></a>
+# [v2.9.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.2) - 2025-08-17
+
+- Merge pull request [#319](https://github.com/ilovepixelart/ts-patch-mongoose/issues/319) from ilovepixelart/feature/dep  8ccd223
+- Dep  a65bf8f
+- Merge pull request [#318](https://github.com/ilovepixelart/ts-patch-mongoose/issues/318) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-6bad8355a2  a71896a
+- Update dependencies: Bump the all-dependencies group with 4 updates  f62dff5
+- Merge pull request [#317](https://github.com/ilovepixelart/ts-patch-mongoose/issues/317) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-3245c906a0  984d12c
+- Update dependencies: Bump the all-dependencies group with 7 updates  ca1f471
+- Merge pull request [#316](https://github.com/ilovepixelart/ts-patch-mongoose/issues/316) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-8b6f0bc0ca  866afce
+- Update dependencies: Bump the all-dependencies group with 4 updates  5718f50
+- Merge pull request [#315](https://github.com/ilovepixelart/ts-patch-mongoose/issues/315) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-02de149aac  54517c1
+- Update dependencies: Bump the all-dependencies group with 4 updates  66becbb
+- Merge pull request [#314](https://github.com/ilovepixelart/ts-patch-mongoose/issues/314) from ilovepixelart/feature/dep  b5296ee
+- Biome  41bb1cd
+- Dep, biome  e9d6434
+- Merge pull request [#311](https://github.com/ilovepixelart/ts-patch-mongoose/issues/311) from ilovepixelart/dependabot-npm_and_yarn-all-dependencies-0e10be214f  f47d080
+- Update dependencies: Bump the all-dependencies group with 2 updates  9005d6c
+- Update changelog for v2.9.1  0a0fdd2
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.1...v2.9.2
+
+[Changes][v2.9.2]
+
+
 <a id="v2.9.1"></a>
 # [v2.9.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.1) - 2025-06-14
 
@@ -1144,6 +1171,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.9.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.1...v2.9.2
 [v2.9.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.0...v2.9.1
 [v2.9.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.2...v2.9.0
 [v2.8.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.8.1...v2.8.2
