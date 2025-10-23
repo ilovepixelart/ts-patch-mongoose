@@ -39,7 +39,7 @@ describe('plugin - global', () => {
   })
 
   afterEach(async () => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
   })
 
   it('should save array', async () => {
