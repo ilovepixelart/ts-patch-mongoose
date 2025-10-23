@@ -38,7 +38,7 @@ describe('patch tests', () => {
   })
 
   afterEach(async () => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
   })
 
   describe('getObjects', () => {
