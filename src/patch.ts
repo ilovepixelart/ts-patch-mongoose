@@ -75,7 +75,7 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
   if (isEmpty(docs) || (!event && !history)) return
 
   const chunks = chunk(docs, 1000)
-  for await (const chunk of chunks) {
+  for (const chunk of chunks) {
     const bulk = []
 
     for (const doc of chunk) {

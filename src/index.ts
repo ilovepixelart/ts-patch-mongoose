@@ -1,5 +1,4 @@
 import { isEmpty } from 'lodash-es'
-import em from './em'
 import { toObjectOptions } from './helpers'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
@@ -15,8 +14,7 @@ const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 /**
  * @description Event emitter for patch operations.
  */
-export const patchEventEmitter = em
-
+export { default as patchEventEmitter } from './em'
 export { setPatchHistoryTTL } from './helpers'
 export * from './types'
 
