@@ -1,4 +1,4 @@
-import _ from 'lodash'
+import { cloneDeep, forEach, isArray, isEmpty, isObjectLike, keys } from 'lodash-es'
 import { assign } from 'power-assign'
 import { isHookIgnored, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
@@ -11,7 +11,7 @@ const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findO
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
   let updated = assign(document.toObject(toObjectOptions), update)
   // Try catch not working for of loop, keep it as is
-  _.forEach(commands, (command) => {
+  forEach(commands, (command) => {
     try {
       updated = assign(updated, command)
     } catch {
@@ -28,11 +28,11 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   let update: UpdateQuery<T> = {}
   const commands: Record<string, unknown>[] = []
 
-  if (!_.isEmpty(updateQuery) && !_.isArray(updateQuery) && _.isObjectLike(updateQuery)) {
-    update = _.cloneDeep(updateQuery)
-    const keysWithDollarSign = _.keys(update).filter((key) => key.startsWith('$'))
-    if (!_.isEmpty(keysWithDollarSign)) {
-      _.forEach(keysWithDollarSign, (key) => {
+  if (!isEmpty(updateQuery) && !isArray(updateQuery) && isObjectLike(updateQuery)) {
+    update = cloneDeep(updateQuery)
+    const keysWithDollarSign = keys(update).filter((key) => key.startsWith('$'))
+    if (!isEmpty(keysWithDollarSign)) {
+      forEach(keysWithDollarSign, (key) => {
         commands.push({ [key]: update[key] as unknown })
         delete update[key]
       })
@@ -83,15 +83,15 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     let current: HydratedDocument<T> | null = null
     const filter = this.getFilter()
     const combined = assignUpdate(model.hydrate({}), update, commands)
-    if (!_.isEmpty(update) && !current) {
+    if (!isEmpty(update) && !current) {
       current = (await model.findOne(update).sort('desc').lean().exec()) as HydratedDocument<T>
     }
 
-    if (!_.isEmpty(combined) && !current) {
+    if (!isEmpty(combined) && !current) {
       current = (await model.findOne(combined).sort('desc').lean().exec()) as HydratedDocument<T>
     }
 
-    if (!_.isEmpty(filter) && !current) {
+    if (!isEmpty(filter) && !current) {
       console.log('filter', filter)
       current = (await model.findOne(filter).sort('desc').lean().exec()) as HydratedDocument<T>
     }

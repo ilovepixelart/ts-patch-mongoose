@@ -1,5 +1,4 @@
-import _ from 'lodash'
-import em from './em'
+import { isEmpty } from 'lodash-es'
 import { toObjectOptions } from './helpers'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
@@ -15,8 +14,7 @@ const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 /**
  * @description Event emitter for patch operations.
  */
-export const patchEventEmitter = em
-
+export { default as patchEventEmitter } from './em'
 export { setPatchHistoryTTL } from './helpers'
 export * from './types'
 
@@ -65,7 +63,7 @@ export const patchHistoryPlugin = function plugin<T>(schema: Schema<T>, opts: Pl
       // @ts-expect-error - Mongoose 7 and below
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
 
-      if (opts.preDelete && !_.isEmpty(original)) {
+      if (opts.preDelete && !isEmpty(original)) {
         await opts.preDelete([original])
       }
     })
