@@ -1,3 +1,18 @@
+<a id="v2.9.4"></a>
+# [v2.9.4](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.4) - 2025-10-27
+
+- Merge pull request [#332](https://github.com/ilovepixelart/ts-patch-mongoose/issues/332) from ilovepixelart/feature/cjs  c3f8f92
+- Dep  bd2f042
+- CJS  61cc6e8
+- Update changelog for v2.9.3  bafe1df
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.3...v2.9.4
+
+[Changes][v2.9.4]
+
+
 <a id="v2.9.3"></a>
 # [v2.9.3](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.3) - 2025-10-25
 
@@ -1206,6 +1221,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.9.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.3...v2.9.4
 [v2.9.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.2...v2.9.3
 [v2.9.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.1...v2.9.2
 [v2.9.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.0...v2.9.1
