@@ -1,4 +1,5 @@
-import { isArray, isEmpty } from 'lodash-es'
+import isArray from 'lodash/isArray'
+import isEmpty from 'lodash/isEmpty'
 import { isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
 

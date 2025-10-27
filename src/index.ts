@@ -1,4 +1,4 @@
-import { isEmpty } from 'lodash-es'
+import isEmpty from 'lodash/isEmpty'
 import { toObjectOptions } from './helpers'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
