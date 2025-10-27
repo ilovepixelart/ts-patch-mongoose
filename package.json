@@ -71,7 +71,7 @@
     "release": "npm install && npm run biome && npm run type:check && npm run build && np"
   },
   "dependencies": {
-    "@types/lodash": "4.17.12",
+    "@types/lodash": "4.17.20",
     "@types/ms": "2.1.0",
     "@types/semver": "7.7.1",
     "fast-json-patch": "3.1.1",
@@ -82,16 +82,16 @@
     "semver": "7.7.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.7",
+    "@biomejs/biome": "2.3.1",
     "@types/node": "24.9.1",
-    "@vitest/coverage-v8": "4.0.2",
+    "@vitest/coverage-v8": "4.0.4",
     "mongodb-memory-server": "10.2.3",
     "mongoose": "8.19.2",
     "open-cli": "8.0.0",
     "pkgroll": "2.20.1",
     "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3",
-    "vitest": "4.0.2"
+    "vitest": "4.0.4"
   },
   "peerDependencies": {
     "mongoose": ">=6.6.0 < 9"
