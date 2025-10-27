@@ -1,5 +1,7 @@
 import jsonpatch from 'fast-json-patch'
-import { chunk, isEmpty, isFunction } from 'lodash-es'
+import chunk from 'lodash/chunk'
+import isEmpty from 'lodash/isEmpty'
+import isFunction from 'lodash/isFunction'
 import omit from 'omit-deep'
 import em from './em'
 import { HistoryModel } from './model'
