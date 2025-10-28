@@ -1,7 +1,8 @@
 import jsonpatch from 'fast-json-patch'
-import chunk from 'lodash/chunk'
-import isEmpty from 'lodash/isEmpty'
-import isFunction from 'lodash/isFunction'
+// Using CJS lodash with .js extensions for ESM compatibility
+import chunk from 'lodash/chunk.js'
+import isEmpty from 'lodash/isEmpty.js'
+import isFunction from 'lodash/isFunction.js'
 import omit from 'omit-deep'
 import em from './em'
 import { HistoryModel } from './model'

@@ -1,4 +1,5 @@
-import isEmpty from 'lodash/isEmpty'
+// Using CJS lodash with .js extension for ESM compatibility
+import isEmpty from 'lodash/isEmpty.js'
 import { toObjectOptions } from './helpers'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { saveHooksInitialize } from './hooks/save-hooks'
