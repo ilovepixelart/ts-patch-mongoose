@@ -1,3 +1,17 @@
+<a id="v2.9.5"></a>
+# [v2.9.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.5) - 2025-10-28
+
+- Merge pull request [#333](https://github.com/ilovepixelart/ts-patch-mongoose/issues/333) from ilovepixelart/feature/esm  19b9041
+- ESM  39e96d7
+- Update changelog for v2.9.4  eafbbf7
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.4...v2.9.5
+
+[Changes][v2.9.5]
+
+
 <a id="v2.9.4"></a>
 # [v2.9.4](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.4) - 2025-10-27
 
@@ -1221,6 +1235,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v2.9.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.4...v2.9.5
 [v2.9.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.3...v2.9.4
 [v2.9.3]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.2...v2.9.3
 [v2.9.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.1...v2.9.2
