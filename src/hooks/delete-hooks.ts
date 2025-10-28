@@ -1,5 +1,6 @@
-import isArray from 'lodash/isArray'
-import isEmpty from 'lodash/isEmpty'
+// Using CJS lodash with .js extensions for ESM compatibility
+import isArray from 'lodash/isArray.js'
+import isEmpty from 'lodash/isEmpty.js'
 import { isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
 
