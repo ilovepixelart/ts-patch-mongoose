@@ -86,19 +86,22 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
 
       if (history) {
         const [user, reason, metadata] = await getData(opts, doc)
+        const document: Record<string, unknown> = {
+          op: context.op,
+          modelName: context.modelName,
+          collectionName: context.collectionName,
+          collectionId: doc._id as Types.ObjectId,
+          doc: getObjectOmit(opts, doc),
+          version: 0,
+        }
+        
+        if (user !== undefined) document.user = user
+        if (reason !== undefined) document.reason = reason
+        if (metadata !== undefined) document.metadata = metadata
+        
         bulk.push({
           insertOne: {
-            document: {
-              op: context.op,
-              modelName: context.modelName,
-              collectionName: context.collectionName,
-              collectionId: doc._id as Types.ObjectId,
-              doc: getObjectOmit(opts, doc),
-              user,
-              reason,
-              metadata,
-              version: 0,
-            },
+            document,
           },
         })
       }
@@ -140,17 +143,20 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
     }
 
     const [user, reason, metadata] = await getData(opts, current)
-    await HistoryModel.create({
+    const historyDoc: Record<string, unknown> = {
       op: context.op,
       modelName: context.modelName,
       collectionName: context.collectionName,
       collectionId: original._id as Types.ObjectId,
       patch,
-      user,
-      reason,
-      metadata,
       version,
-    })
+    }
+    
+    if (user !== undefined) historyDoc.user = user
+    if (reason !== undefined) historyDoc.reason = reason
+    if (metadata !== undefined) historyDoc.metadata = metadata
+    
+    await HistoryModel.create(historyDoc)
   }
 }
 

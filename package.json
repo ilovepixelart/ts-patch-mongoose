@@ -86,7 +86,7 @@
     "@types/node": "24.10.0",
     "@vitest/coverage-v8": "4.0.8",
     "mongodb-memory-server": "10.3.0",
-    "mongoose": "8.19.3",
+    "mongoose": "^8.19.3",
     "open-cli": "8.0.0",
     "pkgroll": "2.20.1",
     "simple-git-hooks": "2.13.1",

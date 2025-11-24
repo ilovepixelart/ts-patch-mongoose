@@ -1,3 +1,20 @@
+<a id="v2.10.0"></a>
+# [v2.10.0] - TBD
+
+## Added
+- Mongoose 9 support - updated peer dependency to support `mongoose >=6.6.0 < 10`
+- Version detection for Mongoose 9 (`isMongooseLessThan9`, `isMongoose9OrGreater`)
+- Comprehensive migration plan documentation in MONGOOSE_9_MIGRATION.md
+
+## Changed
+- Updated type handling for optional fields (user, reason, metadata) to be compatible with Mongoose 9's stricter type system
+- Improved conditional field handling in patch history creation to avoid undefined values
+
+## Fixed
+- Type compatibility issues with Mongoose 9's Model.create() method
+
+---
+
 <a id="v2.9.5"></a>
 # [v2.9.5](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.5) - 2025-10-28
 
