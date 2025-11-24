@@ -94,7 +94,7 @@
     "vitest": "4.0.8"
   },
   "peerDependencies": {
-    "mongoose": ">=6.6.0 < 9"
+    "mongoose": ">=6.6.0 < 10"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run type:check",

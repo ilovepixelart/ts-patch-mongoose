@@ -24,7 +24,7 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```json
 {
   "node": "18.x || 20.x || 22.x",
-  "mongoose": ">=6.6.x || 7.x || 8.x",
+  "mongoose": ">=6.6.x || 7.x || 8.x || 9.x",
 }
 ```
 
@@ -49,7 +49,7 @@ yarn add ts-patch-mongoose
 bun add ts-patch-mongoose
 ```
 
-- This plugin requires mongoose `>=6.6.x || 7.x || 8.x` to be installed as a peer dependency
+- This plugin requires mongoose `>=6.6.x || 7.x || 8.x || 9.x` to be installed as a peer dependency
 
 ```bash
 # For latest mongoose 6
@@ -67,6 +67,11 @@ npm install mongoose@8
 pnpm add mongoose@8
 yarn add mongoose@8
 bun add mongoose@8
+# For latest mongoose 9
+npm install mongoose@9
+pnpm add mongoose@9
+yarn add mongoose@9
+bun add mongoose@9
 ```
 
 ## Example
