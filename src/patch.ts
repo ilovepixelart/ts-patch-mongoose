@@ -7,6 +7,7 @@ import omit from 'omit-deep'
 import em from './em'
 import { HistoryModel } from './model'
 
+import type { Operation } from 'fast-json-patch'
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
@@ -69,6 +70,37 @@ export function emitEvent<T>(context: PatchContext<T>, event: string | undefined
   }
 }
 
+interface CreateHistoryDocOptions {
+  op: string
+  modelName: string
+  collectionName: string
+  collectionId: Types.ObjectId
+  user?: User | undefined
+  reason?: string | undefined
+  metadata?: Metadata | undefined
+  version: number
+  doc?: object
+  patch?: Operation[]
+}
+
+export function createHistoryDocument(options: CreateHistoryDocOptions): Record<string, unknown> {
+  const document: Record<string, unknown> = {
+    op: options.op,
+    modelName: options.modelName,
+    collectionName: options.collectionName,
+    collectionId: options.collectionId,
+    version: options.version,
+  }
+
+  if (options.doc !== undefined) document.doc = options.doc
+  if (options.patch !== undefined) document.patch = options.patch
+  if (options.user !== undefined) document.user = options.user
+  if (options.reason !== undefined) document.reason = options.reason
+  if (options.metadata !== undefined) document.metadata = options.metadata
+
+  return document
+}
+
 export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> {
   const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
@@ -86,19 +118,18 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
 
       if (history) {
         const [user, reason, metadata] = await getData(opts, doc)
-        const document: Record<string, unknown> = {
+        const document = createHistoryDocument({
           op: context.op,
           modelName: context.modelName,
           collectionName: context.collectionName,
           collectionId: doc._id as Types.ObjectId,
           doc: getObjectOmit(opts, doc),
+          user,
+          reason,
+          metadata,
           version: 0,
-        }
-        
-        if (user !== undefined) document.user = user
-        if (reason !== undefined) document.reason = reason
-        if (metadata !== undefined) document.metadata = metadata
-        
+        })
+
         bulk.push({
           insertOne: {
             document,
@@ -143,19 +174,18 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
     }
 
     const [user, reason, metadata] = await getData(opts, current)
-    const historyDoc: Record<string, unknown> = {
+    const historyDoc = createHistoryDocument({
       op: context.op,
       modelName: context.modelName,
       collectionName: context.collectionName,
       collectionId: original._id as Types.ObjectId,
       patch,
+      user,
+      reason,
+      metadata,
       version,
-    }
-    
-    if (user !== undefined) historyDoc.user = user
-    if (reason !== undefined) historyDoc.reason = reason
-    if (metadata !== undefined) historyDoc.metadata = metadata
-    
+    })
+
     await HistoryModel.create(historyDoc)
   }
 }
