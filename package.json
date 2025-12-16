@@ -71,7 +71,7 @@
     "release": "npm install && npm run biome && npm run type:check && npm run build && np"
   },
   "dependencies": {
-    "@types/lodash": "4.17.20",
+    "@types/lodash": "4.17.21",
     "@types/ms": "2.1.0",
     "@types/semver": "7.7.1",
     "fast-json-patch": "3.1.1",
