@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git://github.com/ilovepixelart/ts-patch-mongoose.git"
+    "url": "git+https://github.com/ilovepixelart/ts-patch-mongoose.git"
   },
   "bugs": {
     "url": "https://github.com/ilovepixelart/ts-patch-mongoose/issues"
@@ -68,7 +68,7 @@
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
     "type:check": "tsc --noEmit",
     "build": "pkgroll --clean-dist",
-    "release": "npm install && npm run biome && npm run type:check && npm run build && np"
+    "release": "npm install && npm run biome && npm run type:check && npm run build && np --no-publish"
   },
   "dependencies": {
     "@types/lodash": "4.17.24",
@@ -91,7 +91,8 @@
     "pkgroll": "2.26.3",
     "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3",
-    "vitest": "4.0.18"
+    "vitest": "4.0.18",
+    "np": "11.0.2"
   },
   "peerDependencies": {
     "mongoose": ">=6.6.0 < 10"
@@ -99,6 +100,9 @@
   "simple-git-hooks": {
     "pre-commit": "npm run type:check",
     "pre-push": "npm run biome:fix"
+  },
+  "np": {
+    "publish": false
   },
   "overrides": {
     "esbuild": "0.25.0"
