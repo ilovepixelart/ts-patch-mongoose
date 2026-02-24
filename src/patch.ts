@@ -94,10 +94,10 @@ export async function bulkPatch<T>(opts: PluginOptions<T>, context: PatchContext
               collectionName: context.collectionName,
               collectionId: doc._id as Types.ObjectId,
               doc: getObjectOmit(opts, doc),
-              user,
-              reason,
-              metadata,
               version: 0,
+              ...(user !== undefined && { user }),
+              ...(reason !== undefined && { reason }),
+              ...(metadata !== undefined && { metadata }),
             },
           },
         })
@@ -146,10 +146,10 @@ export async function updatePatch<T>(opts: PluginOptions<T>, context: PatchConte
       collectionName: context.collectionName,
       collectionId: original._id as Types.ObjectId,
       patch,
-      user,
-      reason,
-      metadata,
       version,
+      ...(user !== undefined && { user }),
+      ...(reason !== undefined && { reason }),
+      ...(metadata !== undefined && { metadata }),
     })
   }
 }
