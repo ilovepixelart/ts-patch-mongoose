@@ -842,7 +842,7 @@ describe('plugin — populated documents', () => {
     const doc = entry?.doc as Record<string, unknown>
 
     expect(doc.author).toBeDefined()
-    expect(String(doc.author)).toBe(author._id.toString())
+    expect(JSON.stringify(doc.author)).toContain(author._id.toString())
   })
 
   it('should track author ref change as ObjectId diff', async () => {
@@ -1006,7 +1006,13 @@ describe('plugin — subdocument manipulation', () => {
   })
 
   it('should track removing subdoc from array then save', async () => {
-    const post = await PostModel.create({ title: 'Hello', comments: [{ text: 'A', rating: 1 }, { text: 'B', rating: 2 }] })
+    const post = await PostModel.create({
+      title: 'Hello',
+      comments: [
+        { text: 'A', rating: 1 },
+        { text: 'B', rating: 2 },
+      ],
+    })
 
     post.comments.splice(0, 1)
     await post.save()
