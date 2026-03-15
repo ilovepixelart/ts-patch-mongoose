@@ -277,10 +277,7 @@ describe('plugin — complex data structures', () => {
     const order = await createOrder()
     const paidAt = new Date('2026-03-15T10:00:00Z')
 
-    await EcomOrderModel.updateOne(
-      { _id: order._id },
-      { $set: { status: 'paid', payment: { method: 'card', last4: '4242', transactionId: 'txn_abc123', paidAt } } },
-    ).exec()
+    await EcomOrderModel.updateOne({ _id: order._id }, { $set: { status: 'paid', payment: { method: 'card', last4: '4242', transactionId: 'txn_abc123', paidAt } } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
     const paths = update?.patch?.map((p) => p.path) ?? []
@@ -548,7 +545,7 @@ describe('plugin — complex data structures', () => {
     expect(doc.payment).toHaveProperty('last4', '4242')
     expect((doc.totals as Record<string, Money>).total.amount).toBe(238.86)
     expect((doc.assignedTo as string[]).length).toBe(1)
-    expect((doc.tags as string[])).toEqual(expect.arrayContaining(['vip', 'express']))
+    expect(doc.tags as string[]).toEqual(expect.arrayContaining(['vip', 'express']))
 
     expect(doc).not.toHaveProperty('internalNotes')
     expect(doc).not.toHaveProperty('__v')
@@ -617,11 +614,17 @@ describe('plugin — all mongoose schema types', () => {
       buf: Buffer.from('binary data'),
       mixed: { anything: [1, 'two', { three: true }] },
       nested: { deep: { value: 'found it' } },
-      map: new Map([['key1', 'val1'], ['key2', 'val2']]),
+      map: new Map([
+        ['key1', 'val1'],
+        ['key2', 'val2'],
+      ]),
       arrStr: ['a', 'b', 'c'],
       arrNum: [1, 2, 3],
       arrObjectId: [new mongoose.Types.ObjectId(), new mongoose.Types.ObjectId()],
-      arrNested: [{ label: 'first', score: 10 }, { label: 'second', score: 20 }],
+      arrNested: [
+        { label: 'first', score: 10 },
+        { label: 'second', score: 20 },
+      ],
     })
 
     const [entry] = await HistoryModel.find({ collectionId: doc._id })
@@ -733,7 +736,10 @@ describe('plugin — all mongoose schema types', () => {
 
   it('should track Map field update via save', async () => {
     const doc = await AllTypesModel.create({ map: new Map([['a', '1']]) })
-    doc.map = new Map([['a', '1'], ['b', '2']])
+    doc.map = new Map([
+      ['a', '1'],
+      ['b', '2'],
+    ])
     await doc.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: doc._id })
@@ -752,7 +758,15 @@ describe('plugin — all mongoose schema types', () => {
 
   it('should track array of nested objects mutation', async () => {
     const doc = await AllTypesModel.create({ arrNested: [{ label: 'a', score: 1 }] })
-    await AllTypesModel.updateOne({ _id: doc._id }, { arrNested: [{ label: 'a', score: 1 }, { label: 'b', score: 2 }] }).exec()
+    await AllTypesModel.updateOne(
+      { _id: doc._id },
+      {
+        arrNested: [
+          { label: 'a', score: 1 },
+          { label: 'b', score: 2 },
+        ],
+      },
+    ).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
     const paths = update?.patch?.map((p) => p.path) ?? []
