@@ -363,4 +363,160 @@ describe('plugin — all features', () => {
     const paths = updates[0]?.patch?.map((p) => p.path)
     expect(paths?.some((p) => p?.startsWith('/tags'))).toBe(true)
   })
+
+  it('should handle upsert creating a new document', async () => {
+    await OrderModel.findOneAndUpdate(
+      { item: 'UpsertNew' },
+      { item: 'UpsertNew', quantity: 1, tags: ['upsert'], address: { street: '1 St', city: 'U', zip: '00000' } },
+      { upsert: true, runValidators: true },
+    ).exec()
+
+    const docs = await OrderModel.find({ item: 'UpsertNew' })
+    expect(docs).toHaveLength(1)
+
+    const history = await HistoryModel.find({})
+    expect(history).toHaveLength(1)
+    expect(history[0]?.op).toBe('findOneAndUpdate')
+    expect(history[0]?.doc).toHaveProperty('item', 'UpsertNew')
+  })
+
+  it('should skip hooks when ignoreHook is set', async () => {
+    await OrderModel.create({
+      item: 'IgnoreHook',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'I', zip: '00000' },
+    })
+
+    const historyAfterCreate = await HistoryModel.find({})
+    expect(historyAfterCreate).toHaveLength(1)
+
+    await OrderModel.updateOne({ item: 'IgnoreHook' }, { quantity: 99 }).setOptions({ ignoreHook: true }).exec()
+
+    const historyAfterUpdate = await HistoryModel.find({})
+    expect(historyAfterUpdate).toHaveLength(1)
+
+    await OrderModel.deleteOne({ item: 'IgnoreHook' }).setOptions({ ignoreHook: true }).exec()
+
+    const historyAfterDelete = await HistoryModel.find({})
+    expect(historyAfterDelete).toHaveLength(1)
+  })
+
+  it('should skip events but keep history when ignoreEvent is set', async () => {
+    const order = await OrderModel.create({
+      item: 'IgnoreEvent',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'E', zip: '00000' },
+    })
+
+    vi.resetAllMocks()
+
+    await OrderModel.updateOne({ _id: order._id }, { quantity: 50 }).setOptions({ ignoreEvent: true }).exec()
+
+    const history = await HistoryModel.find({ op: 'updateOne' })
+    expect(history).toHaveLength(1)
+    expect(history[0]?.patch).toMatchObject(expect.arrayContaining([expect.objectContaining({ op: 'replace', path: '/quantity', value: 50 })]))
+
+    expect(em.emit).not.toHaveBeenCalledWith(ORDER_UPDATED, expect.anything())
+  })
+
+  it('should skip history but keep events when ignorePatchHistory is set', async () => {
+    const order = await OrderModel.create({
+      item: 'IgnoreHistory',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'H', zip: '00000' },
+    })
+
+    vi.resetAllMocks()
+
+    await OrderModel.updateOne({ _id: order._id }, { quantity: 50 }).setOptions({ ignorePatchHistory: true }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(0)
+
+    expect(em.emit).toHaveBeenCalledWith(ORDER_UPDATED, expect.objectContaining({ patch: expect.any(Array) }))
+  })
+
+  it('should increment version across multiple updates', async () => {
+    const order = await OrderModel.create({
+      item: 'Versioning',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'V', zip: '00000' },
+    })
+
+    order.quantity = 2
+    await order.save()
+    order.quantity = 3
+    await order.save()
+    order.quantity = 4
+    await order.save()
+
+    const history = await HistoryModel.find({ collectionId: order._id }).sort('version')
+    expect(history).toHaveLength(4)
+    expect(history[0]?.version).toBe(0)
+    expect(history[1]?.version).toBe(1)
+    expect(history[2]?.version).toBe(2)
+    expect(history[3]?.version).toBe(3)
+  })
+
+  it('should track ObjectId reference field changes', async () => {
+    const userId = new mongoose.Types.ObjectId()
+    const order = await OrderModel.create({
+      item: 'RefTest',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'R', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { assignedTo: userId }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path)
+    expect(paths).toContain('/assignedTo')
+  })
+
+  it('should handle full lifecycle: create → update → update → delete', async () => {
+    const order = await OrderModel.create({
+      item: 'Lifecycle',
+      quantity: 1,
+      tags: ['start'],
+      address: { street: '1 St', city: 'L', zip: '00000' },
+    })
+
+    order.quantity = 10
+    order.tags = ['start', 'updated']
+    await order.save()
+
+    await OrderModel.updateOne({ _id: order._id }, { $set: { item: 'Lifecycle Done' } }).exec()
+
+    await OrderModel.deleteOne({ _id: order._id }).exec()
+
+    const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
+    expect(history).toHaveLength(4)
+
+    expect(history[0]?.op).toBe('create')
+    expect(history[0]?.version).toBe(0)
+
+    expect(history[1]?.op).toBe('update')
+    expect(history[1]?.version).toBe(1)
+    expect(history[1]?.patch?.length).toBeGreaterThan(0)
+
+    expect(history[2]?.op).toBe('updateOne')
+    expect(history[2]?.version).toBe(2)
+
+    expect(history[3]?.op).toBe('deleteOne')
+    expect(history[3]?.version).toBe(0)
+    expect(history[3]?.doc).toHaveProperty('item', 'Lifecycle Done')
+    expect(history[3]?.doc).not.toHaveProperty('__v')
+    expect(history[3]?.doc).not.toHaveProperty('notes')
+
+    expect(em.emit).toHaveBeenCalledWith(ORDER_CREATED, expect.any(Object))
+    expect(em.emit).toHaveBeenCalledWith(ORDER_UPDATED, expect.any(Object))
+    expect(em.emit).toHaveBeenCalledWith(ORDER_DELETED, expect.any(Object))
+  })
 })
