@@ -365,11 +365,7 @@ describe('plugin — all features', () => {
   })
 
   it('should handle upsert creating a new document', async () => {
-    await OrderModel.findOneAndUpdate(
-      { item: 'UpsertNew' },
-      { item: 'UpsertNew', quantity: 1, tags: ['upsert'], address: { street: '1 St', city: 'U', zip: '00000' } },
-      { upsert: true, runValidators: true },
-    ).exec()
+    await OrderModel.findOneAndUpdate({ item: 'UpsertNew' }, { item: 'UpsertNew', quantity: 1, tags: ['upsert'], address: { street: '1 St', city: 'U', zip: '00000' } }, { upsert: true, runValidators: true }).exec()
 
     const docs = await OrderModel.find({ item: 'UpsertNew' })
     expect(docs).toHaveLength(1)
