@@ -794,3 +794,533 @@ describe('plugin — all mongoose schema types', () => {
     expect(paths).toContain('/num')
   })
 })
+
+// --- Populated documents ---
+
+const AuthorSchema = new Schema({ name: String, email: String }, { timestamps: true })
+AuthorSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
+const AuthorModel = model('Author', AuthorSchema)
+
+const ArticleSchema = new Schema(
+  {
+    title: String,
+    body: String,
+    author: { type: Schema.Types.ObjectId, ref: 'Author' },
+    reviewers: [{ type: Schema.Types.ObjectId, ref: 'Author' }],
+  },
+  { timestamps: true },
+)
+ArticleSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
+const ArticleModel = model('Article', ArticleSchema)
+
+describe('plugin — populated documents', () => {
+  const instance = server('plugin-populated')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('authors').deleteMany({})
+    await mongoose.connection.collection('articles').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should store ObjectId refs not populated objects in history', async () => {
+    const author = await AuthorModel.create({ name: 'Jane', email: 'jane@example.com' })
+    const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author._id })
+
+    const [entry] = await HistoryModel.find({ collectionId: article._id })
+    const doc = entry?.doc as Record<string, unknown>
+
+    expect(doc.author).toBeDefined()
+    expect(String(doc.author)).toBe(author._id.toString())
+  })
+
+  it('should track author ref change as ObjectId diff', async () => {
+    const author1 = await AuthorModel.create({ name: 'Jane', email: 'jane@example.com' })
+    const author2 = await AuthorModel.create({ name: 'John', email: 'john@example.com' })
+    const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author1._id })
+
+    await ArticleModel.updateOne({ _id: article._id }, { author: author2._id }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne', collectionId: article._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths).toContain('/author')
+  })
+
+  it('should track changes to populated array refs', async () => {
+    const reviewer1 = await AuthorModel.create({ name: 'R1', email: 'r1@example.com' })
+    const reviewer2 = await AuthorModel.create({ name: 'R2', email: 'r2@example.com' })
+    const article = await ArticleModel.create({ title: 'Reviewed', body: 'Content', reviewers: [reviewer1._id] })
+
+    await ArticleModel.updateOne({ _id: article._id }, { $push: { reviewers: reviewer2._id } }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne', collectionId: article._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.startsWith('/reviewers'))).toBe(true)
+  })
+})
+
+// --- Discriminators ---
+
+const BaseEventSchema = new Schema({ timestamp: { type: Date, default: Date.now }, source: String }, { timestamps: true, discriminatorKey: 'kind' })
+BaseEventSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
+const BaseEventModel = model('BaseEvent', BaseEventSchema)
+
+const ClickEventModel = BaseEventModel.discriminator('ClickEvent', new Schema({ url: String, buttonId: String }))
+const SignupEventModel = BaseEventModel.discriminator('SignupEvent', new Schema({ username: String, plan: String }))
+
+describe('plugin — discriminators', () => {
+  const instance = server('plugin-discriminators')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('baseevents').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should create history for discriminator with type-specific fields', async () => {
+    const click = await ClickEventModel.create({ source: 'web', url: 'https://example.com', buttonId: 'cta-1' })
+
+    const [entry] = await HistoryModel.find({ collectionId: click._id })
+    const doc = entry?.doc as Record<string, unknown>
+
+    expect(doc.kind).toBe('ClickEvent')
+    expect(doc.url).toBe('https://example.com')
+    expect(doc.buttonId).toBe('cta-1')
+    expect(doc.source).toBe('web')
+  })
+
+  it('should track updates to discriminator-specific fields', async () => {
+    const click = await ClickEventModel.create({ source: 'web', url: 'https://old.com', buttonId: 'btn-1' })
+
+    await ClickEventModel.updateOne({ _id: click._id }, { url: 'https://new.com' }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne', collectionId: click._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths).toContain('/url')
+  })
+
+  it('should track different discriminator types independently', async () => {
+    const click = await ClickEventModel.create({ source: 'web', url: 'https://example.com' })
+    const signup = await SignupEventModel.create({ source: 'app', username: 'newuser', plan: 'free' })
+
+    await SignupEventModel.updateOne({ _id: signup._id }, { plan: 'pro' }).exec()
+
+    const clickHistory = await HistoryModel.find({ collectionId: click._id })
+    const signupHistory = await HistoryModel.find({ collectionId: signup._id }).sort('createdAt')
+
+    expect(clickHistory).toHaveLength(1)
+    expect(clickHistory[0]?.op).toBe('create')
+
+    expect(signupHistory).toHaveLength(2)
+    expect(signupHistory[1]?.patch?.some((p) => p.path === '/plan')).toBe(true)
+  })
+
+  it('should delete discriminator and preserve type in history', async () => {
+    const signup = await SignupEventModel.create({ source: 'app', username: 'todelete', plan: 'trial' })
+
+    await SignupEventModel.deleteOne({ _id: signup._id }).exec()
+
+    const deletion = await HistoryModel.findOne({ op: 'deleteOne', collectionId: signup._id })
+    const doc = deletion?.doc as Record<string, unknown>
+
+    expect(doc.kind).toBe('SignupEvent')
+    expect(doc.username).toBe('todelete')
+    expect(doc.plan).toBe('trial')
+  })
+})
+
+// --- Subdocument manipulation ---
+
+const CommentSchema = new Schema({ text: String, rating: Number }, { timestamps: false })
+
+const PostSchema = new Schema(
+  {
+    title: String,
+    comments: [CommentSchema],
+    featured: { type: CommentSchema, default: undefined },
+  },
+  { timestamps: true },
+)
+PostSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
+const PostModel = model('Post', PostSchema)
+
+describe('plugin — subdocument manipulation', () => {
+  const instance = server('plugin-subdocs')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('posts').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should track pushing subdoc via mongoose array push then save', async () => {
+    const post = await PostModel.create({ title: 'Hello', comments: [{ text: 'First', rating: 5 }] })
+
+    post.comments.push({ text: 'Second', rating: 3 } as never)
+    await post.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.startsWith('/comments'))).toBe(true)
+  })
+
+  it('should track removing subdoc from array then save', async () => {
+    const post = await PostModel.create({ title: 'Hello', comments: [{ text: 'A', rating: 1 }, { text: 'B', rating: 2 }] })
+
+    post.comments.splice(0, 1)
+    await post.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.startsWith('/comments'))).toBe(true)
+  })
+
+  it('should track modifying a subdoc field then saving parent', async () => {
+    const post = await PostModel.create({ title: 'Hello', comments: [{ text: 'Original', rating: 5 }] })
+
+    post.comments[0].text = 'Edited'
+    await post.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.includes('/comments') && p?.includes('/text'))).toBe(true)
+  })
+
+  it('should track setting single nested subdoc', async () => {
+    const post = await PostModel.create({ title: 'Hello', comments: [] })
+
+    post.featured = { text: 'Featured comment', rating: 10 } as never
+    await post.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.startsWith('/featured'))).toBe(true)
+  })
+})
+
+// --- Virtuals, getters, validation ---
+
+const ProfileSchema = new Schema(
+  {
+    firstName: String,
+    lastName: String,
+    email: {
+      type: String,
+      get: (v: string) => v?.toLowerCase(),
+      required: true,
+    },
+    age: { type: Number, min: 0, max: 150 },
+  },
+  { timestamps: true, toJSON: { getters: true }, toObject: { getters: false } },
+)
+
+ProfileSchema.virtual('fullName').get(function () {
+  return `${this.firstName} ${this.lastName}`
+})
+
+ProfileSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
+const ProfileModel = model('Profile', ProfileSchema)
+
+describe('plugin — virtuals, getters, validation', () => {
+  const instance = server('plugin-virtuals')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('profiles').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should NOT include virtual fields in history', async () => {
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'Jane@Example.COM' })
+
+    const [entry] = await HistoryModel.find({ collectionId: profile._id })
+    const doc = entry?.doc as Record<string, unknown>
+
+    expect(doc).not.toHaveProperty('fullName')
+    expect(doc.firstName).toBe('Jane')
+    expect(doc.lastName).toBe('Doe')
+  })
+
+  it('should store raw email value not getter-transformed in history', async () => {
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'Jane@Example.COM' })
+
+    const [entry] = await HistoryModel.find({ collectionId: profile._id })
+    const doc = entry?.doc as Record<string, unknown>
+
+    expect(doc.email).toBe('Jane@Example.COM')
+  })
+
+  it('should NOT create history when validation fails', async () => {
+    try {
+      await ProfileModel.create({ firstName: 'Bad', lastName: 'User' })
+    } catch {
+      // expected — email is required
+    }
+
+    const history = await HistoryModel.find({})
+    expect(history).toHaveLength(0)
+  })
+
+  it('should NOT create update history when validation fails on save', async () => {
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' })
+
+    const historyBefore = await HistoryModel.find({})
+    expect(historyBefore).toHaveLength(1)
+
+    profile.age = -5
+    try {
+      await profile.save()
+    } catch {
+      // expected — age min 0
+    }
+
+    const historyAfter = await HistoryModel.find({})
+    expect(historyAfter).toHaveLength(1)
+  })
+})
+
+// --- Concurrent updates & large batch ---
+
+describe('plugin — concurrent updates', () => {
+  const instance = server('plugin-concurrent')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('ecomorders').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should handle sequential rapid updates with correct versions', async () => {
+    const order = await EcomOrderModel.create({
+      orderNumber: `CONCURRENT-${Date.now()}`,
+      customerId,
+      items: [{ productId: productIds[0], sku: 'C-1', name: 'Item', quantity: 1, price: { amount: 10 } }],
+      shippingAddress: { street: '1 St', city: 'C', zip: '00000' },
+      totals: { subtotal: { amount: 10 }, tax: { amount: 1 }, shipping: { amount: 5 }, total: { amount: 16 } },
+    })
+
+    for (let i = 1; i <= 5; i++) {
+      await EcomOrderModel.updateOne({ _id: order._id }, { $set: { priority: i } }).exec()
+    }
+
+    const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
+    expect(history).toHaveLength(6)
+
+    for (let i = 1; i <= 5; i++) {
+      expect(history[i]?.version).toBe(i)
+    }
+  })
+
+  it('should handle deleteMany with preDelete on 15 documents', async () => {
+    const orders = Array.from({ length: 15 }, (_, i) => ({
+      orderNumber: `BATCH-DEL-${Date.now()}-${i}`,
+      customerId,
+      tags: ['batch-delete'],
+      items: [{ productId: productIds[0], sku: `BD-${i}`, name: `Batch ${i}`, quantity: 1, price: { amount: 5 } }],
+      shippingAddress: { street: `${i} St`, city: 'BD', zip: '00000' },
+      totals: { subtotal: { amount: 5 }, tax: { amount: 0 }, shipping: { amount: 0 }, total: { amount: 5 } },
+    }))
+
+    await EcomOrderModel.insertMany(orders)
+
+    const createHistory = await HistoryModel.find({ op: 'create' })
+    expect(createHistory).toHaveLength(15)
+
+    await EcomOrderModel.deleteMany({ tags: 'batch-delete' }).exec()
+
+    const deleteHistory = await HistoryModel.find({ op: 'deleteMany' })
+    expect(deleteHistory).toHaveLength(15)
+
+    for (const entry of deleteHistory) {
+      expect(entry.doc).toHaveProperty('orderNumber')
+      expect(entry.doc).not.toHaveProperty('internalNotes')
+    }
+  })
+})
+
+// --- Additional delete operations ---
+
+describe('plugin — findOneAndDelete / findByIdAndDelete', () => {
+  const instance = server('plugin-deletes')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('ecomorders').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should track findOneAndDelete with full document snapshot', async () => {
+    const order = await EcomOrderModel.create({
+      orderNumber: `FOAD-${Date.now()}`,
+      customerId,
+      items: [{ productId: productIds[0], sku: 'FOAD-1', name: 'FindAndDel', quantity: 1, price: { amount: 25 } }],
+      shippingAddress: { street: '1 St', city: 'FD', zip: '00000' },
+      totals: { subtotal: { amount: 25 }, tax: { amount: 2 }, shipping: { amount: 5 }, total: { amount: 32 } },
+      tags: ['findAndDelete'],
+    })
+
+    await EcomOrderModel.findOneAndDelete({ _id: order._id }).exec()
+
+    const deletion = await HistoryModel.findOne({ op: 'findOneAndDelete', collectionId: order._id })
+    expect(deletion).toBeDefined()
+    expect(deletion?.doc).toHaveProperty('orderNumber')
+    expect(deletion?.doc).toHaveProperty('items')
+    expect(deletion?.doc).not.toHaveProperty('internalNotes')
+  })
+
+  it('should track findByIdAndDelete with full document snapshot', async () => {
+    const order = await EcomOrderModel.create({
+      orderNumber: `FBAD-${Date.now()}`,
+      customerId,
+      items: [{ productId: productIds[0], sku: 'FBAD-1', name: 'ByIdDel', quantity: 1, price: { amount: 15 } }],
+      shippingAddress: { street: '2 St', city: 'BD', zip: '00000' },
+      totals: { subtotal: { amount: 15 }, tax: { amount: 1 }, shipping: { amount: 3 }, total: { amount: 19 } },
+    })
+
+    await EcomOrderModel.findByIdAndDelete(order._id).exec()
+
+    const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
+    expect(history.length).toBeGreaterThanOrEqual(2)
+
+    const deletion = history.find((h) => h.op.includes('delete') || h.op.includes('Delete'))
+    expect(deletion).toBeDefined()
+    expect(deletion?.doc).toHaveProperty('orderNumber')
+  })
+})
+
+// --- replaceOne ---
+
+describe('plugin — replaceOne', () => {
+  const instance = server('plugin-replace')
+
+  beforeAll(async () => {
+    await instance.create()
+  })
+
+  afterAll(async () => {
+    await instance.destroy()
+  })
+
+  beforeEach(async () => {
+    await mongoose.connection.collection('ecomorders').deleteMany({})
+    await mongoose.connection.collection('history').deleteMany({})
+  })
+
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
+  it('should track replaceOne with full document replacement', async () => {
+    const order = await EcomOrderModel.create({
+      orderNumber: `REPLACE-${Date.now()}`,
+      customerId,
+      status: 'pending',
+      items: [{ productId: productIds[0], sku: 'OLD-1', name: 'Old Item', quantity: 1, price: { amount: 10 } }],
+      shippingAddress: { street: '1 Old St', city: 'OldCity', zip: '00000' },
+      totals: { subtotal: { amount: 10 }, tax: { amount: 1 }, shipping: { amount: 2 }, total: { amount: 13 } },
+      tags: ['original'],
+    })
+
+    await EcomOrderModel.replaceOne(
+      { _id: order._id },
+      {
+        orderNumber: order.orderNumber,
+        customerId,
+        status: 'replaced',
+        items: [{ productId: productIds[1], sku: 'NEW-1', name: 'New Item', quantity: 5, price: { amount: 99 } }],
+        shippingAddress: { street: '2 New St', city: 'NewCity', zip: '11111' },
+        totals: { subtotal: { amount: 99 }, tax: { amount: 9 }, shipping: { amount: 0 }, total: { amount: 108 } },
+        tags: ['replaced'],
+      },
+    ).exec()
+
+    const updates = await HistoryModel.find({ op: 'replaceOne', collectionId: order._id })
+    expect(updates).toHaveLength(1)
+    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
+
+    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
+    expect(paths.some((p) => p?.includes('/status'))).toBe(true)
+    expect(paths.some((p) => p?.includes('/items'))).toBe(true)
+    expect(paths.some((p) => p?.includes('/shippingAddress'))).toBe(true)
+  })
+})
