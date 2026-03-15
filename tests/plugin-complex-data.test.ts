@@ -193,7 +193,7 @@ const createOrder = () =>
     tags: ['vip', 'express'],
   })
 
-const getPatch = (entry: { patch?: { op: string; path: string; value?: unknown }[] }, path: string) => entry.patch?.find((p) => p.path === path && p.op === 'replace')
+const getPatch = (entry: { patch?: { op: string; path: string; value?: unknown }[] } | undefined, path: string) => entry?.patch?.find((p) => p.path === path && p.op === 'replace')
 
 describe('plugin — complex data structures', () => {
   const instance = server('plugin-complex-data')
@@ -270,7 +270,7 @@ describe('plugin — complex data structures', () => {
     expect(paths).toContain('/shippingAddress/coords/lat')
     expect(paths).toContain('/shippingAddress/coords/lng')
 
-    expect(getPatch(update!, '/shippingAddress/city')?.value).toBe('Portland')
+    expect(getPatch(update, '/shippingAddress/city')?.value).toBe('Portland')
   })
 
   it('should track payment completion with transactionId and paidAt date', async () => {
@@ -284,7 +284,7 @@ describe('plugin — complex data structures', () => {
 
     expect(paths.some((p) => p?.includes('/status'))).toBe(true)
     expect(paths.some((p) => p?.includes('/payment'))).toBe(true)
-    expect(getPatch(update!, '/status')?.value).toBe('paid')
+    expect(getPatch(update, '/status')?.value).toBe('paid')
   })
 
   // --- Array of subdocuments ---
@@ -321,7 +321,7 @@ describe('plugin — complex data structures', () => {
     const order = await createOrder()
     expect(order.items.length).toBe(2)
 
-    order.items = [order.items[0]!]
+    order.items = [order.items[0]]
     await order.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: order._id })
@@ -390,7 +390,7 @@ describe('plugin — complex data structures', () => {
       { _id: order._id },
       {
         $set: {
-          'totals.tax': { amount: 25.0, currency: 'USD' },
+          'totals.tax': { amount: 25.01, currency: 'USD' },
           'totals.shipping': { amount: 0, currency: 'USD' },
           'totals.total': { amount: 234.97, currency: 'USD' },
         },
@@ -423,13 +423,13 @@ describe('plugin — complex data structures', () => {
     expect(history[0]?.version).toBe(0)
 
     expect(history[1]?.version).toBe(1)
-    expect(getPatch(history[1]!, '/status')?.value).toBe('processing')
+    expect(getPatch(history[1], '/status')?.value).toBe('processing')
 
     expect(history[2]?.version).toBe(2)
-    expect(getPatch(history[2]!, '/status')?.value).toBe('shipped')
+    expect(getPatch(history[2], '/status')?.value).toBe('shipped')
 
     expect(history[3]?.version).toBe(3)
-    expect(getPatch(history[3]!, '/status')?.value).toBe('delivered')
+    expect(getPatch(history[3], '/status')?.value).toBe('delivered')
 
     expect(history[4]?.op).toBe('deleteOne')
     expect(history[4]?.doc).toHaveProperty('status', 'delivered')
@@ -653,7 +653,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { str: 'after' }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/str')?.value).toBe('after')
+    expect(getPatch(update, '/str')?.value).toBe('after')
   })
 
   it('should track Number update', async () => {
@@ -661,7 +661,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { num: 999 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/num')?.value).toBe(999)
+    expect(getPatch(update, '/num')?.value).toBe(999)
   })
 
   it('should track Boolean toggle', async () => {
@@ -669,7 +669,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { bool: true }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/bool')?.value).toBe(true)
+    expect(getPatch(update, '/bool')?.value).toBe(true)
   })
 
   it('should track Date update', async () => {
@@ -688,7 +688,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { objectId: id2 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/objectId')).toBeDefined()
+    expect(getPatch(update, '/objectId')).toBeDefined()
   })
 
   it('should track Decimal128 update', async () => {
@@ -705,7 +705,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { uuid: '6ba7b810-9dad-11d1-80b4-00c04fd430c8' }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/uuid')).toBeDefined()
+    expect(getPatch(update, '/uuid')).toBeDefined()
   })
 
   it('should track Buffer update', async () => {
@@ -713,7 +713,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { buf: Buffer.from('new') }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update!, '/buf')).toBeDefined()
+    expect(getPatch(update, '/buf')).toBeDefined()
   })
 
   it('should track Mixed type update (arbitrary object)', async () => {
@@ -731,7 +731,7 @@ describe('plugin — all mongoose schema types', () => {
     await doc.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: doc._id })
-    expect(getPatch(update!, '/nested/deep/value')?.value).toBe('new')
+    expect(getPatch(update, '/nested/deep/value')?.value).toBe('new')
   })
 
   it('should track Map field update via save', async () => {
