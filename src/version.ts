@@ -1,9 +1,10 @@
 import mongoose from 'mongoose'
-import { satisfies } from 'semver'
 
-export const isMongooseLessThan8 = satisfies(mongoose.version, '<8')
-export const isMongooseLessThan7 = satisfies(mongoose.version, '<7')
-export const isMongoose6 = satisfies(mongoose.version, '6')
+const major = Number.parseInt(mongoose.version, 10)
+
+export const isMongooseLessThan8 = major < 8
+export const isMongooseLessThan7 = major < 7
+export const isMongoose6 = major === 6
 
 /* v8 ignore start */
 if (isMongoose6) {

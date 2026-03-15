@@ -23,8 +23,8 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ```json
 {
-  "node": "18.x || 20.x || 22.x",
-  "mongoose": ">=6.6.x || 7.x || 8.x",
+  "node": "18.x || 20.x || 22.x || 24.x",
+  "mongoose": ">=6.6.x || 7.x || 8.x || 9.x",
 }
 ```
 
@@ -71,6 +71,8 @@ bun add mongoose@8
 
 ## Example
 
+Works with any Node.js framework — Express, Fastify, Koa, Hono, Nest, etc.
+\
 How to use it with express [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
 
 Create your event constants `events.ts`
@@ -212,6 +214,14 @@ patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
   }
 })
 ```
+
+## Contributing
+
+Check [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Check my other projects
 

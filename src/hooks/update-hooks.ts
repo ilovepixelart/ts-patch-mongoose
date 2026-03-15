@@ -1,12 +1,5 @@
-// Using CJS lodash with .js extensions for ESM compatibility
-import cloneDeep from 'lodash/cloneDeep.js'
-import forEach from 'lodash/forEach.js'
-import isArray from 'lodash/isArray.js'
-import isEmpty from 'lodash/isEmpty.js'
-import isObjectLike from 'lodash/isObjectLike.js'
-import keys from 'lodash/keys.js'
 import { assign } from 'power-assign'
-import { isHookIgnored, toObjectOptions } from '../helpers'
+import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
@@ -16,14 +9,13 @@ const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findO
 
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
   let updated = assign(document.toObject(toObjectOptions), update)
-  // Try catch not working for of loop, keep it as is
-  forEach(commands, (command) => {
+  for (const command of commands) {
     try {
       updated = assign(updated, command)
     } catch {
       // we catch assign keys that are not implemented
     }
-  })
+  }
 
   const doc = document.set(updated).toObject(toObjectOptions) as HydratedDocument<T> & { createdAt?: Date }
   if (update.createdAt) doc.createdAt = update.createdAt
@@ -36,12 +28,12 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
 
   if (!isEmpty(updateQuery) && !isArray(updateQuery) && isObjectLike(updateQuery)) {
     update = cloneDeep(updateQuery)
-    const keysWithDollarSign = keys(update).filter((key) => key.startsWith('$'))
+    const keysWithDollarSign = Object.keys(update).filter((key) => key.startsWith('$'))
     if (!isEmpty(keysWithDollarSign)) {
-      forEach(keysWithDollarSign, (key) => {
+      for (const key of keysWithDollarSign) {
         commands.push({ [key]: update[key] as unknown })
         delete update[key]
-      })
+      }
     }
   }
 
@@ -98,7 +90,6 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     }
 
     if (!isEmpty(filter) && !current) {
-      console.log('filter', filter)
       current = (await model.findOne(filter).sort('desc').lean().exec()) as HydratedDocument<T>
     }
 
