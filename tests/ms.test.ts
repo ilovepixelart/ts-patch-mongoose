@@ -89,8 +89,11 @@ describe('ms', () => {
   })
 
   it('should be case insensitive', () => {
+    // @ts-expect-error runtime check
     expect(ms('1H')).toBe(h)
+    // @ts-expect-error runtime check
     expect(ms('1D')).toBe(d)
+    // @ts-expect-error runtime check
     expect(ms('1MS')).toBe(1)
   })
 
