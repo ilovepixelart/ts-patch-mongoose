@@ -195,6 +195,31 @@ patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
 })
 ```
 
+## NestJS
+
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { patchHistoryPlugin } from 'ts-patch-mongoose'
+
+@Schema({ timestamps: true })
+export class Book {
+  @Prop({ type: String, required: true })
+  title!: string
+
+  @Prop({ type: String })
+  description?: string
+}
+
+export const BookSchema = SchemaFactory.createForClass(Book)
+
+BookSchema.plugin(patchHistoryPlugin, {
+  eventCreated: 'book-created',
+  eventUpdated: 'book-updated',
+  eventDeleted: 'book-deleted',
+  omit: ['__v', 'createdAt', 'updatedAt'],
+})
+```
+
 ## Contributing
 
 Check [CONTRIBUTING.md](CONTRIBUTING.md)
