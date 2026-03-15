@@ -515,4 +515,227 @@ describe('plugin — all features', () => {
     expect(em.emit).toHaveBeenCalledWith(ORDER_UPDATED, expect.any(Object))
     expect(em.emit).toHaveBeenCalledWith(ORDER_DELETED, expect.any(Object))
   })
+
+  it('should handle $push $pull $addToSet operators', async () => {
+    const order = await OrderModel.create({
+      item: 'ArrayOps',
+      quantity: 1,
+      tags: ['initial'],
+      address: { street: '1 St', city: 'A', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { $push: { tags: 'pushed' } }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path)
+    expect(paths?.some((p) => p?.startsWith('/tags'))).toBe(true)
+  })
+
+  it('should handle multiple $ operators in one update', async () => {
+    const order = await OrderModel.create({
+      item: 'MultiOp',
+      quantity: 1,
+      priority: 0,
+      tags: ['start'],
+      address: { street: '1 St', city: 'M', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { $set: { item: 'MultiOpDone' }, $inc: { priority: 5 } }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path)
+    expect(paths).toContain('/item')
+    expect(paths).toContain('/priority')
+  })
+
+  it('should produce no patch for no-op update (same values)', async () => {
+    const order = await OrderModel.create({
+      item: 'NoOp',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'N', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { item: 'NoOp', quantity: 1 }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(0)
+  })
+
+  it('should track field set to null', async () => {
+    const order = await OrderModel.create({
+      item: 'NullField',
+      quantity: 1,
+      priority: 5,
+      tags: [],
+      address: { street: '1 St', city: 'F', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { priority: null }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path)
+    expect(paths).toContain('/priority')
+  })
+
+  it('should track findOneAndReplace', async () => {
+    const order = await OrderModel.create({
+      item: 'ReplaceMe',
+      quantity: 1,
+      tags: ['old'],
+      address: { street: '1 St', city: 'R', zip: '00000' },
+    })
+
+    await OrderModel.findOneAndReplace({ _id: order._id }, { item: 'Replaced', quantity: 99, tags: ['new'], address: { street: '2 St', city: 'R', zip: '11111' } }).exec()
+
+    const updates = await HistoryModel.find({ op: 'findOneAndReplace' })
+    expect(updates).toHaveLength(1)
+    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
+  })
+
+  it('should track findByIdAndUpdate', async () => {
+    const order = await OrderModel.create({
+      item: 'ById',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'B', zip: '00000' },
+    })
+
+    await OrderModel.findByIdAndUpdate(order._id, { quantity: 42 }).exec()
+
+    const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
+    expect(history.length).toBeGreaterThanOrEqual(2)
+
+    const update = history.find((h) => h.patch && h.patch.length > 0)
+    expect(update).toBeDefined()
+
+    const paths = update?.patch?.map((p) => p.path)
+    expect(paths).toContain('/quantity')
+  })
+
+  it('should not crash on update with no matching documents', async () => {
+    const fakeId = new mongoose.Types.ObjectId()
+    await OrderModel.updateOne({ _id: fakeId }, { quantity: 999 }).exec()
+
+    const history = await HistoryModel.find({})
+    expect(history).toHaveLength(0)
+  })
+
+  it('should not crash on delete with no matching documents', async () => {
+    const fakeId = new mongoose.Types.ObjectId()
+    await OrderModel.deleteOne({ _id: fakeId }).exec()
+
+    const history = await HistoryModel.find({})
+    expect(history).toHaveLength(0)
+  })
+
+  it('should handle getUser/getReason/getMetadata throwing gracefully', async () => {
+    const ThrowSchema = new Schema<Order>(
+      {
+        item: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        tags: { type: [String], default: undefined },
+        address: { type: AddressSchema, required: true },
+      },
+      { timestamps: true },
+    )
+
+    ThrowSchema.plugin(patchHistoryPlugin, {
+      eventCreated: ORDER_CREATED,
+      omit: ['__v', 'createdAt', 'updatedAt'],
+      getUser: () => {
+        throw new Error('user callback failed')
+      },
+      getReason: () => {
+        throw new Error('reason callback failed')
+      },
+      getMetadata: () => {
+        throw new Error('metadata callback failed')
+      },
+    })
+
+    const ThrowModel = model<Order>('ThrowOrder', ThrowSchema)
+
+    const doc = await ThrowModel.create({
+      item: 'ThrowTest',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'T', zip: '00000' },
+    })
+
+    const history = await HistoryModel.find({ collectionId: doc._id })
+    expect(history).toHaveLength(1)
+    expect(history[0]?.user).toBeUndefined()
+    expect(history[0]?.reason).toBeUndefined()
+    expect(history[0]?.metadata).toBeUndefined()
+  })
+
+  it('should skip everything when ignoreEvent + ignorePatchHistory', async () => {
+    const order = await OrderModel.create({
+      item: 'SkipAll',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'S', zip: '00000' },
+    })
+
+    vi.resetAllMocks()
+
+    await OrderModel.updateOne({ _id: order._id }, { quantity: 50 }).setOptions({ ignoreEvent: true, ignorePatchHistory: true }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne' })
+    expect(updates).toHaveLength(0)
+    expect(em.emit).not.toHaveBeenCalled()
+  })
+
+  it('should track deeply nested changes (3+ levels)', async () => {
+    const DeepSchema = new Schema(
+      {
+        name: String,
+        config: {
+          type: new Schema(
+            {
+              settings: {
+                type: new Schema(
+                  {
+                    theme: String,
+                    notifications: Boolean,
+                  },
+                  { _id: false },
+                ),
+              },
+            },
+            { _id: false },
+          ),
+        },
+      },
+      { timestamps: true },
+    )
+
+    DeepSchema.plugin(patchHistoryPlugin, {
+      omit: ['__v', 'createdAt', 'updatedAt'],
+    })
+
+    const DeepModel = model('DeepDoc', DeepSchema)
+
+    const doc = await DeepModel.create({
+      name: 'deep',
+      config: { settings: { theme: 'dark', notifications: true } },
+    })
+
+    doc.config = { settings: { theme: 'light', notifications: false } }
+    await doc.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: doc._id })
+    expect(updates).toHaveLength(1)
+
+    const paths = updates[0]?.patch?.map((p) => p.path)
+    expect(paths).toContain('/config/settings/theme')
+    expect(paths).toContain('/config/settings/notifications')
+  })
 })
