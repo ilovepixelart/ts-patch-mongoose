@@ -1,3 +1,33 @@
+<a id="v3.0.0"></a>
+# [v3.0.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.0.0) - 2026-03-15
+
+- Lock  cffa4dd
+- Merge pull request [#349](https://github.com/ilovepixelart/ts-patch-mongoose/issues/349) from ilovepixelart/feature/drop-dependencies  ea5a3cf
+- Add NestJS integration examples to README  99af2ab
+- Fix type errors in em and ms tests  8cdfc7c
+- Fix SonarQube S6551: use JSON.stringify for ObjectId comparison in test  f8853c8
+- Add comprehensive e2e tests: populate, discriminators, subdocs, virtuals, validation, concurrent updates  ef1444a
+- Fix non-null assertions in complex data tests  738698d
+- Biome  5527aee
+- Polish complex data tests: all mongoose types, precise patch assertions,  via save, Map via save, Decimal128  e18b6b4
+- Add complex data e2e tests: e-commerce schema with nested subdocs, ObjectId arrays, money objects, status workflow  660cbb9
+- Add edge case e2e tests: array operators, no-op, null fields, replace, no-match, callback errors, deep nesting  6e54158
+- Biome  bcd14b2
+- Add e2e tests: upsert, ignoreHook, ignoreEvent, ignorePatchHistory, versioning, ObjectId refs, full lifecycle  6ce1f35
+- Match lodash isEmpty behavior exactly, add isEmpty tests  ce78ac8
+- Remove Node 18 from supports section (tested on 20+)  5e6bdf8
+- Simplify installation section in README  dfadb29
+- Remove Node 18.x from CI matrix (vitest coverage requires Node 20+)  7581aa6
+- Drop lodash, ms, omit-deep, semver — replace with custom implementations  e2b4978
+- Update changelog for v2.9.6  0bd759a
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.6...v3.0.0
+
+[Changes][v3.0.0]
+
+
 <a id="v2.9.6"></a>
 # [v2.9.6](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v2.9.6) - 2026-02-24
 
@@ -1254,6 +1284,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v3.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.6...v3.0.0
 [v2.9.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.5...v2.9.6
 [v2.9.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.4...v2.9.5
 [v2.9.4]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.3...v2.9.4
