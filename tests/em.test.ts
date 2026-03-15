@@ -27,6 +27,7 @@ describe('em', () => {
       collectionName: 'tests',
     }
 
+    // @ts-expect-error expected
     emitEvent(context, 'test', { doc: { name: 'test' } })
     expect(fn).toHaveBeenCalledTimes(1)
 
@@ -44,6 +45,7 @@ describe('em', () => {
       collectionName: 'tests',
     }
 
+    // @ts-expect-error expected
     emitEvent(context, 'test', { doc: { name: 'test' } })
     expect(fn).toHaveBeenCalledTimes(0)
 

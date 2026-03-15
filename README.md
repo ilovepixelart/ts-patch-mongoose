@@ -23,8 +23,8 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ```json
 {
-  "node": "18.x || 20.x || 22.x",
-  "mongoose": ">=6.6.x || 7.x || 8.x",
+  "node": "20.x || 22.x || 24.x",
+  "mongoose": ">=6.6.x || 7.x || 8.x || 9.x",
 }
 ```
 
@@ -40,37 +40,19 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ## Installation
 
-- Locally inside your project
+`mongoose` is a peer dependency — install it alongside `ts-patch-mongoose`.
 
 ```bash
-npm install ts-patch-mongoose
-pnpm add ts-patch-mongoose
-yarn add ts-patch-mongoose
-bun add ts-patch-mongoose
-```
-
-- This plugin requires mongoose `>=6.6.x || 7.x || 8.x` to be installed as a peer dependency
-
-```bash
-# For latest mongoose 6
-npm install mongoose@6
-pnpm add mongoose@6
-yarn add mongoose@6
-bun add mongoose@6
-# For latest mongoose 7
-npm install mongoose@7
-pnpm add mongoose@7
-yarn add mongoose@7
-bun add mongoose@7
-# For latest mongoose 8
-npm install mongoose@8
-pnpm add mongoose@8
-yarn add mongoose@8
-bun add mongoose@8
+npm install ts-patch-mongoose mongoose
+pnpm add ts-patch-mongoose mongoose
+yarn add ts-patch-mongoose mongoose
+bun add ts-patch-mongoose mongoose
 ```
 
 ## Example
 
+Works with any Node.js framework — Express, Fastify, Koa, Hono, Nest, etc.
+\
 How to use it with express [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
 
 Create your event constants `events.ts`
@@ -212,6 +194,39 @@ patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
   }
 })
 ```
+
+## NestJS
+
+```typescript
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
+import { patchHistoryPlugin } from 'ts-patch-mongoose'
+
+@Schema({ timestamps: true })
+export class Book {
+  @Prop({ type: String, required: true })
+  title!: string
+
+  @Prop({ type: String })
+  description?: string
+}
+
+export const BookSchema = SchemaFactory.createForClass(Book)
+
+BookSchema.plugin(patchHistoryPlugin, {
+  eventCreated: 'book-created',
+  eventUpdated: 'book-updated',
+  eventDeleted: 'book-deleted',
+  omit: ['__v', 'createdAt', 'updatedAt'],
+})
+```
+
+## Contributing
+
+Check [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Check my other projects
 

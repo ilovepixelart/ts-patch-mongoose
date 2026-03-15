@@ -1,5 +1,41 @@
-# How to contribute
+# Contributing
 
-1. Start an issue. We will discuss the best approach
-2. Make a pull request. I'll review it and comment until we are both confident about it
-3. I'll merge your PR and bump the version of the package
+## Getting Started
+
+```bash
+git clone https://github.com/ilovepixelart/ts-patch-mongoose.git
+cd ts-patch-mongoose
+npm install
+```
+
+## Development
+
+```bash
+npm run type:check     # type check
+npm run biome          # lint check
+npm run biome:fix      # lint + auto-fix
+npm test               # run tests with coverage
+npm run build          # build with pkgroll
+```
+
+## Before Submitting a PR
+
+1. Run the full check: `npm run type:check && npm run biome && npm test && npm run build`
+2. Ensure no test regressions
+3. Follow the existing code style (Biome handles formatting)
+4. Keep changes focused — one feature or fix per PR
+
+## Code Style
+
+- ESM (`"type": "module"`)
+- Strict TypeScript
+- Biome formatting: no semicolons, single quotes, 2-space indent
+- Arrow functions for standalone functions (no `this`)
+- No unnecessary comments or docstrings
+
+## Testing
+
+- Framework: vitest
+- Database: mongodb-memory-server
+- Write tests for new features and bug fixes
+- Test behavior, not implementation details

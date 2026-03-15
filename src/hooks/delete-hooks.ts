@@ -1,7 +1,4 @@
-// Using CJS lodash with .js extensions for ESM compatibility
-import isArray from 'lodash/isArray.js'
-import isEmpty from 'lodash/isEmpty.js'
-import { isHookIgnored } from '../helpers'
+import { isArray, isEmpty, isHookIgnored } from '../helpers'
 import { deletePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema } from 'mongoose'
