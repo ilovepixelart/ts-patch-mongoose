@@ -8,8 +8,14 @@ export const isArray = Array.isArray
 export const isEmpty = (value: unknown): boolean => {
   if (value == null) return true
   if (Array.isArray(value) || typeof value === 'string') return value.length === 0
-  if (typeof value === 'object') return Object.keys(value).length === 0
-  return false
+  if (value instanceof Map || value instanceof Set) return value.size === 0
+  if (typeof value === 'object') {
+    for (const key in value) {
+      if (Object.hasOwn(value, key)) return false
+    }
+    return true
+  }
+  return true
 }
 
 export const isFunction = (value: unknown): value is (...args: unknown[]) => unknown => {
