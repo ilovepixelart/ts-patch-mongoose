@@ -7,36 +7,43 @@ import type { HookContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
+const trackChangedFields = (fields: Record<string, unknown> | undefined, updated: Record<string, unknown>, changed: Map<string, unknown>): void => {
+  if (!fields) return
+  for (const key of Object.keys(fields)) {
+    const root = key.split('.')[0] as string
+    changed.set(root, updated[root])
+  }
+}
+
+const applyPullAll = (updated: Record<string, unknown>, fields: Record<string, unknown[]>, changed: Map<string, unknown>): void => {
+  for (const [field, values] of Object.entries(fields)) {
+    const arr = updated[field]
+    if (Array.isArray(arr)) {
+      const filtered = arr.filter((item: unknown) => !values.some((v) => JSON.stringify(v) === JSON.stringify(item)))
+      updated[field] = filtered
+      changed.set(field, filtered)
+    }
+  }
+}
+
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
-  let updated = assign(document.toObject(toObjectOptions), update)
+  let updated = assign(document.toObject(toObjectOptions), update) as Record<string, unknown>
   const changedByCommand = new Map<string, unknown>()
+
   for (const command of commands) {
     const op = Object.keys(command)[0] as string
     const fields = command[op] as Record<string, unknown> | undefined
     try {
-      updated = assign(updated, command)
-      if (fields) {
-        for (const key of Object.keys(fields)) {
-          const root = key.split('.')[0] as string
-          changedByCommand.set(root, (updated as Record<string, unknown>)[root])
-        }
-      }
+      updated = assign(updated, command) as Record<string, unknown>
+      trackChangedFields(fields, updated, changedByCommand)
     } catch {
       if (op === '$pullAll' && fields) {
-        for (const [field, values] of Object.entries(fields as Record<string, unknown[]>)) {
-          const arr = (updated as Record<string, unknown>)[field]
-          if (Array.isArray(arr)) {
-            const filtered = arr.filter((item: unknown) => !values.some((v) => JSON.stringify(v) === JSON.stringify(item)))
-            ;(updated as Record<string, unknown>)[field] = filtered
-            changedByCommand.set(field, filtered)
-          }
-        }
+        applyPullAll(updated, fields as Record<string, unknown[]>, changedByCommand)
       }
     }
   }
 
   const doc = document.set(updated).toObject(toObjectOptions) as HydratedDocument<T> & { createdAt?: Date }
-  // Re-apply values computed by $ commands that document.set().toObject() may have dropped
   for (const [field, value] of changedByCommand) {
     ;(doc as unknown as Record<string, unknown>)[field] = value
   }

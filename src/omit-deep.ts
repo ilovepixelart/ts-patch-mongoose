@@ -8,18 +8,7 @@ const isUnsafeKey = (key: string): boolean => {
   return key === '__proto__' || key === 'constructor' || key === 'prototype'
 }
 
-export const omitDeep = <T>(value: T, keys: string | string[]): T => {
-  if (value === undefined) return {} as T
-
-  if (Array.isArray(value)) {
-    return value.map((item) => omitDeep(item, keys)) as T
-  }
-
-  if (!isPlainObject(value)) return value
-
-  const omitKeys = typeof keys === 'string' ? [keys] : keys
-  if (!Array.isArray(omitKeys)) return value
-
+const classifyKeys = (omitKeys: string[]): { topLevel: Set<string>; nested: Map<string, string[]> } => {
   const topLevel = new Set<string>()
   const nested = new Map<string, string[]>()
 
@@ -38,21 +27,29 @@ export const omitDeep = <T>(value: T, keys: string | string[]): T => {
     }
   }
 
+  return { topLevel, nested }
+}
+
+export const omitDeep = <T>(value: T, keys: string | string[]): T => {
+  if (value === undefined) return {} as T
+
+  if (Array.isArray(value)) {
+    return value.map((item) => omitDeep(item, keys)) as T
+  }
+
+  if (!isPlainObject(value)) return value
+
+  const omitKeys = typeof keys === 'string' ? [keys] : keys
+  if (!Array.isArray(omitKeys)) return value
+
+  const { topLevel, nested } = classifyKeys(omitKeys)
   const result = {} as Record<string, unknown>
 
   for (const key of Object.keys(value)) {
     if (topLevel.has(key)) continue
 
-    let child = (value as Record<string, unknown>)[key]
-
     const nestedKeys = nested.get(key)
-    if (nestedKeys) {
-      child = omitDeep(child, nestedKeys)
-    } else {
-      child = omitDeep(child, omitKeys)
-    }
-
-    result[key] = child
+    result[key] = omitDeep((value as Record<string, unknown>)[key], nestedKeys ?? omitKeys)
   }
 
   return result as T
