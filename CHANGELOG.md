@@ -1,3 +1,21 @@
+<a id="v3.1.0"></a>
+# [v3.1.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.0) - 2026-03-29
+
+- Merge pull request [#351](https://github.com/ilovepixelart/ts-patch-mongoose/issues/351) from ilovepixelart/feature/refactor  acfcdc2
+- Cleanup  26c1a20
+- Sonar  cf9395c
+- Pin  54ac36b
+- Settings  e12651b
+- Refactor plugin internals, fix $ operator tracking, add comprehensive e2e tests  3baf78c
+- Update changelog for v3.0.0  4604ced
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.0.0...v3.1.0
+
+[Changes][v3.1.0]
+
+
 <a id="v3.0.0"></a>
 # [v3.0.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.0.0) - 2026-03-15
 
@@ -1284,6 +1302,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v3.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.0.0...v3.1.0
 [v3.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.6...v3.0.0
 [v2.9.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.5...v2.9.6
 [v2.9.5]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.4...v2.9.5
