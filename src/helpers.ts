@@ -44,6 +44,12 @@ const cloneImmutable = <T>(value: T): T | undefined => {
       cloned.lastIndex = re.lastIndex
       return cloned as T
     }
+    case '[object Error]': {
+      const err = value as unknown as Error
+      const cloned = new (err.constructor as ErrorConstructor)(err.message)
+      if (err.stack) cloned.stack = err.stack
+      return cloned as T
+    }
     case '[object ArrayBuffer]':
       return cloneArrayBuffer(value as unknown as ArrayBuffer) as T
     case '[object DataView]': {
@@ -101,7 +107,13 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
   const immutable = cloneImmutable(value)
   if (immutable !== undefined) return immutable
 
-  if ('toJSON' in value && typeof (value as Record<string, unknown>).toJSON === 'function') {
+  const record = value as Record<string, unknown>
+
+  if (typeof record._bsontype === 'string' && typeof record.toHexString === 'function') {
+    return new (value.constructor as new (hex: string) => T)((record.toHexString as () => string)())
+  }
+
+  if (typeof record.toJSON === 'function') {
     // NOSONAR — structuredClone cannot handle objects with non-cloneable methods (e.g. mongoose documents)
     return JSON.parse(JSON.stringify(value)) as T
   }
@@ -126,7 +138,7 @@ export const toObjectOptions: ToObjectOptions = {
   virtuals: false,
 }
 
-export const setPatchHistoryTTL = async (ttl: Duration): Promise<void> => {
+export const setPatchHistoryTTL = async (ttl: Duration, onError?: (error: Error) => void): Promise<void> => {
   const name = 'createdAt_1_TTL'
   try {
     const indexes = await HistoryModel.collection.indexes()
@@ -156,6 +168,7 @@ export const setPatchHistoryTTL = async (ttl: Duration): Promise<void> => {
 
     await HistoryModel.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
   } catch (err) {
-    console.error("Couldn't create or update index for history collection", err)
+    const handler = onError ?? console.error
+    handler(err as Error)
   }
 }

@@ -32,7 +32,7 @@ describe('plugin - omit all', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 

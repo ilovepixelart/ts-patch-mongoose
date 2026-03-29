@@ -36,7 +36,7 @@ describe('plugin', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 
@@ -161,7 +161,7 @@ describe('plugin', () => {
 
     expect(first.patch).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     // no update event emitted because role is omitted
   })
@@ -480,7 +480,7 @@ describe('plugin', () => {
 
     expect(first.patch).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     // updated event is not emitted because it's an upsert
   })

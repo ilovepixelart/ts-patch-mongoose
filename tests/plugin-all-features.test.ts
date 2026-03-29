@@ -149,7 +149,7 @@ describe('plugin — all features', () => {
     expect(entry.doc).not.toHaveProperty('__v')
   })
 
-  it('should omit specified fields from update patches', async () => {
+  it('should produce no update history when only omitted fields change', async () => {
     const order = await OrderModel.create({
       item: 'Widget',
       quantity: 10,
@@ -660,6 +660,7 @@ describe('plugin — all features', () => {
       },
     })
 
+    if (mongoose.models.ThrowOrder) mongoose.deleteModel('ThrowOrder')
     const ThrowModel = model<Order>('ThrowOrder', ThrowSchema)
 
     const doc = await ThrowModel.create({
@@ -721,6 +722,7 @@ describe('plugin — all features', () => {
       omit: ['__v', 'createdAt', 'updatedAt'],
     })
 
+    if (mongoose.models.DeepDoc) mongoose.deleteModel('DeepDoc')
     const DeepModel = model('DeepDoc', DeepSchema)
 
     const doc = await DeepModel.create({
@@ -737,5 +739,106 @@ describe('plugin — all features', () => {
     const paths = updates[0]?.patch?.map((p) => p.path)
     expect(paths).toContain('/config/settings/theme')
     expect(paths).toContain('/config/settings/notifications')
+  })
+
+  it('should not crash when post-hook runs after ignoreHook skipped pre-hook (update)', async () => {
+    const order = await OrderModel.create({
+      item: 'GuardTest',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'G', zip: '00000' },
+    })
+
+    await OrderModel.updateOne({ _id: order._id }, { quantity: 5 }).setOptions({ ignoreHook: true }).exec()
+
+    await OrderModel.updateOne({ _id: order._id }, { quantity: 10 }).exec()
+
+    const updates = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
+    expect(updates).toHaveLength(1)
+    expect(updates[0]?.patch).toMatchObject(expect.arrayContaining([expect.objectContaining({ op: 'replace', path: '/quantity' })]))
+  })
+
+  it('should not crash when post-hook runs after ignoreHook skipped pre-hook (delete)', async () => {
+    const order = await OrderModel.create({
+      item: 'GuardDelete',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'G', zip: '00000' },
+    })
+
+    await OrderModel.deleteOne({ _id: order._id }).setOptions({ ignoreHook: true }).exec()
+
+    const history = await HistoryModel.find({ collectionId: order._id })
+    expect(history).toHaveLength(1)
+    expect(history[0]?.op).toBe('create')
+  })
+
+  it('should call onError when bulkWrite fails during create', async () => {
+    const onError = vi.fn()
+
+    const ErrorSchema = new Schema<Order>(
+      {
+        item: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        tags: { type: [String], default: undefined },
+        address: { type: AddressSchema, required: true },
+      },
+      { timestamps: true },
+    )
+
+    ErrorSchema.plugin(patchHistoryPlugin, {
+      omit: ['__v', 'createdAt', 'updatedAt'],
+      onError,
+    })
+
+    if (mongoose.models.ErrorOrder) mongoose.deleteModel('ErrorOrder')
+    const ErrorModel = model<Order>('ErrorOrder', ErrorSchema)
+
+    vi.spyOn(HistoryModel, 'bulkWrite').mockRejectedValueOnce(new Error('bulkWrite failed'))
+
+    await ErrorModel.create({
+      item: 'BulkErr',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'E', zip: '00000' },
+    })
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'bulkWrite failed' }))
+  })
+
+  it('should call onError when create fails during update', async () => {
+    const onError = vi.fn()
+
+    const ErrorSchema2 = new Schema<Order>(
+      {
+        item: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        tags: { type: [String], default: undefined },
+        address: { type: AddressSchema, required: true },
+      },
+      { timestamps: true },
+    )
+
+    ErrorSchema2.plugin(patchHistoryPlugin, {
+      omit: ['__v', 'createdAt', 'updatedAt'],
+      onError,
+    })
+
+    if (mongoose.models.ErrorOrder2) mongoose.deleteModel('ErrorOrder2')
+    const ErrorModel2 = model<Order>('ErrorOrder2', ErrorSchema2)
+
+    const doc = await ErrorModel2.create({
+      item: 'CreateErr',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'E', zip: '00000' },
+    })
+
+    onError.mockClear()
+    vi.spyOn(HistoryModel, 'create').mockRejectedValueOnce(new Error('create failed') as never)
+
+    await ErrorModel2.updateOne({ _id: doc._id }, { quantity: 99 }).exec()
+
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'create failed' }))
   })
 })

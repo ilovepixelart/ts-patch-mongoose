@@ -35,7 +35,7 @@ describe('plugin - event delete & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 
@@ -52,7 +52,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -119,7 +119,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -146,7 +146,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -178,7 +178,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -205,7 +205,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -237,7 +237,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -264,7 +264,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -328,7 +328,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })
@@ -354,7 +354,7 @@ describe('plugin - event delete & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: expect.objectContaining(john.toObject(toObjectOptions)),
     })

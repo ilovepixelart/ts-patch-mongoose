@@ -49,4 +49,5 @@ export interface PluginOptions<T> {
   omit?: string[]
   patchHistoryDisabled?: boolean
   preDelete?: (docs: HydratedDocument<T>[]) => Promise<void>
+  onError?: (error: Error) => void
 }
