@@ -15,16 +15,16 @@ Patch history (audit log) & events plugin for mongoose
 
 ## Motivation
 
-ts-patch-mongoose is a plugin for mongoose
+ts-patch-mongoose is a plugin for mongoose.
 \
-I need to track changes of mongoose models and save them as patch history (audit log) in separate collection. Changes must also emit events that I can subscribe to and react in other parts of my application. I also want to omit some fields from patch history.
+I need to track changes of mongoose models and save them as patch history (audit log) in a separate collection. Changes must also emit events that I can subscribe to and react in other parts of my application. I also want to omit some fields from patch history.
 
 ## Supports and tested with
 
 ```json
 {
   "node": "20.x || 22.x || 24.x",
-  "mongoose": ">=6.6.x || 7.x || 8.x || 9.x",
+  "mongoose": ">=6.6.0 || 7.x || 8.x || 9.x",
 }
 ```
 
@@ -53,9 +53,9 @@ bun add ts-patch-mongoose mongoose
 
 Works with any Node.js framework — Express, Fastify, Koa, Hono, Nest, etc.
 \
-How to use it with express [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
+How to use it with Express: [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
 
-Create your event constants `events.ts`
+Create your event constants in `events.ts`
 
 ```typescript
 export const BOOK_CREATED = 'book-created'
@@ -77,33 +77,34 @@ export type Book = {
 }
 ```
 
-Setup your mongoose model `Book.ts`
+Set up your mongoose model in `Book.ts`
 
 ```typescript
 import { Schema, model } from 'mongoose'
 
-import type { HydratedDocument, Types } from 'mongoose'
+import type { HydratedDocument } from 'mongoose'
 import type { Book } from '../types'
 
 import { patchHistoryPlugin, setPatchHistoryTTL } from 'ts-patch-mongoose'
 import { BOOK_CREATED, BOOK_UPDATED, BOOK_DELETED } from '../constants/events'
 
-// You can set patch history TTL in plain english or in milliseconds as you wish.
+// You can set patch history TTL in plain English or in milliseconds as you wish.
 // This will determine how long you want to keep patch history.
 // You don't need to use this global config in case you want to keep patch history forever.
-// Execute this method after you connected to you database somewhere in your application.
-setPatchHistoryTTL('1 month')
+// Execute this method after you connected to your database somewhere in your application.
+// Optional second argument for custom error handling
+setPatchHistoryTTL('1 month', (error) => console.error('TTL setup failed:', error))
 
 const BookSchema = new Schema<Book>({
-  name: {
-    title: String,
+  title: {
+    type: String,
     required: true
   },
   description: {
     type: String,
   },
   authorId: {
-    type: Types.ObjectId,
+    type: Schema.Types.ObjectId,
     required: true
   }
 }, { timestamps: true })
@@ -117,25 +118,25 @@ BookSchema.plugin(patchHistoryPlugin, {
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt'],
 
-  // Addition options for patchHistoryPlugin plugin
-  // Everything bellow is optional and just shows you what you can do:
+  // Additional options for patchHistoryPlugin
+  // Everything below is optional and just shows you what you can do:
 
-  // Code bellow is abstract example, you can use any other way to get user, reason, metadata
-  // These three properties will be added to patch history document automatically and give you flexibility to track who, why and when made changes to your documents
+  // Code below is an abstract example, you can use any other way to get user, reason, metadata
+  // These three properties will be added to patch history document automatically and gives you flexibility to track who, why and when made changes to your documents
   getUser: async (doc: HydratedDocument<Book>) => {
     // For example: get user from http context
     // You should return an object, in case you want to save user to patch history
     return httpContext.get('user') as Record<string, unknown>
   },
 
-  // Reason of document (create/update/delete) like: 'Excel upload', 'Manual update', 'API call', etc.
+  // Reason for the document change (create/update/delete) like: 'Excel upload', 'Manual update', 'API call', etc.
   getReason: async (doc: HydratedDocument<Book>) => {
     // For example: get reason from http context, or any other place of your application
-    // You shout return a string, in case you want to save reason to patch history
+    // You should return a string, in case you want to save reason to patch history
     return httpContext.get('reason') as string
   },
 
-  // You can provide any information you want to save in along with patch history
+  // You can provide any information you want to save along with patch history
   getMetadata: async (doc: HydratedDocument<Book>) => {
     // For example: get metadata from http context, or any other place of your application
     // You should return an object, in case you want to save metadata to patch history
@@ -143,15 +144,20 @@ BookSchema.plugin(patchHistoryPlugin, {
   },
 
   // Do something before deleting documents
-  // This method will be executed before deleting document or documents and always returns a nonempty array of documents
+  // This method will be executed before deleting document or documents and always returns a non-empty array of documents
   preDelete: async (docs) => {
     const bookIds = docs.map((doc) => doc._id)
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
 
-  // In case you just want to track changes in your models using events below.
-  // And don't want to save changes to patch history collection
-  patchHistoryDisabled: true, 
+  // Custom error handler for history write failures (defaults to console.error)
+  onError: (error) => {
+    console.error('Patch history error:', error)
+  },
+
+  // In case you just want to track changes in your models using events
+  // and don't want to save changes to patch history collection
+  // patchHistoryDisabled: true,
 })
 
 const Book = model('Book', BookSchema)
@@ -188,7 +194,7 @@ patchEventEmitter.on(BOOK_UPDATED, ({ doc, oldDoc, patch }) => {
 patchEventEmitter.on(BOOK_DELETED, ({ oldDoc }) => {
   try {
     console.log('Event - book deleted', oldDoc)
-    // Do something with doc here
+    // Do something with oldDoc here
   } catch (error) {
     console.error(error)
   }
