@@ -38,8 +38,8 @@ describe('plugin - global', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
-    vi.clearAllMocks()
+  afterEach(() => {
+    vi.resetAllMocks()
   })
 
   it('should save array', async () => {
@@ -477,8 +477,8 @@ describe('plugin - global', () => {
     expect(second.doc).toHaveProperty('_id', alice._id)
     expect(second.doc).toHaveProperty('name', 'Alice')
     expect(second.doc).toHaveProperty('role', 'user')
-    expect(first.doc).not.toHaveProperty('createdAt')
-    expect(first.doc).not.toHaveProperty('updatedAt')
+    expect(second.doc).not.toHaveProperty('createdAt')
+    expect(second.doc).not.toHaveProperty('updatedAt')
 
     expect(second.patch).toHaveLength(0)
 
@@ -492,8 +492,8 @@ describe('plugin - global', () => {
     expect(third.doc).toHaveProperty('_id', product._id)
     expect(third.doc).toHaveProperty('name', 'paper')
     expect(third.doc).toHaveProperty('addedBy', john._id)
-    expect(first.doc).not.toHaveProperty('createdAt')
-    expect(first.doc).not.toHaveProperty('updatedAt')
+    expect(third.doc).not.toHaveProperty('createdAt')
+    expect(third.doc).not.toHaveProperty('updatedAt')
 
     expect(third.patch).toHaveLength(0)
 

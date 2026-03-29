@@ -1,6 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { afterEach } from 'node:test'
 import mongoose from 'mongoose'
 import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
@@ -37,8 +36,8 @@ describe('patch tests', () => {
     await mongoose.connection.collection('patches').deleteMany({})
   })
 
-  afterEach(async () => {
-    vi.clearAllMocks()
+  afterEach(() => {
+    vi.resetAllMocks()
   })
 
   describe('getObjects', () => {
@@ -125,6 +124,8 @@ describe('patch tests', () => {
     it('should return if one object is empty', async () => {
       const current = await UserModel.create({ name: 'John', role: 'user' })
 
+      vi.clearAllMocks()
+
       const pluginOptions: PluginOptions<User> = {
         eventDeleted: USER_DELETED,
         patchHistoryDisabled: true,
@@ -137,7 +138,7 @@ describe('patch tests', () => {
       }
 
       await updatePatch(pluginOptions, context, current, {} as HydratedDocument<User>)
-      expect(em.emit).toHaveBeenCalled()
+      expect(em.emit).not.toHaveBeenCalled()
     })
   })
 

@@ -35,7 +35,7 @@ describe('plugin - event created & patch history disabled', () => {
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   describe('normal cases', () => {
@@ -46,7 +46,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: john._id,
@@ -70,7 +70,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user._id,
@@ -164,7 +164,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,
@@ -190,7 +190,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,
@@ -216,7 +216,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,
@@ -241,7 +241,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenNthCalledWith(1, USER_CREATED, {
         doc: expect.objectContaining({
           _id: users?._id,
@@ -267,7 +267,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,
@@ -293,7 +293,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,
@@ -320,7 +320,7 @@ describe('plugin - event created & patch history disabled', () => {
       const history = await HistoryModel.find({})
       expect(history).toHaveLength(0)
 
-      expect(em.emit).toHaveBeenCalledTimes(1)
+      expect(em.emit).toHaveBeenCalledOnce()
       expect(em.emit).toHaveBeenCalledWith(USER_CREATED, {
         doc: expect.objectContaining({
           _id: user?._id,

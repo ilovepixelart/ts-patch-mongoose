@@ -11,45 +11,33 @@ const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
 }
 
+const applyOmit = <T>(object: Partial<T>, opts: PluginOptions<T>): Partial<T> => {
+  return opts.omit ? omit(object, opts.omit) : object
+}
+
+const replacer = (_key: string, value: unknown): unknown => (typeof value === 'bigint' ? value.toString() : value)
+
 export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
   // NOSONAR — structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
-  const object = JSON.parse(JSON.stringify(doc)) as Partial<T>
-
-  if (opts.omit) {
-    return omit(object, opts.omit)
-  }
-
-  return object
+  return applyOmit(JSON.parse(JSON.stringify(doc, replacer)) as Partial<T>, opts)
 }
 
 export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
-  if (opts.omit) {
-    return omit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts.omit)
-  }
-
-  return doc
+  return applyOmit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts)
 }
 
-export const getUser = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<User | undefined> => {
-  if (isFunction(opts.getUser)) {
-    return await opts.getUser(doc)
+const getOptionalField = async <T, R>(fn: ((doc: HydratedDocument<T>) => Promise<R> | R) | undefined, doc?: HydratedDocument<T>): Promise<R | undefined> => {
+  if (isFunction(fn)) {
+    return await fn(doc as HydratedDocument<T>)
   }
   return undefined
 }
 
-export const getReason = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<string | undefined> => {
-  if (isFunction(opts.getReason)) {
-    return await opts.getReason(doc)
-  }
-  return undefined
-}
+export const getUser = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<User | undefined> => getOptionalField(opts.getUser, doc)
 
-export const getMetadata = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<Metadata | undefined> => {
-  if (isFunction(opts.getMetadata)) {
-    return await opts.getMetadata(doc)
-  }
-  return undefined
-}
+export const getReason = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<string | undefined> => getOptionalField(opts.getReason, doc)
+
+export const getMetadata = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<Metadata | undefined> => getOptionalField(opts.getMetadata, doc)
 
 export const getValue = <T>(item: PromiseSettledResult<T>): T | undefined => {
   return item.status === 'fulfilled' ? item.value : undefined
@@ -63,7 +51,11 @@ export const getData = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T
 
 export const emitEvent = <T>(context: PatchContext<T>, event: string | undefined, data: PatchEvent<T>): void => {
   if (event && !context.ignoreEvent) {
-    em.emit(event, data)
+    try {
+      em.emit(event, data)
+    } catch {
+      // Listener errors must not crash patch history recording
+    }
   }
 }
 
@@ -80,7 +72,8 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
     const bulk = []
 
     for (const doc of batch) {
-      emitEvent(context, event, { [key]: doc })
+      const omitted = getObjectOmit(opts, doc)
+      emitEvent(context, event, { [key]: omitted })
 
       if (history) {
         const [user, reason, metadata] = await getData(opts, doc)
@@ -91,7 +84,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
               modelName: context.modelName,
               collectionName: context.collectionName,
               collectionId: doc._id as Types.ObjectId,
-              doc: getObjectOmit(opts, doc),
+              doc: omitted,
               version: 0,
               ...(user !== undefined && { user }),
               ...(reason !== undefined && { reason }),
@@ -103,8 +96,9 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
     }
 
     if (history && !isEmpty(bulk)) {
+      const onError = opts.onError ?? console.error
       await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
-        console.error(error.message)
+        onError(error)
       })
     }
   }
@@ -138,6 +132,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
     }
 
     const [user, reason, metadata] = await getData(opts, current)
+    const onError = opts.onError ?? console.error
     await HistoryModel.create({
       op: context.op,
       modelName: context.modelName,
@@ -148,6 +143,8 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
       ...(user !== undefined && { user }),
       ...(reason !== undefined && { reason }),
       ...(metadata !== undefined && { metadata }),
+    }).catch((error: MongooseError) => {
+      onError(error)
     })
   }
 }

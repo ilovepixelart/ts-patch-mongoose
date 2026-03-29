@@ -1,10 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { patchEventEmitter } from '../src/index'
 import { emitEvent } from '../src/patch'
 
 describe('em', () => {
-  it('should subscribe and count', async () => {
+  afterEach(() => {
+    patchEventEmitter.removeAllListeners()
+  })
+
+  it('should subscribe and count', () => {
     let count = 0
     const fn = () => {
       count++
@@ -17,7 +21,7 @@ describe('em', () => {
     expect(count).toBe(1)
   })
 
-  it('emitEvent', async () => {
+  it('emitEvent', () => {
     const fn = vi.fn()
     patchEventEmitter.on('test', fn)
 
@@ -29,12 +33,10 @@ describe('em', () => {
 
     // @ts-expect-error expected
     emitEvent(context, 'test', { doc: { name: 'test' } })
-    expect(fn).toHaveBeenCalledTimes(1)
-
-    patchEventEmitter.off('test', fn)
+    expect(fn).toHaveBeenCalledOnce()
   })
 
-  it('emitEvent ignore', async () => {
+  it('emitEvent ignore', () => {
     const fn = vi.fn()
     patchEventEmitter.on('test', fn)
 
@@ -48,7 +50,21 @@ describe('em', () => {
     // @ts-expect-error expected
     emitEvent(context, 'test', { doc: { name: 'test' } })
     expect(fn).toHaveBeenCalledTimes(0)
+  })
 
-    patchEventEmitter.off('test', fn)
+  it('emitEvent should not throw when listener throws', () => {
+    const fn = () => {
+      throw new Error('listener error')
+    }
+    patchEventEmitter.on('throw-test', fn)
+
+    const context = {
+      op: 'test',
+      modelName: 'Test',
+      collectionName: 'tests',
+    }
+
+    // @ts-expect-error expected
+    expect(() => emitEvent(context, 'throw-test', { doc: { name: 'test' } })).not.toThrow()
   })
 })

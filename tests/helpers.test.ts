@@ -308,4 +308,66 @@ describe('cloneDeep', () => {
     expect(cloned.b).toEqual({ c: 2 })
     expect(cloned.b).not.toBe(original.b)
   })
+
+  it('should clone Error instances preserving message and stack', () => {
+    const original = new Error('test error')
+    const cloned = cloneDeep(original)
+    expect(cloned).not.toBe(original)
+    expect(cloned).toBeInstanceOf(Error)
+    expect(cloned.message).toBe('test error')
+    expect(cloned.stack).toBe(original.stack)
+  })
+
+  it('should fall through to cloneCollection for partial BSON-like objects', () => {
+    const original = { _bsontype: 'SomeType', value: 42 }
+    const cloned = cloneDeep(original)
+    expect(cloned).toEqual({ _bsontype: 'SomeType', value: 42 })
+    expect(cloned).not.toBe(original)
+  })
+
+  it('should clone BSON-like objects via toHexString', () => {
+    const hex = '507f1f77bcf86cd799439011'
+    const original = {
+      _bsontype: 'ObjectId',
+      toHexString: () => hex,
+      toJSON: () => hex,
+    }
+    Object.setPrototypeOf(original, {
+      constructor: class ObjectId {
+        hex: string
+        constructor(h: string) {
+          this.hex = h
+        }
+        toHexString() {
+          return this.hex
+        }
+      },
+    })
+    const cloned = cloneDeep(original)
+    expect(cloned).not.toBe(original)
+    expect(cloned.toHexString()).toBe(hex)
+  })
+})
+
+describe('setPatchHistoryTTL', () => {
+  it('should call custom onError handler on failure', async () => {
+    const indexes = HistoryModel.collection.indexes as Mock
+    indexes.mockRejectedValue(new Error('connection failed'))
+
+    const onError = vi.fn()
+    await setPatchHistoryTTL('1h', onError)
+
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError).toHaveBeenCalledWith(expect.any(Error))
+  })
+
+  it('should fall back to console.error when no onError provided', async () => {
+    const indexes = HistoryModel.collection.indexes as Mock
+    indexes.mockRejectedValue(new Error('connection failed'))
+
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await setPatchHistoryTTL('1h')
+
+    expect(spy).toHaveBeenCalledOnce()
+  })
 })

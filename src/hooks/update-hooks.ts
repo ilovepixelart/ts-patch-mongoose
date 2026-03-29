@@ -7,17 +7,46 @@ import type { HookContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
+const trackChangedFields = (fields: Record<string, unknown> | undefined, updated: Record<string, unknown>, changed: Map<string, unknown>): void => {
+  if (!fields) return
+  for (const key of Object.keys(fields)) {
+    const root = key.split('.')[0] as string
+    changed.set(root, updated[root])
+  }
+}
+
+const applyPullAll = (updated: Record<string, unknown>, fields: Record<string, unknown[]>, changed: Map<string, unknown>): void => {
+  for (const [field, values] of Object.entries(fields)) {
+    const arr = updated[field]
+    if (Array.isArray(arr)) {
+      const filtered = arr.filter((item: unknown) => !values.some((v) => JSON.stringify(v) === JSON.stringify(item)))
+      updated[field] = filtered
+      changed.set(field, filtered)
+    }
+  }
+}
+
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
-  let updated = assign(document.toObject(toObjectOptions), update)
+  let updated = assign(document.toObject(toObjectOptions), update) as Record<string, unknown>
+  const changedByCommand = new Map<string, unknown>()
+
   for (const command of commands) {
+    const op = Object.keys(command)[0] as string
+    const fields = command[op] as Record<string, unknown> | undefined
     try {
       updated = assign(updated, command)
+      trackChangedFields(fields, updated, changedByCommand)
     } catch {
-      // we catch assign keys that are not implemented
+      if (op === '$pullAll' && fields) {
+        applyPullAll(updated, fields as Record<string, unknown[]>, changedByCommand)
+      }
     }
   }
 
   const doc = document.set(updated).toObject(toObjectOptions) as HydratedDocument<T> & { createdAt?: Date }
+  for (const [field, value] of changedByCommand) {
+    ;(doc as unknown as Record<string, unknown>)[field] = value
+  }
   if (update.createdAt) doc.createdAt = update.createdAt
   return doc
 }
@@ -41,19 +70,18 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
 }
 
 export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
-  schema.pre(updateMethods as MongooseQueryMiddleware[], async function (this: HookContext<T>) {
+  schema.pre(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 
     const model = this.model as Model<T>
     const filter = this.getFilter()
-    const count = await this.model.countDocuments(filter).exec()
 
     this._context = {
       op: this.op,
-      modelName: opts.modelName ?? this.model.modelName,
-      collectionName: opts.collectionName ?? this.model.collection.collectionName,
-      isNew: Boolean(options.upsert) && count === 0,
+      modelName: opts.modelName ?? model.modelName,
+      collectionName: opts.collectionName ?? model.collection.collectionName,
+      isNew: Boolean(options.upsert) && (await model.countDocuments(filter).exec()) === 0,
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
     }
@@ -68,9 +96,10 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     })
   })
 
-  schema.post(updateMethods as MongooseQueryMiddleware[], async function (this: HookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
+    if (!this._context) return
 
     if (!this._context.isNew) return
 
@@ -78,19 +107,13 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
-    let current: HydratedDocument<T> | null = null
     const filter = this.getFilter()
-    const combined = assignUpdate(model.hydrate({}), update, commands)
-    if (!isEmpty(update) && !current) {
-      current = (await model.findOne(update).sort('desc').lean().exec()) as HydratedDocument<T>
-    }
+    const candidates = [update, assignUpdate(model.hydrate({}), update, commands), filter]
 
-    if (!isEmpty(combined) && !current) {
-      current = (await model.findOne(combined).sort('desc').lean().exec()) as HydratedDocument<T>
-    }
-
-    if (!isEmpty(filter) && !current) {
-      current = (await model.findOne(filter).sort('desc').lean().exec()) as HydratedDocument<T>
+    let current: HydratedDocument<T> | null = null
+    for (const query of candidates) {
+      if (current || isEmpty(query)) continue
+      current = (await model.findOne(query).sort({ _id: -1 }).lean().exec()) as HydratedDocument<T>
     }
 
     if (current) {

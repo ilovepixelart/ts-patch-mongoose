@@ -35,7 +35,7 @@ describe('plugin - event updated & patch history disabled', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 
@@ -50,7 +50,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
 
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
@@ -134,7 +134,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
 
     // Confirm that the document is updated
     const updated = await UserModel.find({}).sort({ name: 1 })
@@ -162,7 +162,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
@@ -235,7 +235,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
@@ -274,7 +274,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
@@ -312,7 +312,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
@@ -352,7 +352,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,
@@ -458,7 +458,7 @@ describe('plugin - event updated & patch history disabled', () => {
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
       oldDoc: expect.objectContaining({
         __v: 0,

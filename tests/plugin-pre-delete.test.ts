@@ -36,7 +36,7 @@ describe('plugin - preDelete test', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 
@@ -45,13 +45,13 @@ describe('plugin - preDelete test', () => {
     await UserModel.create({ name: 'Jane', role: 'user' })
     await UserModel.create({ name: 'Jack', role: 'user' })
 
-    const users = await UserModel.find({}).sort().lean().exec()
+    const users = await UserModel.find({}).sort({ _id: 1 }).lean().exec()
     expect(users).toHaveLength(3)
 
     const [john, jane, jack] = users
 
     await UserModel.deleteMany({ role: 'user' })
-    expect(preDeleteMock).toHaveBeenCalledTimes(1)
+    expect(preDeleteMock).toHaveBeenCalledOnce()
     expect(preDeleteMock).toHaveBeenCalledWith([john, jane, jack])
 
     expect(em.emit).toHaveBeenCalledTimes(3)
@@ -92,13 +92,13 @@ describe('plugin - preDelete test', () => {
     await UserModel.create({ name: 'Jane', role: 'user' })
     await UserModel.create({ name: 'Jack', role: 'user' })
 
-    const users = await UserModel.find({}).sort().lean().exec()
+    const users = await UserModel.find({}).sort({ _id: 1 }).lean().exec()
     expect(users).toHaveLength(3)
 
     const [john] = users
 
     await UserModel.deleteOne({ name: 'John' })
-    expect(preDeleteMock).toHaveBeenCalledTimes(1)
+    expect(preDeleteMock).toHaveBeenCalledOnce()
     expect(preDeleteMock).toHaveBeenCalledWith([
       {
         __v: 0,
@@ -110,7 +110,7 @@ describe('plugin - preDelete test', () => {
       },
     ])
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: {
         __v: 0,
@@ -133,7 +133,7 @@ describe('plugin - preDelete test', () => {
       await john?.deleteOne()
     }
 
-    expect(preDeleteMock).toHaveBeenCalledTimes(1)
+    expect(preDeleteMock).toHaveBeenCalledOnce()
     expect(preDeleteMock).toHaveBeenCalledWith([
       {
         __v: 0,
@@ -145,7 +145,7 @@ describe('plugin - preDelete test', () => {
       },
     ])
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_DELETED, {
       oldDoc: {
         __v: 0,

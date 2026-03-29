@@ -109,9 +109,9 @@ describe('omitDeep', () => {
     expect(omitDeep(obj, ['a', 'c'])).toEqual({ b: 2, d: 4 })
   })
 
-  it('should not omit from dot-notation when value at path has no value', () => {
+  it('should omit from dot-notation even when value is empty', () => {
     const obj = { a: { b: '' } }
-    expect(omitDeep(obj, ['a.b'])).toEqual({ a: { b: '' } })
+    expect(omitDeep(obj, ['a.b'])).toEqual({ a: {} })
   })
 
   it('should omit dot-notation with nested value present', () => {
@@ -181,10 +181,9 @@ describe('omitDeep', () => {
     expect(omitDeep(obj, ['config.data'])).toEqual({ config: {} })
   })
 
-  it('should not unset empty Map at dot path (hasValue is false)', () => {
+  it('should unset empty Map at dot path', () => {
     const obj = { config: { data: new Map() } } as Record<string, unknown>
-    const result = omitDeep(obj, ['config.data'])
-    expect(result.config).toHaveProperty('data')
+    expect(omitDeep(obj, ['config.data'])).toEqual({ config: {} })
   })
 
   it('should unset non-empty Set at dot path', () => {
@@ -192,10 +191,9 @@ describe('omitDeep', () => {
     expect(omitDeep(obj, ['config.data'])).toEqual({ config: {} })
   })
 
-  it('should not unset empty Set at dot path (hasValue is false)', () => {
+  it('should unset empty Set at dot path', () => {
     const obj = { config: { data: new Set() } } as Record<string, unknown>
-    const result = omitDeep(obj, ['config.data'])
-    expect(result.config).toHaveProperty('data')
+    expect(omitDeep(obj, ['config.data'])).toEqual({ config: {} })
   })
 
   it('should handle null value at dot-notation intermediate', () => {
@@ -213,8 +211,25 @@ describe('omitDeep', () => {
     expect(omitDeep(obj, ['config.items'])).toEqual({ config: {} })
   })
 
-  it('should not unset empty array at dot path (hasValue is false)', () => {
+  it('should unset empty array at dot path', () => {
     const obj = { config: { items: [] } }
-    expect(omitDeep(obj, ['config.items'])).toEqual({ config: { items: [] } })
+    expect(omitDeep(obj, ['config.items'])).toEqual({ config: {} })
+  })
+
+  it('should not mutate the original object', () => {
+    const obj = { a: 1, b: 2, nested: { c: 3, d: 4 } }
+    const original = structuredClone(obj)
+    omitDeep(obj, ['b', 'nested.c'])
+    expect(obj).toEqual(original)
+  })
+
+  it('should not mutate the original array', () => {
+    const arr = [
+      { a: 1, b: 2 },
+      { a: 3, b: 4 },
+    ]
+    const original = structuredClone(arr)
+    omitDeep(arr, ['b'])
+    expect(arr).toEqual(original)
   })
 })

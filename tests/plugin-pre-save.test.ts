@@ -32,7 +32,7 @@ describe('plugin - preSave test', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(async () => {
+  afterEach(() => {
     vi.resetAllMocks()
   })
 
@@ -40,7 +40,7 @@ describe('plugin - preSave test', () => {
     const john = await UserModel.create({ name: 'John', role: 'user' })
     const { __v, role, ...doc } = john.toJSON()
 
-    expect(em.emit).toHaveBeenCalledTimes(1)
+    expect(em.emit).toHaveBeenCalledOnce()
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc })
 
     expect(john).toMatchObject({ name: 'John', role: 'user' })
