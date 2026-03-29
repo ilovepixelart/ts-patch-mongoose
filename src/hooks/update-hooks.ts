@@ -34,7 +34,7 @@ export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQue
     const op = Object.keys(command)[0] as string
     const fields = command[op] as Record<string, unknown> | undefined
     try {
-      updated = assign(updated, command) as Record<string, unknown>
+      updated = assign(updated, command)
       trackChangedFields(fields, updated, changedByCommand)
     } catch {
       if (op === '$pullAll' && fields) {
