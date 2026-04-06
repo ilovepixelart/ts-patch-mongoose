@@ -75,16 +75,16 @@
     "power-assign": "0.2.10"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
-    "@types/node": "25.5.0",
+    "@biomejs/biome": "2.4.10",
+    "@types/node": "25.5.2",
     "@vitest/coverage-v8": "4.1.2",
     "mongodb-memory-server": "11.0.1",
-    "mongoose": "9.3.3",
-    "np": "11.0.2",
+    "mongoose": "9.4.1",
+    "np": "11.0.3",
     "open-cli": "9.0.0",
     "pkgroll": "2.27.0",
     "simple-git-hooks": "2.13.1",
-    "typescript": "5.9.3",
+    "typescript": "6.0.2",
     "vitest": "4.1.2"
   },
   "peerDependencies": {
