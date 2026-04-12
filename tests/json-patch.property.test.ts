@@ -5,16 +5,14 @@ import { compare, type Operation } from '../src/json-patch'
 
 // ---------- Arbitraries ----------
 
-// Primitive values allowed as leaf nodes. Values that don't survive JSON
-// round-trip are excluded (NaN, ±Infinity, Dates, BigInts, Regex, functions,
-// symbols) because the patch layer serializes through JSON.stringify
-// internally — anything that doesn't come back out of that pipeline isn't a
-// meaningful input to compare() in practice.
-const leafArbitrary = (): fc.Arbitrary<unknown> => fc.oneof(fc.integer(), fc.float({ noNaN: true, noDefaultInfinity: true }), fc.string(), fc.boolean(), fc.constant(null))
+// Primitive values allowed as leaf nodes. Dates/BigInts/Regex are excluded
+// because our patch layer serializes through JSON.stringify so they wouldn't
+// round-trip anyway.
+const leafArb = (): fc.Arbitrary<unknown> => fc.oneof(fc.integer(), fc.float({ noNaN: true }), fc.string(), fc.boolean(), fc.constant(null))
 
 // Recursive JSON-ish values: primitives, arrays, and objects of arbitrary shape.
-const jsonArbitrary: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
-  leaf: leafArbitrary(),
+const jsonArb: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
+  leaf: leafArb(),
   value: fc.oneof({ withCrossShrink: true, depthSize: 'small' }, tie('leaf'), tie('array'), tie('object')),
   array: fc.array(tie('value'), { maxLength: 5 }),
   object: fc.dictionary(fc.string({ minLength: 1, maxLength: 6 }), tie('value'), { maxKeys: 5 }),
@@ -22,7 +20,7 @@ const jsonArbitrary: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
 
 // Force the top level to be a plain object so compare() preconditions hold
 // (compare expects object | unknown[] at the root).
-const jsonObjectArbitrary: fc.Arbitrary<Record<string, unknown>> = fc.dictionary(fc.string({ minLength: 1, maxLength: 6 }), jsonArbitrary, { maxKeys: 5 })
+const jsonObjectArb: fc.Arbitrary<Record<string, unknown>> = fc.dictionary(fc.string({ minLength: 1, maxLength: 6 }), jsonArb, { maxKeys: 5 })
 
 const isOperation = (op: unknown): op is Operation => typeof op === 'object' && op !== null && 'op' in op && 'path' in op
 
@@ -31,7 +29,7 @@ const isOperation = (op: unknown): op is Operation => typeof op === 'object' && 
 describe('json-patch compare — properties', () => {
   it('is reflexive: compare(x, x) is empty', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, (x) => {
+      fc.property(jsonObjectArb, (x) => {
         expect(compare(x, x)).toEqual([])
       }),
     )
@@ -39,7 +37,7 @@ describe('json-patch compare — properties', () => {
 
   it('is reflexive under structural clone: compare(x, structuredClone(x)) is empty', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, (x) => {
+      fc.property(jsonObjectArb, (x) => {
         const clone = JSON.parse(JSON.stringify(x)) as Record<string, unknown>
         expect(compare(x, clone)).toEqual([])
       }),
@@ -48,7 +46,7 @@ describe('json-patch compare — properties', () => {
 
   it('emits a patch iff the JSON projections differ', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, jsonObjectArbitrary, (a, b) => {
+      fc.property(jsonObjectArb, jsonObjectArb, (a, b) => {
         const patch = compare(a, b)
         const sameJson = JSON.stringify(a) === JSON.stringify(b)
         if (sameJson) {
@@ -64,7 +62,7 @@ describe('json-patch compare — properties', () => {
 
   it('every emitted op has a well-formed RFC 6901 path', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, jsonObjectArbitrary, (a, b) => {
+      fc.property(jsonObjectArb, jsonObjectArb, (a, b) => {
         for (const op of compare(a, b)) {
           // Root pointer is "" (empty); any non-empty path starts with "/"
           // and does not end with "/".
@@ -80,7 +78,7 @@ describe('json-patch compare — properties', () => {
 
   it('does not mutate either input during diffing', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, jsonObjectArbitrary, (a, b) => {
+      fc.property(jsonObjectArb, jsonObjectArb, (a, b) => {
         const beforeA = JSON.stringify(a)
         const beforeB = JSON.stringify(b)
         compare(a, b)
@@ -92,7 +90,7 @@ describe('json-patch compare — properties', () => {
 
   it('invertible mode pairs every replace/remove with a preceding test at the same path', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, jsonObjectArbitrary, (a, b) => {
+      fc.property(jsonObjectArb, jsonObjectArb, (a, b) => {
         const patch = compare(a, b, true)
         for (let i = 0; i < patch.length; i++) {
           const op = patch[i]
@@ -110,7 +108,7 @@ describe('json-patch compare — properties', () => {
 
   it('non-invertible mode never emits test ops', () => {
     fc.assert(
-      fc.property(jsonObjectArbitrary, jsonObjectArbitrary, (a, b) => {
+      fc.property(jsonObjectArb, jsonObjectArb, (a, b) => {
         const patch = compare(a, b, false)
         expect(patch.some((op) => op.op === 'test')).toBe(false)
       }),
@@ -119,7 +117,7 @@ describe('json-patch compare — properties', () => {
 
   it('primitive replacement at a top-level key produces a single replace op for that key', () => {
     fc.assert(
-      fc.property(fc.string({ minLength: 1, maxLength: 6 }), leafArbitrary(), leafArbitrary(), (key, oldVal, newVal) => {
+      fc.property(fc.string({ minLength: 1, maxLength: 6 }), leafArb(), leafArb(), (key, oldVal, newVal) => {
         fc.pre(JSON.stringify(oldVal) !== JSON.stringify(newVal))
         const patch = compare({ [key]: oldVal }, { [key]: newVal })
         // Escape the key the way json-patch does for the path check.
