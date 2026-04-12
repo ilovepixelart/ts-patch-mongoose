@@ -21,7 +21,7 @@ npm run build          # build with pkgroll
 
 ## Before Submitting a PR
 
-1. Run the full check: `npm run type:check && npm run biome && npm test && npm run build`
+1. Run the full check: `npm run type:check && npm run type:check:tests && npm run biome && npm test && npm run build`
 2. Ensure no test regressions
 3. Follow the existing code style (Biome handles formatting)
 4. Keep changes focused — one feature or fix per PR

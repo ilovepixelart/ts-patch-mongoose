@@ -28,9 +28,11 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```json
 {
   "node": "20.x || 22.x || 24.x",
-  "mongoose": ">=6.6.0 || 7.x || 8.x || 9.x",
+  "mongoose": ">=6.6.0 <10"
 }
 ```
+
+CI tests against mongoose `6.12.2`, `7.6.4`, `8.23.0`, and `9.4.1`.
 
 ## Features
 
@@ -113,12 +115,12 @@ const BookSchema = new Schema<Book>({
   }
 }, { timestamps: true })
 
-BookSchema.plugin(patchHistoryPlugin, { 
+BookSchema.plugin(patchHistoryPlugin, {
   // Provide your event constants to plugin
   eventCreated: BOOK_CREATED,
   eventUpdated: BOOK_UPDATED,
   eventDeleted: BOOK_DELETED,
-  
+
   // You can omit some properties in case you don't want to save them to patch history
   omit: ['__v', 'createdAt', 'updatedAt'],
 
