@@ -68,6 +68,9 @@ jobs:
       - name: Biome
         run: npm run biome
 
+      - name: Type check tests
+        run: npm run type:check:tests
+
       - name: Coverage
         run: npm run test
 

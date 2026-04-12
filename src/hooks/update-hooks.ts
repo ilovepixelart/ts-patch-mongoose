@@ -113,7 +113,10 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     let current: HydratedDocument<T> | null = null
     for (const query of candidates) {
       if (current || isEmpty(query)) continue
-      current = (await model.findOne(query).sort({ _id: -1 }).lean().exec()) as HydratedDocument<T>
+      current = (await model
+        .findOne(query as never)
+        .sort({ _id: -1 })
+        .lean()) as HydratedDocument<T>
     }
 
     if (current) {

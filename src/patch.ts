@@ -23,7 +23,7 @@ export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>)
 }
 
 export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
-  return applyOmit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts)
+  return applyOmit(isFunction(doc?.toObject) ? (doc.toObject() as Partial<T>) : doc, opts)
 }
 
 const getOptionalField = async <T, R>(fn: ((doc: HydratedDocument<T>) => Promise<R> | R) | undefined, doc?: HydratedDocument<T>): Promise<R | undefined> => {
