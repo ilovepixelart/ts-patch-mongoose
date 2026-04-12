@@ -1,12 +1,7 @@
 <a id="v3.1.2"></a>
 # [v3.1.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.2) - 2026-04-12
 
-- Remove fragile `Update npm` step from publish workflow  03e986c
-- Update changelog for v3.1.1  6a43f32
-
----
-
-https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.1...v3.1.2
+**Full Changelog**: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.1...v3.1.2
 
 [Changes][v3.1.2]
 
