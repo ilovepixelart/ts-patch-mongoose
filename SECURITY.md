@@ -86,8 +86,8 @@ chase:
   structurally unattainable; the score will move organically if external
   contributors join.
 
-- **`CII-Best-Practices`** — tracked via the
-  [OpenSSF Best Practices program](https://www.bestpractices.dev/). The
-  project targets the "passing" tier; "silver" and "gold" require
+- **`CII-Best-Practices`** — tracked at
+  [bestpractices.dev/projects/12473](https://www.bestpractices.dev/en/projects/12473).
+  The project targets the "passing" tier; "silver" and "gold" require
   multiple reviewers and documented security-review processes that are
   out of reach for a single-maintainer project.
