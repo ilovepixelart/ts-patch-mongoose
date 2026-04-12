@@ -12,6 +12,8 @@ export interface History {
   reason?: string
   metadata?: object
   patch?: Operation[]
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 export interface PatchEvent<T> {

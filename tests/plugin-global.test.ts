@@ -343,7 +343,7 @@ describe('plugin - global', () => {
     expect(john.name).toBe('John')
     const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
-    const product = await ProductModel.create({ name: 'paper', addedBy: john })
+    const product = await ProductModel.create({ name: 'paper', addedBy: john._id })
     expect(product.name).toBe('paper')
 
     product.addedBy = alice._id
@@ -431,12 +431,12 @@ describe('plugin - global', () => {
     expect(john.name).toBe('John')
     const alice = await UserModel.create({ name: 'Alice', role: 'user' })
     expect(alice.name).toBe('Alice')
-    const product = await ProductModel.create({ name: 'paper', addedBy: john })
+    const product = await ProductModel.create({ name: 'paper', addedBy: john._id })
     expect(product.name).toBe('paper')
 
     await product
       .updateOne({
-        addedBy: alice,
+        addedBy: alice._id,
       })
       .exec()
 

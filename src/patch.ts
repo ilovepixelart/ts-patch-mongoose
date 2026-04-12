@@ -23,7 +23,7 @@ export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>)
 }
 
 export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
-  return applyOmit(isFunction(doc?.toObject) ? doc.toObject() : doc, opts)
+  return applyOmit(isFunction(doc?.toObject) ? (doc.toObject() as Partial<T>) : doc, opts)
 }
 
 const getOptionalField = async <T, R>(fn: ((doc: HydratedDocument<T>) => Promise<R> | R) | undefined, doc?: HydratedDocument<T>): Promise<R | undefined> => {
@@ -43,7 +43,7 @@ export const getValue = <T>(item: PromiseSettledResult<T>): T | undefined => {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export const getData = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
+export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
   return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
@@ -127,7 +127,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
       .sort('-version')
       .exec()
 
-    if (lastHistory && lastHistory.version >= 0) {
+    if (lastHistory) {
       version = lastHistory.version + 1
     }
 

@@ -489,7 +489,7 @@ describe('plugin - event updated & patch history disabled', () => {
 
   it('should ignoreHook option on updateMany', async () => {
     const john = await UserModel.create({ name: 'John', role: 'user' })
-    await UserModel.updateMany({ role: 'user' }, { role: 'admin' }, { ignoreHook: true }).exec()
+    await UserModel.updateMany({ role: 'user' }, { role: 'admin' }).setOptions({ ignoreHook: true }).exec()
 
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)

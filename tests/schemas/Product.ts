@@ -22,7 +22,7 @@ export const ProductSchema = new Schema<Product>(
     groups: {
       type: [String],
       required: false,
-      default: undefined,
+      default: (): string[] | undefined => undefined,
     },
     description: {
       type: DescriptionSchema,

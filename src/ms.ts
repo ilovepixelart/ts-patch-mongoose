@@ -60,7 +60,8 @@ export const ms = (val: Duration): number => {
   const match = RE.exec(str)
   if (!match) return Number.NaN
 
-  const n = Number.parseFloat(match[1] ?? '')
-  const type = (match[2] ?? 'ms').toLowerCase()
-  return n * (UNITS[type as Unit] ?? 0)
+  const [, numStr, unitStr] = match
+  const n = Number.parseFloat(String(numStr))
+  const type = (unitStr ?? 'ms').toLowerCase() as Unit
+  return n * UNITS[type]
 }

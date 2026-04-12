@@ -40,11 +40,7 @@
   },
   "files": [
     "dist",
-    "src",
-    "tests",
-    "tsconfig.json",
-    "vite.config.mts",
-    "biome.json"
+    "src"
   ],
   "type": "module",
   "exports": {
@@ -67,25 +63,26 @@
     "test": "vitest run --coverage",
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
     "type:check": "tsc --noEmit",
+    "type:check:tests": "tsc --noEmit -p tests/tsconfig.json",
     "build": "pkgroll --clean-dist",
-    "release": "npm install && npm run biome && npm run type:check && npm run build && np --no-publish"
+    "release": "npm install && npm run biome && npm run type:check && npm run type:check:tests && npm run build && np --no-publish"
   },
   "dependencies": {
     "fast-json-patch": "3.1.1",
     "power-assign": "0.2.10"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
-    "@types/node": "25.5.0",
-    "@vitest/coverage-v8": "4.1.2",
+    "@biomejs/biome": "2.4.11",
+    "@types/node": "25.6.0",
+    "@vitest/coverage-v8": "4.1.4",
     "mongodb-memory-server": "11.0.1",
-    "mongoose": "9.3.3",
-    "np": "11.0.2",
+    "mongoose": "9.4.1",
+    "np": "11.0.3",
     "open-cli": "9.0.0",
     "pkgroll": "2.27.0",
     "simple-git-hooks": "2.13.1",
     "typescript": "5.9.3",
-    "vitest": "4.1.2"
+    "vitest": "4.1.4"
   },
   "peerDependencies": {
     "mongoose": ">=6.6.0 < 10"
@@ -99,6 +96,8 @@
   },
   "overrides": {
     "tmp": "0.2.5",
-    "file-type": "21.3.2"
+    "file-type": "21.3.2",
+    "lodash": "4.18.1",
+    "vite": "8.0.8"
   }
 }
