@@ -86,15 +86,8 @@ chase:
   structurally unattainable; the score will move organically if external
   contributors join.
 
-- **`CII-Best-Practices`** — earning a badge at
-  [bestpractices.dev](https://www.bestpractices.dev/) requires filling out
-  a questionnaire whose criteria largely overlap with signals Scorecard
-  already measures directly. Not a priority.
-
-- **`Pinned-Dependencies`** — the PR-check workflow runs its test matrix
-  against `mongoose@6.12.2`, `mongoose@7.6.4`, and **`mongoose@latest`**.
-  The final matrix entry is deliberately unpinned so that breaking changes
-  in new mongoose releases surface in CI before users hit them. Pinning
-  this entry would defeat the purpose of the matrix. All other npm
-  commands and every GitHub Action in every workflow are SHA-pinned, so
-  the check reports a near-perfect partial score anyway.
+- **`CII-Best-Practices`** — tracked via the
+  [OpenSSF Best Practices program](https://www.bestpractices.dev/). The
+  project targets the "passing" tier; "silver" and "gold" require
+  multiple reviewers and documented security-review processes that are
+  out of reach for a single-maintainer project.
