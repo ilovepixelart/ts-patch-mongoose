@@ -6,6 +6,7 @@
 git clone https://github.com/ilovepixelart/ts-patch-mongoose.git
 cd ts-patch-mongoose
 npm install
+npx simple-git-hooks    # install pre-commit + pre-push hooks (one-time)
 ```
 
 ## Development

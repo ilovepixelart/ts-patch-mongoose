@@ -1,5 +1,5 @@
-import type { Operation } from 'fast-json-patch'
 import type { HydratedDocument, Query, Types } from 'mongoose'
+import type { Operation } from './json-patch'
 
 export interface History {
   op: string

@@ -30,6 +30,7 @@
     "npmignore",
     "parens",
     "pkgroll",
+    "sarif",
     "segs",
     "singleline",
     "sonarcloud",
