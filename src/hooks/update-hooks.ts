@@ -10,7 +10,7 @@ const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findO
 const trackChangedFields = (fields: Record<string, unknown> | undefined, updated: Record<string, unknown>, changed: Map<string, unknown>): void => {
   if (!fields) return
   for (const key of Object.keys(fields)) {
-    const root = key.split('.')[0] as string
+    const [root = key] = key.split('.')
     changed.set(root, updated[root])
   }
 }
@@ -31,7 +31,7 @@ export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQue
   const changedByCommand = new Map<string, unknown>()
 
   for (const command of commands) {
-    const op = Object.keys(command)[0] as string
+    const [op = ''] = Object.keys(command)
     const fields = command[op] as Record<string, unknown> | undefined
     try {
       updated = assign(updated, command)
@@ -113,10 +113,12 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     let current: HydratedDocument<T> | null = null
     for (const query of candidates) {
       if (current || isEmpty(query)) continue
-      current = (await model
+      const found = await model
         .findOne(query as never)
         .sort({ _id: -1 })
-        .lean()) as HydratedDocument<T>
+        .lean()
+        .exec()
+      current = found as HydratedDocument<T>
     }
 
     if (current) {
