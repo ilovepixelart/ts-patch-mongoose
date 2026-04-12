@@ -58,7 +58,7 @@ Out of scope:
 - `ts-patch-mongoose` has **zero runtime dependencies**. The only
   third-party code reaching consumer projects is `mongoose` itself
   (declared as a peer dependency).
-- Releases from `3.1.2` onward are published to npm with
+- Releases from `3.1.3` onward are published to npm with
   [provenance attestations](https://docs.npmjs.com/generating-provenance-statements)
   linking the tarball back to the exact GitHub Actions run that built it.
 - Starting with the first release published under the hardened
