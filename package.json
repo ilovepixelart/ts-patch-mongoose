@@ -36,8 +36,7 @@
     "node": ">=20"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "type": "module",
   "exports": {
@@ -58,7 +57,6 @@
     "provenance": true
   },
   "scripts": {
-    "prepare": "simple-git-hooks",
     "biome": "npx @biomejs/biome check",
     "biome:fix": "npx @biomejs/biome check --write .",
     "test": "vitest run --coverage",
