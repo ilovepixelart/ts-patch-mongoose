@@ -11,10 +11,19 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Declare default permissions as read only. No job in this workflow writes to
+# the repo — tests, biome, type-check, coverage, and SonarCloud all run in
+# read-only mode. SonarCloud PR decorations come from the SonarCloud GitHub
+# App, not GITHUB_TOKEN write scopes.
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: Coverage
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [20.x, 22.x]
@@ -25,6 +34,7 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
@@ -46,6 +56,8 @@ jobs:
   sonar:
     name: Biome, Coverage & Sonar
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         node-version: [24.x]
@@ -55,6 +67,7 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0

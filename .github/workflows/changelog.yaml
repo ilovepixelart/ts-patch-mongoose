@@ -8,10 +8,17 @@ on:
     types:
       - published
 
+# Default to read-only. The changelog job upgrades to contents: write so
+# rhysd/changelog-from-release can commit the regenerated CHANGELOG.md.
+permissions:
+  contents: read
+
 jobs:
   changelog:
     name: Update changelog
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
