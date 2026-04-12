@@ -127,7 +127,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
       .sort('-version')
       .exec()
 
-    if (lastHistory && lastHistory.version >= 0) {
+    if (lastHistory) {
       version = lastHistory.version + 1
     }
 

@@ -129,6 +129,12 @@ describe('isEmpty', () => {
     expect(isEmpty(new Date())).toBe(true)
     expect(isEmpty(/test/)).toBe(true)
   })
+
+  it('should return true for object with only inherited enumerable props', () => {
+    const proto = { inherited: 1 }
+    const obj = Object.create(proto)
+    expect(isEmpty(obj)).toBe(true)
+  })
 })
 
 describe('cloneDeep', () => {
@@ -316,6 +322,15 @@ describe('cloneDeep', () => {
     expect(cloned).toBeInstanceOf(Error)
     expect(cloned.message).toBe('test error')
     expect(cloned.stack).toBe(original.stack)
+  })
+
+  it('should clone Error instances with a missing stack (skips stack copy branch)', () => {
+    const original = new Error('no stack')
+    delete original.stack
+    const cloned = cloneDeep(original)
+    expect(cloned).not.toBe(original)
+    expect(cloned).toBeInstanceOf(Error)
+    expect(cloned.message).toBe('no stack')
   })
 
   it('should fall through to cloneCollection for partial BSON-like objects', () => {

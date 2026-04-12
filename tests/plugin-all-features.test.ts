@@ -4,6 +4,7 @@ import mongoose, { model, Schema } from 'mongoose'
 import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
 import { HistoryModel } from '../src/model'
+import { assertPatchPath, assertPatchPathPrefix, assertPatchValue } from './assert-helpers'
 import server from './mongo/server'
 
 import type { Types } from 'mongoose'
@@ -184,13 +185,11 @@ describe('plugin — all features', () => {
     const [, update] = history
     expect(update?.op).toBe('update')
     expect(update?.version).toBe(1)
-    expect(update?.patch?.length).toBeGreaterThan(0)
 
-    const paths = update?.patch?.map((p) => p.path)
-    expect(paths).toContain('/quantity')
-    expect(paths).toContain('/address/street')
-    expect(paths).toContain('/address/city')
-    expect(paths).toContain('/address/zip')
+    assertPatchPath(update, '/quantity')
+    assertPatchPath(update, '/address/street')
+    assertPatchPath(update, '/address/city')
+    assertPatchPath(update, '/address/zip')
   })
 
   it('should track updateOne with $set and $inc operators', async () => {
@@ -360,8 +359,7 @@ describe('plugin — all features', () => {
     const updates = await HistoryModel.find({ op: 'updateOne' })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path)
-    expect(paths?.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/tags')
   })
 
   it('should handle upsert creating a new document', async () => {
@@ -500,7 +498,7 @@ describe('plugin — all features', () => {
 
     expect(history[1]?.op).toBe('update')
     expect(history[1]?.version).toBe(1)
-    expect(history[1]?.patch?.length).toBeGreaterThan(0)
+    assertPatchValue(history[1], '/quantity', 10)
 
     expect(history[2]?.op).toBe('updateOne')
     expect(history[2]?.version).toBe(2)
@@ -529,8 +527,7 @@ describe('plugin — all features', () => {
     const updates = await HistoryModel.find({ op: 'updateOne' })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path)
-    expect(paths?.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/tags')
   })
 
   it('should handle multiple $ operators in one update', async () => {
@@ -596,7 +593,8 @@ describe('plugin — all features', () => {
 
     const updates = await HistoryModel.find({ op: 'findOneAndReplace' })
     expect(updates).toHaveLength(1)
-    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
+    assertPatchValue(updates[0], '/item', 'Replaced')
+    assertPatchValue(updates[0], '/quantity', 99)
   })
 
   it('should track findByIdAndUpdate', async () => {
@@ -610,13 +608,10 @@ describe('plugin — all features', () => {
     await OrderModel.findByIdAndUpdate(order._id, { quantity: 42 }).exec()
 
     const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
-    expect(history.length).toBeGreaterThanOrEqual(2)
-
-    const update = history.find((h) => h.patch && h.patch.length > 0)
-    expect(update).toBeDefined()
-
-    const paths = update?.patch?.map((p) => p.path)
-    expect(paths).toContain('/quantity')
+    expect(history).toHaveLength(2)
+    expect(history[0]?.op).toBe('create')
+    expect(history[1]?.op).toBe('findOneAndUpdate')
+    assertPatchValue(history[1], '/quantity', 42)
   })
 
   it('should not crash on update with no matching documents', async () => {
@@ -840,5 +835,22 @@ describe('plugin — all features', () => {
     await ErrorModel2.updateOne({ _id: doc._id }, { quantity: 99 }).exec()
 
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'create failed' }))
+  })
+
+  it('should not crash on save when document disappears between pre-save and findById (race)', async () => {
+    const order = await OrderModel.create({
+      item: 'RaceCondition',
+      quantity: 1,
+      tags: [],
+      address: { street: '1 St', city: 'R', zip: '00000' },
+    })
+
+    vi.spyOn(OrderModel, 'findById').mockReturnValueOnce({ lean: () => ({ exec: async () => null }) } as never)
+
+    order.quantity = 99
+    await expect(order.save()).resolves.toBeDefined()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: order._id })
+    expect(updates).toHaveLength(0)
   })
 })

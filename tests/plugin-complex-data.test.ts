@@ -4,6 +4,7 @@ import mongoose, { model, Schema } from 'mongoose'
 import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
 import { HistoryModel } from '../src/model'
+import { assertPatchPath, assertPatchPathPrefix, assertPatchValue, findPatch, patchPaths } from './assert-helpers'
 import server from './mongo/server'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
@@ -194,8 +195,6 @@ const createOrder = () =>
     tags: ['vip', 'express'],
   })
 
-const getPatch = (entry: { patch?: { op: string; path: string; value?: unknown }[] } | null | undefined, path: string) => entry?.patch?.find((p) => p.path === path && p.op === 'replace')
-
 describe('plugin — complex data structures', () => {
   const instance = server('plugin-complex-data')
 
@@ -263,15 +262,14 @@ describe('plugin — complex data structures', () => {
     await order.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: order._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
 
-    expect(paths).toContain('/shippingAddress/label')
-    expect(paths).toContain('/shippingAddress/street')
-    expect(paths).toContain('/shippingAddress/city')
-    expect(paths).toContain('/shippingAddress/coords/lat')
-    expect(paths).toContain('/shippingAddress/coords/lng')
+    assertPatchPath(update, '/shippingAddress/label')
+    assertPatchPath(update, '/shippingAddress/street')
+    assertPatchPath(update, '/shippingAddress/city')
+    assertPatchPath(update, '/shippingAddress/coords/lat')
+    assertPatchPath(update, '/shippingAddress/coords/lng')
 
-    expect(getPatch(update, '/shippingAddress/city')?.value).toBe('Portland')
+    assertPatchValue(update, '/shippingAddress/city', 'Portland')
   })
 
   it('should track payment completion with transactionId and paidAt date', async () => {
@@ -281,11 +279,10 @@ describe('plugin — complex data structures', () => {
     await EcomOrderModel.updateOne({ _id: order._id }, { $set: { status: 'paid', payment: { method: 'card', last4: '4242', transactionId: 'txn_abc123', paidAt } } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
 
-    expect(paths.some((p) => p?.includes('/status'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/payment'))).toBe(true)
-    expect(getPatch(update, '/status')?.value).toBe('paid')
+    assertPatchPathPrefix(update, '/status')
+    assertPatchPathPrefix(update, '/payment')
+    assertPatchValue(update, '/status', 'paid')
   })
 
   // --- Array of subdocuments ---
@@ -312,24 +309,18 @@ describe('plugin — complex data structures', () => {
     ).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    expect(update?.patch?.length).toBeGreaterThan(0)
-
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/items'))).toBe(true)
+    assertPatchPathPrefix(update, '/items')
   })
 
   it('should track removing a line item via save', async () => {
     const order = await createOrder()
-    expect(order.items.length).toBe(2)
+    expect(order.items).toHaveLength(2)
 
     order.items = [order.items[0]]
     await order.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: order._id })
-    expect(update?.patch?.length).toBeGreaterThan(0)
-
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/items'))).toBe(true)
+    assertPatchPathPrefix(update, '/items')
   })
 
   // --- Compound operations ---
@@ -347,12 +338,10 @@ describe('plugin — complex data structures', () => {
     ).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    expect(update?.patch?.length).toBeGreaterThan(0)
 
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/status'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/priority'))).toBe(true)
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchValue(update, '/status', 'processing')
+    assertPatchValue(update, '/priority', 3)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   // --- ObjectId mutations ---
@@ -363,13 +352,13 @@ describe('plugin — complex data structures', () => {
     await EcomOrderModel.updateOne({ _id: order._id }, { $push: { assignedTo: agentIds[1] } }).exec()
 
     const [push] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    expect(push?.patch?.some((p) => p.path.startsWith('/assignedTo'))).toBe(true)
+    assertPatchPathPrefix(push, '/assignedTo')
 
     await EcomOrderModel.updateOne({ _id: order._id }, { assignedTo: [agentIds[2]] }).exec()
 
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: order._id }).sort('createdAt')
     expect(updates).toHaveLength(2)
-    expect(updates[1]?.patch?.some((p) => p.path.startsWith('/assignedTo'))).toBe(true)
+    assertPatchPathPrefix(updates[1], '/assignedTo')
   })
 
   it('should track changing customerId (ObjectId field replacement)', async () => {
@@ -379,7 +368,7 @@ describe('plugin — complex data structures', () => {
     await EcomOrderModel.updateOne({ _id: order._id }, { $set: { customerId: newCustomerId } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    expect(update?.patch?.some((p) => p.path === '/customerId')).toBe(true)
+    assertPatchPath(update, '/customerId')
   })
 
   // --- Money / totals ---
@@ -399,11 +388,10 @@ describe('plugin — complex data structures', () => {
     ).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: order._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
 
-    expect(paths.some((p) => p?.includes('/totals/tax'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/totals/shipping'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/totals/total'))).toBe(true)
+    assertPatchPathPrefix(update, '/totals/tax')
+    assertPatchPathPrefix(update, '/totals/shipping')
+    assertPatchPathPrefix(update, '/totals/total')
   })
 
   // --- Status workflow ---
@@ -424,13 +412,13 @@ describe('plugin — complex data structures', () => {
     expect(history[0]?.version).toBe(0)
 
     expect(history[1]?.version).toBe(1)
-    expect(getPatch(history[1], '/status')?.value).toBe('processing')
+    assertPatchValue(history[1], '/status', 'processing')
 
     expect(history[2]?.version).toBe(2)
-    expect(getPatch(history[2], '/status')?.value).toBe('shipped')
+    assertPatchValue(history[2], '/status', 'shipped')
 
     expect(history[3]?.version).toBe(3)
-    expect(getPatch(history[3], '/status')?.value).toBe('delivered')
+    assertPatchValue(history[3], '/status', 'delivered')
 
     expect(history[4]?.op).toBe('deleteOne')
     expect(history[4]?.doc).toHaveProperty('status', 'delivered')
@@ -522,8 +510,8 @@ describe('plugin — complex data structures', () => {
     expect(updates).toHaveLength(2)
 
     for (const entry of updates) {
-      expect(entry.patch?.some((p) => p.path === '/priority')).toBe(true)
-      expect(entry.patch?.some((p) => p.path.startsWith('/tags'))).toBe(true)
+      assertPatchPath(entry, '/priority')
+      assertPatchPathPrefix(entry, '/tags')
       expect(entry.user).toEqual({ userId: 'admin-123', role: 'admin' })
     }
   })
@@ -775,18 +763,20 @@ describe('plugin — all mongoose schema types', () => {
     expect(saved.str).toBe('hello')
     expect(saved.num).toBe(42)
     expect(saved.bool).toBe(true)
-    expect(saved.date).toBeDefined()
-    expect(saved.objectId).toBeDefined()
-    expect(saved.decimal).toBeDefined()
-    expect(saved.uuid).toBeDefined()
-    expect(saved.buf).toBeDefined()
-    expect(saved.mixed).toHaveProperty('anything')
+    expect(new Date(saved.date as string | Date).toISOString()).toBe(new Date('2026-01-15').toISOString())
+    expect(String(saved.objectId)).toBe(refId.toString())
+    expect(String(saved.decimal)).toBe('99.99')
+    expect(String(saved.uuid)).toContain('550e8400')
+    expect(saved.buf).toBeTruthy()
+    expect(JSON.stringify(saved.buf)).not.toBe('{}')
+    expect(saved.mixed).toEqual({ anything: [1, 'two', { three: true }] })
     expect(saved.nested).toEqual({ deep: { value: 'found it' } })
-    expect(saved.map).toBeDefined()
+    expect(JSON.stringify(saved.map)).toContain('val1')
+    expect(JSON.stringify(saved.map)).toContain('val2')
     expect(saved.arrStr).toEqual(['a', 'b', 'c'])
     expect(saved.arrNum).toEqual([1, 2, 3])
-    expect((saved.arrObjectId as unknown[]).length).toBe(2)
-    expect((saved.arrNested as unknown[]).length).toBe(2)
+    expect(saved.arrObjectId).toHaveLength(2)
+    expect(saved.arrNested).toEqual([expect.objectContaining({ label: 'first', score: 10 }), expect.objectContaining({ label: 'second', score: 20 })])
   })
 
   it('should track String update', async () => {
@@ -794,7 +784,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { str: 'after' }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/str')?.value).toBe('after')
+    assertPatchValue(update, '/str', 'after')
   })
 
   it('should track Number update', async () => {
@@ -802,7 +792,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { num: 999 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/num')?.value).toBe(999)
+    assertPatchValue(update, '/num', 999)
   })
 
   it('should track Boolean toggle', async () => {
@@ -810,7 +800,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { bool: true }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/bool')?.value).toBe(true)
+    assertPatchValue(update, '/bool', true)
   })
 
   it('should track Date update', async () => {
@@ -818,8 +808,9 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { date: new Date('2026-06-15') }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/date')
+    assertPatchPath(update, '/date')
+    const datePatch = findPatch(update, '/date')
+    expect(new Date(datePatch?.value as string | Date).toISOString()).toBe(new Date('2026-06-15').toISOString())
   })
 
   it('should track ObjectId reference change', async () => {
@@ -829,7 +820,8 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { objectId: id2 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/objectId')).toBeDefined()
+    const hit = findPatch(update, '/objectId')
+    expect(String(hit?.value)).toBe(id2.toString())
   })
 
   it('should track Decimal128 update', async () => {
@@ -837,8 +829,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { decimal: mongoose.Types.Decimal128.fromString('99.95') }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/decimal'))).toBe(true)
+    assertPatchPathPrefix(update, '/decimal')
   })
 
   it('should track UUID update', async () => {
@@ -846,7 +837,8 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { uuid: '6ba7b810-9dad-11d1-80b4-00c04fd430c8' }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/uuid')).toBeDefined()
+    assertPatchPath(update, '/uuid')
+    expect(String(findPatch(update, '/uuid')?.value)).toContain('6ba7b810')
   })
 
   it('should track Buffer update', async () => {
@@ -854,7 +846,9 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { buf: Buffer.from('new') }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/buf')).toBeDefined()
+    assertPatchPath(update, '/buf')
+    const bufValue = findPatch(update, '/buf')?.value
+    expect(Buffer.from(bufValue as string, 'base64').toString()).toBe('new')
   })
 
   it('should track Mixed type update (arbitrary object)', async () => {
@@ -862,8 +856,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { mixed: { version: 2, data: [1, 2, 3], extra: 'new' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/mixed'))).toBe(true)
+    assertPatchPathPrefix(update, '/mixed')
   })
 
   it('should track deeply nested field update', async () => {
@@ -872,7 +865,7 @@ describe('plugin — all mongoose schema types', () => {
     await doc.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: doc._id })
-    expect(getPatch(update, '/nested/deep/value')?.value).toBe('new')
+    assertPatchValue(update, '/nested/deep/value', 'new')
   })
 
   it('should track Map field update via save', async () => {
@@ -884,8 +877,7 @@ describe('plugin — all mongoose schema types', () => {
     await doc.save()
 
     const [update] = await HistoryModel.find({ op: 'update', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/map'))).toBe(true)
+    assertPatchPathPrefix(update, '/map')
   })
 
   it('should track array of strings mutation', async () => {
@@ -893,8 +885,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { arrStr: ['x', 'y', 'z'] }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/arrStr'))).toBe(true)
+    assertPatchPathPrefix(update, '/arrStr')
   })
 
   it('should track array of nested objects mutation', async () => {
@@ -910,8 +901,7 @@ describe('plugin — all mongoose schema types', () => {
     ).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/arrNested'))).toBe(true)
+    assertPatchPathPrefix(update, '/arrNested')
   })
 
   it('should track setting a field from undefined to a value', async () => {
@@ -919,10 +909,9 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { num: 42, bool: true, date: new Date() }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/num')
-    expect(paths).toContain('/bool')
-    expect(paths).toContain('/date')
+    assertPatchPath(update, '/num')
+    assertPatchPath(update, '/bool')
+    assertPatchPath(update, '/date')
   })
 
   it('should track setting a field to null', async () => {
@@ -930,9 +919,8 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { str: null, num: null }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/str')
-    expect(paths).toContain('/num')
+    assertPatchPath(update, '/str')
+    assertPatchPath(update, '/num')
   })
 
   it.runIf(hasDouble)('should track Double update', async () => {
@@ -940,7 +928,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { dbl: 2.71 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/dbl')?.value).toBe(2.71)
+    assertPatchValue(update, '/dbl', 2.71)
   })
 
   it.runIf(hasInt32)('should track Int32 update', async () => {
@@ -948,7 +936,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { int32: 200 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    expect(getPatch(update, '/int32')?.value).toBe(200)
+    assertPatchValue(update, '/int32', 200)
   })
 
   it.runIf(hasBigInt)('should track BigInt update', async () => {
@@ -956,8 +944,7 @@ describe('plugin — all mongoose schema types', () => {
     await AllTypesModel.updateOne({ _id: doc._id }, { bigint: BigInt(9999) }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/bigint'))).toBe(true)
+    assertPatchPathPrefix(update, '/bigint')
   })
 })
 
@@ -1007,8 +994,7 @@ describe('plugin — populated documents', () => {
     const [entry] = await HistoryModel.find({ collectionId: article._id })
     const doc = entry?.doc as Record<string, unknown>
 
-    expect(doc.author).toBeDefined()
-    expect(JSON.stringify(doc.author)).toContain(author._id.toString())
+    expect(String(doc.author)).toBe(author._id.toString())
   })
 
   it('should track author ref change as ObjectId diff', async () => {
@@ -1021,8 +1007,8 @@ describe('plugin — populated documents', () => {
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: article._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/author')
+    const authorPatch = findPatch(updates[0], '/author')
+    expect(String(authorPatch?.value)).toBe(author2._id.toString())
   })
 
   it('should track changes to populated array refs', async () => {
@@ -1035,8 +1021,7 @@ describe('plugin — populated documents', () => {
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: article._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/reviewers'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/reviewers')
   })
 })
 
@@ -1089,8 +1074,7 @@ describe('plugin — discriminators', () => {
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: click._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/url')
+    assertPatchValue(updates[0], '/url', 'https://new.com')
   })
 
   it('should track different discriminator types independently', async () => {
@@ -1106,7 +1090,7 @@ describe('plugin — discriminators', () => {
     expect(clickHistory[0]?.op).toBe('create')
 
     expect(signupHistory).toHaveLength(2)
-    expect(signupHistory[1]?.patch?.some((p) => p.path === '/plan')).toBe(true)
+    assertPatchValue(signupHistory[1], '/plan', 'pro')
   })
 
   it('should delete discriminator and preserve type in history', async () => {
@@ -1167,8 +1151,7 @@ describe('plugin — subdocument manipulation', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/comments'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/comments')
   })
 
   it('should track removing subdoc from array then save', async () => {
@@ -1186,8 +1169,7 @@ describe('plugin — subdocument manipulation', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/comments'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/comments')
   })
 
   it('should track modifying a subdoc field then saving parent', async () => {
@@ -1199,8 +1181,10 @@ describe('plugin — subdocument manipulation', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/comments') && p?.includes('/text'))).toBe(true)
+    const paths = patchPaths(updates[0])
+    const textPath = paths.find((p) => /^\/comments\/\d+\/text$/.test(p))
+    expect(textPath, 'no /comments/<idx>/text patch').toBeTruthy()
+    assertPatchValue(updates[0], textPath as string, 'Edited')
   })
 
   it('should track setting single nested subdoc', async () => {
@@ -1212,8 +1196,7 @@ describe('plugin — subdocument manipulation', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: post._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/featured'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/featured')
   })
 })
 
@@ -1414,8 +1397,8 @@ describe('plugin — findOneAndDelete / findByIdAndDelete', () => {
     await EcomOrderModel.findOneAndDelete({ _id: order._id }).exec()
 
     const deletion = await HistoryModel.findOne({ op: 'findOneAndDelete', collectionId: order._id })
-    expect(deletion).toBeDefined()
-    expect(deletion?.doc).toHaveProperty('orderNumber')
+    expect(deletion).not.toBeNull()
+    expect(deletion?.doc).toHaveProperty('orderNumber', order.orderNumber)
     expect(deletion?.doc).toHaveProperty('items')
     expect(deletion?.doc).not.toHaveProperty('internalNotes')
   })
@@ -1432,11 +1415,10 @@ describe('plugin — findOneAndDelete / findByIdAndDelete', () => {
     await EcomOrderModel.findByIdAndDelete(order._id).exec()
 
     const history = await HistoryModel.find({ collectionId: order._id }).sort('createdAt')
-    expect(history.length).toBeGreaterThanOrEqual(2)
-
-    const deletion = history.find((h) => h.op.includes('delete') || h.op.includes('Delete'))
-    expect(deletion).toBeDefined()
-    expect(deletion?.doc).toHaveProperty('orderNumber')
+    expect(history).toHaveLength(2)
+    expect(history[0]?.op).toBe('create')
+    expect(history[1]?.op).toBe('findOneAndDelete')
+    expect(history[1]?.doc).toHaveProperty('orderNumber', order.orderNumber)
   })
 })
 
@@ -1488,12 +1470,10 @@ describe('plugin — replaceOne', () => {
 
     const updates = await HistoryModel.find({ op: 'replaceOne', collectionId: order._id })
     expect(updates).toHaveLength(1)
-    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/status'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/items'))).toBe(true)
-    expect(paths.some((p) => p?.includes('/shippingAddress'))).toBe(true)
+    assertPatchValue(updates[0], '/status', 'replaced')
+    assertPatchPathPrefix(updates[0], '/items')
+    assertPatchPathPrefix(updates[0], '/shippingAddress')
   })
 })
 
@@ -1577,12 +1557,13 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(doc.billing).toHaveProperty('cardLast4', '4242')
     expect(doc.headquarters).toHaveProperty('city', 'San Francisco')
     expect((doc.headquarters as Record<string, unknown>).coords).toHaveProperty('lat', 37.7749)
-    expect((doc.team as unknown[]).length).toBe(3)
+    expect(doc.team).toHaveLength(3)
     expect(doc.tags).toEqual(['saas', 'enterprise', 'active'])
     expect(doc.domains).toEqual(['acme.com', 'acme.io'])
-    expect(doc.settings).toBeDefined()
+    expect(JSON.stringify(doc.settings)).toContain('dark')
     expect(doc.featureFlags).toHaveProperty('betaDashboard', true)
-    expect(doc.logo).toBeDefined()
+    expect(doc.logo).toBeTruthy()
+    expect(JSON.stringify(doc.logo)).not.toBe('{}')
     expect(doc.seatCount).toBe(25)
     expect(doc).not.toHaveProperty('notes')
     expect(doc).not.toHaveProperty('__v')
@@ -1600,9 +1581,8 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/billing'))).toBe(true)
-    expect(paths).toContain('/seatCount')
+    assertPatchPathPrefix(updates[0], '/billing')
+    assertPatchValue(updates[0], '/seatCount', 100)
   })
 
   it('should track team member changes via updateOne', async () => {
@@ -1614,8 +1594,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/team'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/team')
   })
 
   it('should track featureFlags Mixed and settings Map changes', async () => {
@@ -1629,9 +1608,8 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'update', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = (updates[0]?.patch ?? []).map((p) => p.path ?? '')
-    expect(paths.some((p) => p.includes('featureFlags'))).toBe(true)
-    expect(paths.some((p) => p.includes('settings'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/featureFlags')
+    assertPatchPathPrefix(updates[0], '/settings')
   })
 
   it('should track headquarters relocation via findOneAndUpdate', async () => {
@@ -1655,8 +1633,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'findOneAndUpdate', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/headquarters'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/headquarters')
   })
 
   it('should track domain and tag array changes', async () => {
@@ -1667,9 +1644,8 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/domains'))).toBe(true)
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(updates[0], '/domains')
+    assertPatchPathPrefix(updates[0], '/tags')
   })
 
   it('should track deactivation and record deletion', async () => {
@@ -1679,7 +1655,7 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const updates = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(updates).toHaveLength(1)
-    expect(getPatch(updates[0], '/active')?.value).toBe(false)
+    assertPatchValue(updates[0], '/active', false)
 
     await OrganizationModel.deleteOne({ _id: org._id }).exec()
 
@@ -1760,9 +1736,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(updates).toHaveLength(2)
 
     for (const entry of updates) {
-      expect(entry.patch?.length).toBeGreaterThan(0)
-      const paths = entry.patch?.map((p) => p.path) ?? []
-      expect(paths).toContain('/active')
+      assertPatchValue(entry, '/active', false)
     }
   })
 
@@ -1774,7 +1748,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ collectionId: org._id, version: { $gt: 0 } })
     expect(updates).toHaveLength(1)
     expect(updates[0]?.op).toBe('findOneAndUpdate')
-    expect(getPatch(updates[0], '/name')?.value).toBe('Acme Renamed')
+    assertPatchValue(updates[0], '/name', 'Acme Renamed')
   })
 
   it('should track findOneAndReplace with full document swap', async () => {
@@ -1789,12 +1763,10 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const updates = await HistoryModel.find({ op: 'findOneAndReplace', collectionId: org._id })
     expect(updates).toHaveLength(1)
-    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/name')
-    expect(paths.some((p) => p?.includes('/billing'))).toBe(true)
-    expect(paths).toContain('/seatCount')
+    assertPatchValue(updates[0], '/name', 'Replaced Corp')
+    assertPatchPathPrefix(updates[0], '/billing')
+    assertPatchValue(updates[0], '/seatCount', 500)
   })
 
   it('should track replaceOne', async () => {
@@ -1808,11 +1780,9 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const updates = await HistoryModel.find({ op: 'replaceOne', collectionId: org._id })
     expect(updates).toHaveLength(1)
-    expect(updates[0]?.patch?.length).toBeGreaterThan(0)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/name')
-    expect(paths).toContain('/active')
+    assertPatchValue(updates[0], '/name', 'ReplaceOne Corp')
+    assertPatchValue(updates[0], '/active', false)
   })
 
   it('should track findOneAndDelete with full document snapshot', async () => {
@@ -1898,8 +1868,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ op: 'findOneAndUpdate', collectionId: org._id })
     expect(updates).toHaveLength(1)
 
-    const paths = updates[0]?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/seatCount')
+    assertPatchValue(updates[0], '/seatCount', 999)
   })
 
   // --- $ modifier operators ---
@@ -1910,9 +1879,8 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $set: { name: 'Set Corp', 'contact.phone': '+1-555-9999' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/name')
-    expect(paths.some((p) => p?.includes('/contact'))).toBe(true)
+    assertPatchValue(update, '/name', 'Set Corp')
+    assertPatchPathPrefix(update, '/contact')
   })
 
   it('$unset — should track field removal', async () => {
@@ -1924,9 +1892,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.logo).toBeUndefined()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    expect(update).toBeDefined()
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/logo'))).toBe(true)
+    assertPatchPathPrefix(update, '/logo')
   })
 
   it('$inc — should track numeric increment with correct post-update value', async () => {
@@ -1939,9 +1905,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.seatCount).toBe(35)
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    expect(update).toBeDefined()
-    const seatPatch = getPatch(update, '/seatCount')
-    expect(seatPatch?.value).toBe(35)
+    assertPatchValue(update, '/seatCount', 35)
   })
 
   it('$mul — should track numeric multiply with correct post-update value', async () => {
@@ -1953,9 +1917,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.seatCount).toBe(50)
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    expect(update).toBeDefined()
-    const seatPatch = getPatch(update, '/seatCount')
-    expect(seatPatch?.value).toBe(50)
+    assertPatchValue(update, '/seatCount', 50)
   })
 
   it('$min — should track conditional numeric update', async () => {
@@ -1967,9 +1929,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.seatCount).toBe(5)
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    expect(update).toBeDefined()
-    const seatPatch = getPatch(update, '/seatCount')
-    expect(seatPatch?.value).toBe(5)
+    assertPatchValue(update, '/seatCount', 5)
   })
 
   it('$pullAll — should track multiple array element removals', async () => {
@@ -1981,9 +1941,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.tags).toEqual(['active'])
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    expect(update).toBeDefined()
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$push — should track array element addition', async () => {
@@ -1992,8 +1950,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $push: { tags: 'new-tag' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$push with $each — should track multiple array additions', async () => {
@@ -2002,8 +1959,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $push: { domains: { $each: ['acme.dev', 'acme.ai'] } } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/domains'))).toBe(true)
+    assertPatchPathPrefix(update, '/domains')
   })
 
   it('$addToSet — should track unique array addition', async () => {
@@ -2012,8 +1968,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $addToSet: { tags: 'unique-tag' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$pull — should track array element removal', async () => {
@@ -2022,8 +1977,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $pull: { tags: 'enterprise' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$pop — should track removal of last array element', async () => {
@@ -2032,8 +1986,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $pop: { tags: 1 } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$rename — should track field rename', async () => {
@@ -2042,8 +1995,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $rename: { 'contact.phone': 'contact.mobile' } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/contact'))).toBe(true)
+    assertPatchPathPrefix(update, '/contact')
   })
 
   it('$currentDate — should track date set to now', async () => {
@@ -2052,8 +2004,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $currentDate: { 'billing.nextBillingDate': true } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.includes('/billing'))).toBe(true)
+    assertPatchPathPrefix(update, '/billing')
   })
 
   it('combined $set + $inc + $push — should track all operators with correct values', async () => {
@@ -2075,15 +2026,10 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(current?.tags).toContain('combined')
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths).toContain('/name')
-    expect(paths).toContain('/active')
-    expect(paths).toContain('/seatCount')
-    expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
-
-    expect(getPatch(update, '/name')?.value).toBe('Combined Corp')
-    expect(getPatch(update, '/active')?.value).toBe(false)
-    expect(getPatch(update, '/seatCount')?.value).toBe(75)
+    assertPatchValue(update, '/name', 'Combined Corp')
+    assertPatchValue(update, '/active', false)
+    assertPatchValue(update, '/seatCount', 75)
+    assertPatchPathPrefix(update, '/tags')
   })
 
   it('$push subdocument into team array — should track nested array addition', async () => {
@@ -2093,8 +2039,7 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.updateOne({ _id: org._id }, { $push: { team: { userId: newMemberId, role: 'viewer' } } }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
-    expect(paths.some((p) => p?.startsWith('/team'))).toBe(true)
+    assertPatchPathPrefix(update, '/team')
   })
 
   // --- getUser / getReason / getMetadata ---
@@ -2153,10 +2098,10 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(entry?.collectionName).toBe('organizations')
     expect(entry?.collectionId).toEqual(org._id)
     expect(entry?.version).toBe(0)
-    expect(entry?.doc).toBeDefined()
+    expect(entry?.doc).toHaveProperty('name', 'Acme Corp')
     expect(entry?.patch).toEqual([])
-    expect(entry?.createdAt).toBeDefined()
-    expect(entry?.updatedAt).toBeDefined()
+    expect(entry?.createdAt).toBeInstanceOf(Date)
+    expect(entry?.updatedAt).toBeInstanceOf(Date)
   })
 
   it('update history should contain JSON patch, no doc snapshot', async () => {
@@ -2167,12 +2112,8 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const update = await HistoryModel.findOne({ op: 'update', collectionId: org._id })
     expect(update?.doc).toBeUndefined()
-    expect(update?.patch).toBeDefined()
-    expect(update?.patch?.length).toBeGreaterThan(0)
-
-    const nameOp = getPatch(update, '/name')
-    expect(nameOp).toBeDefined()
-    expect(nameOp?.value).toBe('Changed')
+    expect(update?.patch).toBeInstanceOf(Array)
+    assertPatchValue(update, '/name', 'Changed')
   })
 
   it('delete history should contain doc snapshot, no patch array', async () => {
@@ -2181,7 +2122,6 @@ describe('plugin — organization e2e lifecycle', () => {
     await OrganizationModel.deleteOne({ _id: org._id }).exec()
 
     const deletion = await HistoryModel.findOne({ op: 'deleteOne', collectionId: org._id })
-    expect(deletion?.doc).toBeDefined()
     expect(deletion?.doc).toHaveProperty('name', 'Acme Corp')
     expect(deletion?.patch).toEqual([])
   })
@@ -2240,12 +2180,12 @@ describe('plugin — organization e2e lifecycle', () => {
     await org.save()
 
     const update = await HistoryModel.findOne({ op: 'update', collectionId: org._id })
-    const paths = update?.patch?.map((p) => p.path) ?? []
+    const paths = patchPaths(update)
     expect(paths).toContain('/name')
-    expect(paths.every((p) => !p?.includes('notes'))).toBe(true)
-    expect(paths.every((p) => !p?.includes('__v'))).toBe(true)
-    expect(paths.every((p) => !p?.includes('createdAt'))).toBe(true)
-    expect(paths.every((p) => !p?.includes('updatedAt'))).toBe(true)
+    expect(paths).not.toContain('/notes')
+    expect(paths).not.toContain('/__v')
+    expect(paths).not.toContain('/createdAt')
+    expect(paths).not.toContain('/updatedAt')
   })
 
   it('omitted fields should never appear in delete history doc', async () => {
@@ -2356,6 +2296,13 @@ describe('plugin — organization e2e lifecycle', () => {
     const fakeId = new mongoose.Types.ObjectId()
 
     await OrganizationModel.deleteOne({ _id: fakeId }).exec()
+
+    const history = await HistoryModel.find({})
+    expect(history).toHaveLength(0)
+  })
+
+  it('deleteMany matching zero documents should not crash or produce history', async () => {
+    await OrganizationModel.deleteMany({ slug: 'nonexistent-slug-xyz' }).exec()
 
     const history = await HistoryModel.find({})
     expect(history).toHaveLength(0)
