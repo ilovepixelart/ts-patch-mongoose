@@ -661,7 +661,7 @@ interface Headquarters {
 interface Organization {
   name: string
   slug: string
-  apiKey: mongoose.Types.UUID
+  externalId: mongoose.Types.UUID
   active: boolean
   contact: Contact
   billing: Billing
@@ -682,7 +682,7 @@ const OrganizationSchema = new Schema<Organization>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
-    apiKey: { type: Schema.Types.UUID, required: true },
+    externalId: { type: Schema.Types.UUID, required: true },
     active: { type: Boolean, default: true },
     contact: { type: ContactSchema, required: true },
     billing: { type: BillingSchema, default: () => ({}) },
@@ -1521,7 +1521,7 @@ describe('plugin — organization e2e lifecycle', () => {
   const makeOrg = () => ({
     name: 'Acme Corp',
     slug: `acme-${Date.now()}`,
-    apiKey: '550e8400-e29b-41d4-a716-446655440000',
+    externalId: '550e8400-e29b-41d4-a716-446655440000',
     active: true,
     contact: { email: 'admin@acme.com', phone: '+1-555-0100', website: 'https://acme.com' },
     billing: {
@@ -1737,7 +1737,7 @@ describe('plugin — organization e2e lifecycle', () => {
     for (const entry of history) {
       expect(entry.version).toBe(0)
       expect(entry.doc).toHaveProperty('name')
-      expect(entry.doc).toHaveProperty('apiKey')
+      expect(entry.doc).toHaveProperty('externalId')
       expect(entry.doc).not.toHaveProperty('notes')
       expect(entry.doc).not.toHaveProperty('__v')
     }
@@ -1873,7 +1873,7 @@ describe('plugin — organization e2e lifecycle', () => {
       {
         name: 'Upserted Corp',
         slug,
-        apiKey: '660e8400-e29b-41d4-a716-446655440000',
+        externalId: '660e8400-e29b-41d4-a716-446655440000',
         contact: { email: 'upsert@test.com' },
         seatCount: 5,
       },
@@ -2387,7 +2387,7 @@ describe('plugin — organization e2e lifecycle', () => {
       {
         name: { type: String, required: true },
         slug: { type: String, required: true },
-        apiKey: { type: Schema.Types.UUID, required: true },
+        externalId: { type: Schema.Types.UUID, required: true },
         active: { type: Boolean, default: true },
         contact: { type: ContactSchema, required: true },
         seatCount: { type: Number, default: 1 },
@@ -2408,7 +2408,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const org = await PreDeleteModel.create({
       name: 'Doomed Corp',
       slug: `doomed-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'bye@doomed.com' },
     })
 
@@ -2426,7 +2426,7 @@ const EventOnlySchema = new Schema<Organization>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true },
-    apiKey: { type: Schema.Types.UUID, required: true },
+    externalId: { type: Schema.Types.UUID, required: true },
     active: { type: Boolean, default: true },
     contact: { type: ContactSchema, required: true },
     seatCount: { type: Number, default: 1 },
@@ -2472,7 +2472,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
     await EventOnlyModel.create({
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'eo@test.com' },
     })
 
@@ -2486,7 +2486,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
     const org = await EventOnlyModel.create({
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'eo@test.com' },
     })
 
@@ -2512,7 +2512,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
     const org = await EventOnlyModel.create({
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'eo@test.com' },
     })
 
@@ -2530,7 +2530,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
     const org = await EventOnlyModel.create({
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'eo@test.com' },
     })
 
@@ -2551,7 +2551,7 @@ const AsyncCallbackSchema = new Schema<Organization>(
   {
     name: { type: String, required: true },
     slug: { type: String, required: true },
-    apiKey: { type: Schema.Types.UUID, required: true },
+    externalId: { type: Schema.Types.UUID, required: true },
     active: { type: Boolean, default: true },
     contact: { type: ContactSchema, required: true },
     seatCount: { type: Number, default: 1 },
@@ -2601,7 +2601,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
     const org = await AsyncCallbackModel.create({
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'async@test.com' },
     })
 
@@ -2616,7 +2616,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
     const org = await AsyncCallbackModel.create({
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'async@test.com' },
     })
 
@@ -2633,7 +2633,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
     const org = await AsyncCallbackModel.create({
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
-      apiKey: '550e8400-e29b-41d4-a716-446655440000',
+      externalId: '550e8400-e29b-41d4-a716-446655440000',
       contact: { email: 'async@test.com' },
     })
 
