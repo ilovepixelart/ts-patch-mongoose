@@ -91,9 +91,6 @@
     "publish": false
   },
   "overrides": {
-    "tmp": "0.2.5",
-    "file-type": "21.3.2",
-    "lodash": "4.18.1",
-    "vite": "8.0.8"
+    "tmp": "0.2.5"
   }
 }
