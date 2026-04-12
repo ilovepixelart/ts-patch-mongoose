@@ -65,6 +65,9 @@ jobs:
       - name: Installing dependencies
         run: npm ci
 
+      - name: Verify provenance signatures
+        run: npm audit signatures
+
       - name: Biome
         run: npm run biome
 
