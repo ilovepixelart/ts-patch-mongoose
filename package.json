@@ -66,11 +66,11 @@
     "build": "pkgroll --clean-dist",
     "release": "npm install && npm run biome && npm run type:check && npm run type:check:tests && npm run build && np --no-publish"
   },
-  "dependencies": {},
   "devDependencies": {
     "@biomejs/biome": "2.4.11",
     "@types/node": "25.6.0",
     "@vitest/coverage-v8": "4.1.4",
+    "fast-check": "4.6.0",
     "mongodb-memory-server": "11.0.1",
     "mongoose": "9.4.1",
     "np": "11.0.3",
