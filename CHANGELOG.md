@@ -1,3 +1,24 @@
+<a id="v3.1.1"></a>
+# [v3.1.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.1) - 2026-04-12
+
+- Merge pull request [#354](https://github.com/ilovepixelart/ts-patch-mongoose/issues/354) from ilovepixelart/feature/package-hygiene-hardening  b4d5e94
+- Fix sonar assertion warnings and UUID test under mongoose 6.12.2  e4df06e
+- Fix type-check under mongoose 6.12.2 and 7.6.4  6ff87d7
+- Tighten test assertions and raise branch coverage  069dec8
+- Enable type checking for test files  920edd7
+- Normalize rootDir path style to match include/outDir  e6269e8
+- Set rootDir explicitly for TypeScript 6 forward compatibility  977a310
+- Package hygiene and release hardening  0433429
+- Doc  fe7affd
+- Update changelog for v3.1.0  58734d0
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.0...v3.1.1
+
+[Changes][v3.1.1]
+
+
 <a id="v3.1.0"></a>
 # [v3.1.0](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.0) - 2026-03-29
 
@@ -1302,6 +1323,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v3.1.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.0...v3.1.1
 [v3.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.0.0...v3.1.0
 [v3.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.6...v3.0.0
 [v2.9.6]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.5...v2.9.6
