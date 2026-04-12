@@ -98,7 +98,3 @@ chase:
   this entry would defeat the purpose of the matrix. All other npm
   commands and every GitHub Action in every workflow are SHA-pinned, so
   the check reports a near-perfect partial score anyway.
-
-Every other `0/10` check (`Branch-Protection` below Tier 1,
-`Token-Permissions`, `Fuzzing`, `Signed-Releases`) has an active fix on
-`main` or has already landed; those are not on the accepted list.
