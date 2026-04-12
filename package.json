@@ -12,9 +12,6 @@
     "url": "https://github.com/ilovepixelart/ts-patch-mongoose/issues"
   },
   "homepage": "https://github.com/ilovepixelart/ts-patch-mongoose#readme",
-  "directories": {
-    "examples": "examples"
-  },
   "keywords": [
     "backend",
     "mongoose",
@@ -36,7 +33,7 @@
     "log"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "files": [
     "dist",
@@ -56,6 +53,10 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.cts",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "prepare": "simple-git-hooks",
     "biome": "npx @biomejs/biome check",
