@@ -1,4 +1,4 @@
-import { assign } from 'power-assign'
+import { applyUpdate } from '../assign-update'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 
@@ -15,32 +15,15 @@ const trackChangedFields = (fields: Record<string, unknown> | undefined, updated
   }
 }
 
-const applyPullAll = (updated: Record<string, unknown>, fields: Record<string, unknown[]>, changed: Map<string, unknown>): void => {
-  for (const [field, values] of Object.entries(fields)) {
-    const arr = updated[field]
-    if (Array.isArray(arr)) {
-      const filtered = arr.filter((item: unknown) => !values.some((v) => JSON.stringify(v) === JSON.stringify(item)))
-      updated[field] = filtered
-      changed.set(field, filtered)
-    }
-  }
-}
-
 export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQuery<T>, commands: Record<string, unknown>[]): HydratedDocument<T> => {
-  let updated = assign(document.toObject(toObjectOptions), update) as Record<string, unknown>
+  let updated = applyUpdate(document.toObject(toObjectOptions) as Record<string, unknown>, update)
   const changedByCommand = new Map<string, unknown>()
 
   for (const command of commands) {
     const [op = ''] = Object.keys(command)
     const fields = command[op] as Record<string, unknown> | undefined
-    try {
-      updated = assign(updated, command)
-      trackChangedFields(fields, updated, changedByCommand)
-    } catch {
-      if (op === '$pullAll' && fields) {
-        applyPullAll(updated, fields as Record<string, unknown[]>, changedByCommand)
-      }
-    }
+    updated = applyUpdate(updated, command)
+    trackChangedFields(fields, updated, changedByCommand)
   }
 
   const doc = document.set(updated).toObject(toObjectOptions) as HydratedDocument<T> & { createdAt?: Date }
@@ -108,7 +91,9 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
     const filter = this.getFilter()
-    const candidates = [update, assignUpdate(model.hydrate({}), update, commands), filter]
+    const simulated = assignUpdate(model.hydrate({}), update, commands) as unknown as Record<string, unknown>
+    const simulatedFilter = Object.fromEntries(Object.entries(simulated).filter(([, v]) => v !== undefined))
+    const candidates = [update, simulatedFilter, filter]
 
     let current: HydratedDocument<T> | null = null
     for (const query of candidates) {

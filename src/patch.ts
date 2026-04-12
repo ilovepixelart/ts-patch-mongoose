@@ -1,6 +1,6 @@
-import jsonpatch from 'fast-json-patch'
 import em from './em'
 import { chunk, isEmpty, isFunction } from './helpers'
+import { compare as jsonPatchCompare } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
 
@@ -115,7 +115,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
   const originalObject = getJsonOmit(opts, original)
   if (isEmpty(originalObject) || isEmpty(currentObject)) return
 
-  const patch = jsonpatch.compare(originalObject, currentObject, true)
+  const patch = jsonPatchCompare(originalObject, currentObject, true)
   if (isEmpty(patch)) return
 
   emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
