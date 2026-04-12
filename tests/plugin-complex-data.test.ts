@@ -577,7 +577,7 @@ if (hasBigInt) AllTypesSchema.add({ bigint: SchemaTypes.BigInt })
 
 const ContactSchema = new Schema(
   {
-    email: { type: String, required: true },
+    label: { type: String, required: true },
     phone: String,
     website: String,
   },
@@ -618,7 +618,7 @@ const HeadquartersSchema = new Schema(
 )
 
 interface Contact {
-  email: string
+  label: string
   phone?: string
   website?: string
 }
@@ -950,7 +950,7 @@ describe('plugin — all mongoose schema types', () => {
 
 // --- Populated documents ---
 
-const AuthorSchema = new Schema({ name: String, email: String }, { timestamps: true })
+const AuthorSchema = new Schema({ name: String, bio: String }, { timestamps: true })
 AuthorSchema.plugin(patchHistoryPlugin, { omit: ['__v', 'createdAt', 'updatedAt'] })
 const AuthorModel = model('Author', AuthorSchema)
 
@@ -988,7 +988,7 @@ describe('plugin — populated documents', () => {
   })
 
   it('should store ObjectId refs not populated objects in history', async () => {
-    const author = await AuthorModel.create({ name: 'Jane', email: 'jane@example.com' })
+    const author = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
     const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author._id })
 
     const [entry] = await HistoryModel.find({ collectionId: article._id })
@@ -998,8 +998,8 @@ describe('plugin — populated documents', () => {
   })
 
   it('should track author ref change as ObjectId diff', async () => {
-    const author1 = await AuthorModel.create({ name: 'Jane', email: 'jane@example.com' })
-    const author2 = await AuthorModel.create({ name: 'John', email: 'john@example.com' })
+    const author1 = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
+    const author2 = await AuthorModel.create({ name: 'John', bio: 'Biography writer' })
     const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author1._id })
 
     await ArticleModel.updateOne({ _id: article._id }, { author: author2._id }).exec()
@@ -1012,8 +1012,8 @@ describe('plugin — populated documents', () => {
   })
 
   it('should track changes to populated array refs', async () => {
-    const reviewer1 = await AuthorModel.create({ name: 'R1', email: 'r1@example.com' })
-    const reviewer2 = await AuthorModel.create({ name: 'R2', email: 'r2@example.com' })
+    const reviewer1 = await AuthorModel.create({ name: 'R1', bio: 'First reviewer' })
+    const reviewer2 = await AuthorModel.create({ name: 'R2', bio: 'Second reviewer' })
     const article = await ArticleModel.create({ title: 'Reviewed', body: 'Content', reviewers: [reviewer1._id] })
 
     await ArticleModel.updateOne({ _id: article._id }, { $push: { reviewers: reviewer2._id } }).exec()
@@ -1206,7 +1206,7 @@ const ProfileSchema = new Schema(
   {
     firstName: String,
     lastName: String,
-    email: {
+    handle: {
       type: String,
       get: (v: string) => v?.toLowerCase(),
       required: true,
@@ -1244,7 +1244,7 @@ describe('plugin — virtuals, getters, validation', () => {
   })
 
   it('should NOT include virtual fields in history', async () => {
-    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'Jane@Example.COM' })
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', handle: 'Jane_Doe' })
 
     const [entry] = await HistoryModel.find({ collectionId: profile._id })
     const doc = entry?.doc as Record<string, unknown>
@@ -1254,20 +1254,20 @@ describe('plugin — virtuals, getters, validation', () => {
     expect(doc.lastName).toBe('Doe')
   })
 
-  it('should store raw email value not getter-transformed in history', async () => {
-    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'Jane@Example.COM' })
+  it('should store raw field value not getter-transformed in history', async () => {
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', handle: 'Jane_Doe' })
 
     const [entry] = await HistoryModel.find({ collectionId: profile._id })
     const doc = entry?.doc as Record<string, unknown>
 
-    expect(doc.email).toBe('Jane@Example.COM')
+    expect(doc.handle).toBe('Jane_Doe')
   })
 
   it('should NOT create history when validation fails', async () => {
     try {
       await ProfileModel.create({ firstName: 'Bad', lastName: 'User' })
     } catch {
-      // expected — email is required
+      // expected — handle is required
     }
 
     const history = await HistoryModel.find({})
@@ -1275,7 +1275,7 @@ describe('plugin — virtuals, getters, validation', () => {
   })
 
   it('should NOT create update history when validation fails on save', async () => {
-    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com' })
+    const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', handle: 'jane_doe' })
 
     const historyBefore = await HistoryModel.find({})
     expect(historyBefore).toHaveLength(1)
@@ -1504,7 +1504,7 @@ describe('plugin — organization e2e lifecycle', () => {
     slug: `acme-${Date.now()}`,
     externalId: '550e8400-e29b-41d4-a716-446655440000',
     active: true,
-    contact: { email: 'admin@acme.com', phone: '+1-555-0100', website: 'https://acme.com' },
+    contact: { label: 'Primary', phone: '+1-555-0100', website: 'https://acme.com' },
     billing: {
       plan: 'pro' as 'free' | 'starter' | 'pro' | 'enterprise',
       mrr: mongoose.Types.Decimal128.fromString('499.00'),
@@ -1552,7 +1552,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const doc = entry?.doc as Record<string, unknown>
     expect(doc.name).toBe('Acme Corp')
     expect(doc.active).toBe(true)
-    expect(doc.contact).toHaveProperty('email', 'admin@acme.com')
+    expect(doc.contact).toHaveProperty('label', 'Primary')
     expect(doc.billing).toHaveProperty('plan', 'pro')
     expect(doc.billing).toHaveProperty('cardLast4', '4242')
     expect(doc.headquarters).toHaveProperty('city', 'San Francisco')
@@ -1672,7 +1672,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const org = await OrganizationModel.create(makeOrg())
 
     org.name = 'Acme Inc'
-    org.contact.email = 'hello@acme.io'
+    org.contact.label = 'Updated'
     await org.save()
 
     org.billing.plan = 'enterprise'
@@ -1845,7 +1845,7 @@ describe('plugin — organization e2e lifecycle', () => {
         name: 'Upserted Corp',
         slug,
         externalId: '660e8400-e29b-41d4-a716-446655440000',
-        contact: { email: 'upsert@test.com' },
+        contact: { label: 'Upsert' },
         seatCount: 5,
       },
       { upsert: true },
@@ -2357,7 +2357,7 @@ describe('plugin — organization e2e lifecycle', () => {
       name: 'Doomed Corp',
       slug: `doomed-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'bye@doomed.com' },
+      contact: { label: 'Doomed' },
     })
 
     await PreDeleteModel.deleteOne({ _id: org._id }).exec()
@@ -2421,7 +2421,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'eo@test.com' },
+      contact: { label: 'EventOnly' },
     })
 
     expect(em.emit).toHaveBeenCalledWith(EVENT_ONLY_CREATED, expect.objectContaining({ doc: expect.objectContaining({ name: 'EventOnly Corp' }) }))
@@ -2435,7 +2435,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'eo@test.com' },
+      contact: { label: 'EventOnly' },
     })
 
     vi.mocked(em.emit).mockClear()
@@ -2461,7 +2461,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'eo@test.com' },
+      contact: { label: 'EventOnly' },
     })
 
     vi.mocked(em.emit).mockClear()
@@ -2479,7 +2479,7 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
       name: 'EventOnly Corp',
       slug: `eo-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'eo@test.com' },
+      contact: { label: 'EventOnly' },
     })
 
     vi.mocked(em.emit).mockClear()
@@ -2550,7 +2550,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'async@test.com' },
+      contact: { label: 'Async' },
     })
 
     const [entry] = await HistoryModel.find({ collectionId: org._id })
@@ -2565,7 +2565,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'async@test.com' },
+      contact: { label: 'Async' },
     })
 
     org.name = 'Async Updated'
@@ -2582,7 +2582,7 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
       name: 'Async Corp',
       slug: `async-${Date.now()}`,
       externalId: '550e8400-e29b-41d4-a716-446655440000',
-      contact: { email: 'async@test.com' },
+      contact: { label: 'Async' },
     })
 
     await AsyncCallbackModel.deleteOne({ _id: org._id }).exec()
