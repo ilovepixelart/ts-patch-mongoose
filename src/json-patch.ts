@@ -35,8 +35,7 @@ const joinPath = (base: string, key: string): string => `${base}/${escapeToken(k
 const cloneValue = <T>(value: T): T => {
   if (value === undefined) return null as unknown as T
   if (value === null || typeof value !== 'object') return value
-  // NOSONAR — structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
-  return JSON.parse(JSON.stringify(value)) as T
+  return JSON.parse(JSON.stringify(value)) as T // NOSONAR: structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
 }
 
 const isContainer = (value: unknown): value is JsonContainer => {
@@ -52,25 +51,78 @@ const keysOf = (value: JsonContainer): string[] => {
   return Object.keys(value)
 }
 
+const normalizeTarget = (target: unknown): unknown => {
+  if (!isContainer(target) || Array.isArray(target)) return target
+  const withToJSON = target as { toJSON?: () => unknown }
+  return typeof withToJSON.toJSON === 'function' ? withToJSON.toJSON() : target
+}
+
+const emitTest = (path: string, value: unknown, invertible: boolean, out: Operation[]): void => {
+  if (invertible) out.push({ op: 'test', path, value: cloneValue(value) })
+}
+
+const emitReplace = (path: string, source: unknown, target: unknown, invertible: boolean, out: Operation[]): void => {
+  emitTest(path, source, invertible, out)
+  out.push({ op: 'replace', path, value: cloneValue(target) })
+}
+
+const emitRemove = (path: string, source: unknown, invertible: boolean, out: Operation[]): void => {
+  emitTest(path, source, invertible, out)
+  out.push({ op: 'remove', path })
+}
+
+const shouldTreatAsRemoval = (sourceChild: unknown, targetChild: unknown, sourceIsArray: boolean): boolean => {
+  return targetChild === undefined && sourceChild !== undefined && !sourceIsArray
+}
+
+type DiffScope = {
+  readonly source: JsonContainer
+  readonly target: JsonContainer
+  readonly targetKeySet: Set<string>
+  readonly basePath: string
+  readonly sourceIsArray: boolean
+  readonly invertible: boolean
+  readonly out: Operation[]
+}
+
+const diffSourceKey = (scope: DiffScope, key: string): void => {
+  const { source, target, targetKeySet, basePath, sourceIsArray, invertible, out } = scope
+  const childPath = joinPath(basePath, key)
+  const sourceChild = source[key]
+
+  if (!targetKeySet.has(key)) {
+    emitRemove(childPath, sourceChild, invertible, out)
+    return
+  }
+
+  const targetChild = target[key]
+  if (shouldTreatAsRemoval(sourceChild, targetChild, sourceIsArray)) {
+    emitRemove(childPath, sourceChild, invertible, out)
+    return
+  }
+
+  diff(sourceChild, targetChild, childPath, invertible, out)
+}
+
+const diffAddedKeys = (target: JsonContainer, sourceKeys: string[], targetKeys: string[], basePath: string, out: Operation[]): void => {
+  const sourceKeySet = new Set(sourceKeys)
+  for (const key of targetKeys) {
+    if (sourceKeySet.has(key)) continue
+    const targetChild = target[key]
+    if (targetChild === undefined) continue
+    out.push({ op: 'add', path: joinPath(basePath, key), value: cloneValue(targetChild) })
+  }
+}
+
 const diff = (source: unknown, target: unknown, basePath: string, invertible: boolean, out: Operation[]): void => {
   if (source === target) return
 
-  let resolvedTarget: unknown = target
-  if (isContainer(resolvedTarget) && !Array.isArray(resolvedTarget)) {
-    const withToJSON = resolvedTarget as { toJSON?: () => unknown }
-    if (typeof withToJSON.toJSON === 'function') {
-      resolvedTarget = withToJSON.toJSON()
-    }
-  }
-
+  const resolvedTarget = normalizeTarget(target)
   const sourceIsArray = Array.isArray(source)
   const targetIsArray = Array.isArray(resolvedTarget)
 
   if (!isContainer(source) || !isContainer(resolvedTarget) || sourceIsArray !== targetIsArray) {
-    if (invertible) {
-      out.push({ op: 'test', path: basePath, value: cloneValue(source) })
-    }
-    out.push({ op: 'replace', path: basePath, value: cloneValue(resolvedTarget) })
+    emitReplace(basePath, source, resolvedTarget, invertible, out)
     return
   }
 
@@ -78,36 +130,12 @@ const diff = (source: unknown, target: unknown, basePath: string, invertible: bo
   const targetKeys = keysOf(resolvedTarget)
   const targetKeySet = new Set(targetKeys)
 
+  const scope: DiffScope = { source, target: resolvedTarget, targetKeySet, basePath, sourceIsArray, invertible, out }
   for (const key of Array.from(sourceKeys).reverse()) {
-    const childPath = joinPath(basePath, key)
-    const sourceChild = source[key]
-
-    if (targetKeySet.has(key)) {
-      const targetChild = resolvedTarget[key]
-      const skipUndefinedProp = targetChild === undefined && sourceChild !== undefined && !sourceIsArray
-      if (skipUndefinedProp) {
-        if (invertible) {
-          out.push({ op: 'test', path: childPath, value: cloneValue(sourceChild) })
-        }
-        out.push({ op: 'remove', path: childPath })
-        continue
-      }
-      diff(sourceChild, targetChild, childPath, invertible, out)
-    } else {
-      if (invertible) {
-        out.push({ op: 'test', path: childPath, value: cloneValue(sourceChild) })
-      }
-      out.push({ op: 'remove', path: childPath })
-    }
+    diffSourceKey(scope, key)
   }
 
-  const sourceKeySet = new Set(sourceKeys)
-  for (const key of targetKeys) {
-    if (sourceKeySet.has(key)) continue
-    const targetChild = resolvedTarget[key]
-    if (targetChild === undefined) continue
-    out.push({ op: 'add', path: joinPath(basePath, key), value: cloneValue(targetChild) })
-  }
+  diffAddedKeys(resolvedTarget, sourceKeys, targetKeys, basePath, out)
 }
 
 export const compare = (source: object | unknown[], target: object | unknown[], invertible = false): Operation[] => {
