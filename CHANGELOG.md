@@ -1,3 +1,16 @@
+<a id="v3.1.2"></a>
+# [v3.1.2](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.2) - 2026-04-12
+
+- Remove fragile `Update npm` step from publish workflow  03e986c
+- Update changelog for v3.1.1  6a43f32
+
+---
+
+https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.1...v3.1.2
+
+[Changes][v3.1.2]
+
+
 <a id="v3.1.1"></a>
 # [v3.1.1](https://github.com/ilovepixelart/ts-patch-mongoose/releases/tag/v3.1.1) - 2026-04-12
 
@@ -1323,6 +1336,7 @@ First release
 [Changes][v1.0.2]
 
 
+[v3.1.2]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.1...v3.1.2
 [v3.1.1]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.1.0...v3.1.1
 [v3.1.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v3.0.0...v3.1.0
 [v3.0.0]: https://github.com/ilovepixelart/ts-patch-mongoose/compare/v2.9.6...v3.0.0
