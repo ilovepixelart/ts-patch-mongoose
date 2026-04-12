@@ -8,6 +8,8 @@ import server from './mongo/server'
 
 vi.mock('../src/em', () => ({ default: { emit: vi.fn() } }))
 
+const hasBigIntSupport = 'BigInt' in Schema.Types
+
 const SANDBOX_COLLECTION = 'e2e-sandboxes'
 const ARTICLE_COLLECTION = 'e2e-articles'
 const AUDITED_USER_COLLECTION = 'e2e-audited-users'
@@ -340,7 +342,7 @@ describe('plugin — e2e creative coverage', () => {
     assertPatchPathPrefix(updates[0], '/price')
   })
 
-  it('$addToSet of BigInt values in Mixed field is recorded without crashing', async () => {
+  it.runIf(hasBigIntSupport)('$addToSet of BigInt values in Mixed field is recorded without crashing', async () => {
     const doc = await SandboxModel.create({ name: 'bigint-bag', bag: { values: [] } })
 
     await SandboxModel.updateOne({ _id: doc._id }, { $addToSet: { 'bag.values': { $each: [BigInt(1), BigInt(2), BigInt(3)] } } })

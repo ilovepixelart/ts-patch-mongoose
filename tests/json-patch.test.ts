@@ -58,12 +58,7 @@ describe('json-patch compare', () => {
     it('calls toJSON() on non-array target objects before diffing', () => {
       const target = { nested: { toJSON: () => ({ transformed: true }) } }
       const patch = compare({ nested: { original: true } }, target)
-      expect(patch).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ op: 'add', path: '/nested/transformed', value: true }),
-          expect.objectContaining({ op: 'remove', path: '/nested/original' }),
-        ]),
-      )
+      expect(patch).toEqual(expect.arrayContaining([expect.objectContaining({ op: 'add', path: '/nested/transformed', value: true }), expect.objectContaining({ op: 'remove', path: '/nested/original' })]))
     })
 
     it('does not invoke toJSON on array targets', () => {
@@ -103,12 +98,7 @@ describe('json-patch compare', () => {
 
     it('treats object key with explicit undefined as removal and emits invertible test op', () => {
       const patch = compare({ a: 1, b: 2 }, { a: 1, b: undefined }, true)
-      expect(patch).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ op: 'test', path: '/b', value: 2 }),
-          expect.objectContaining({ op: 'remove', path: '/b' }),
-        ]),
-      )
+      expect(patch).toEqual(expect.arrayContaining([expect.objectContaining({ op: 'test', path: '/b', value: 2 }), expect.objectContaining({ op: 'remove', path: '/b' })]))
     })
 
     it('recurses into nested object children and emits scoped replace paths', () => {
