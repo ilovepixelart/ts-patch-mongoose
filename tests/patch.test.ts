@@ -184,10 +184,11 @@ describe('patch tests', () => {
         status: 'fulfilled',
         value: {
           name: 'test',
+          role: 'user',
         },
       }
 
-      expect(getValue(item1)).toEqual({ name: 'test' })
+      expect(getValue(item1)).toEqual({ name: 'test', role: 'user' })
 
       const item2: PromiseSettledResult<User> = {
         status: 'rejected',

@@ -62,7 +62,7 @@
     "biome:fix": "npx @biomejs/biome check --write .",
     "test": "vitest run --coverage",
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
-    "type:check": "tsc --noEmit",
+    "type:check": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
     "build": "pkgroll --clean-dist",
     "release": "npm install && npm run biome && npm run type:check && npm run build && np --no-publish"
   },

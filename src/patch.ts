@@ -43,7 +43,7 @@ export const getValue = <T>(item: PromiseSettledResult<T>): T | undefined => {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export const getData = async <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
+export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
   return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
     return [getValue(user), getValue(reason), getValue(metadata)]
   })

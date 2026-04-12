@@ -194,7 +194,7 @@ const createOrder = () =>
     tags: ['vip', 'express'],
   })
 
-const getPatch = (entry: { patch?: { op: string; path: string; value?: unknown }[] } | undefined, path: string) => entry?.patch?.find((p) => p.path === path && p.op === 'replace')
+const getPatch = (entry: { patch?: { op: string; path: string; value?: unknown }[] } | null | undefined, path: string) => entry?.patch?.find((p) => p.path === path && p.op === 'replace')
 
 describe('plugin — complex data structures', () => {
   const instance = server('plugin-complex-data')
@@ -580,9 +580,10 @@ const AllTypesSchema = new Schema(
   { timestamps: true },
 )
 
-if (hasDouble) AllTypesSchema.add({ dbl: (Schema.Types as Record<string, unknown>).Double })
-if (hasInt32) AllTypesSchema.add({ int32: (Schema.Types as Record<string, unknown>).Int32 })
-if (hasBigInt) AllTypesSchema.add({ bigint: (Schema.Types as Record<string, unknown>).BigInt })
+const SchemaTypes = Schema.Types as unknown as Record<string, never>
+if (hasDouble) AllTypesSchema.add({ dbl: SchemaTypes.Double })
+if (hasInt32) AllTypesSchema.add({ int32: SchemaTypes.Int32 })
+if (hasBigInt) AllTypesSchema.add({ bigint: SchemaTypes.BigInt })
 
 // --- Realistic SaaS Organization model (e2e) ---
 
@@ -935,7 +936,7 @@ describe('plugin — all mongoose schema types', () => {
   })
 
   it.runIf(hasDouble)('should track Double update', async () => {
-    const doc = await AllTypesModel.create({ dbl: 3.14 })
+    const doc = await AllTypesModel.create({ dbl: 3.14 } as Record<string, unknown>)
     await AllTypesModel.updateOne({ _id: doc._id }, { dbl: 2.71 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
@@ -943,7 +944,7 @@ describe('plugin — all mongoose schema types', () => {
   })
 
   it.runIf(hasInt32)('should track Int32 update', async () => {
-    const doc = await AllTypesModel.create({ int32: 100 })
+    const doc = await AllTypesModel.create({ int32: 100 } as Record<string, unknown>)
     await AllTypesModel.updateOne({ _id: doc._id }, { int32: 200 }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
@@ -951,7 +952,7 @@ describe('plugin — all mongoose schema types', () => {
   })
 
   it.runIf(hasBigInt)('should track BigInt update', async () => {
-    const doc = await AllTypesModel.create({ bigint: BigInt(1000) })
+    const doc = await AllTypesModel.create({ bigint: BigInt(1000) } as Record<string, unknown>)
     await AllTypesModel.updateOne({ _id: doc._id }, { bigint: BigInt(9999) }).exec()
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: doc._id })
@@ -1525,7 +1526,7 @@ describe('plugin — organization e2e lifecycle', () => {
     active: true,
     contact: { email: 'admin@acme.com', phone: '+1-555-0100', website: 'https://acme.com' },
     billing: {
-      plan: 'pro' as const,
+      plan: 'pro' as 'free' | 'starter' | 'pro' | 'enterprise',
       mrr: mongoose.Types.Decimal128.fromString('499.00'),
       currency: 'USD',
       cardLast4: '4242',
@@ -1773,7 +1774,7 @@ describe('plugin — organization e2e lifecycle', () => {
     const updates = await HistoryModel.find({ collectionId: org._id, version: { $gt: 0 } })
     expect(updates).toHaveLength(1)
     expect(updates[0]?.op).toBe('findOneAndUpdate')
-    expect(updates[0]?.patch?.find((p) => p.path === '/name' && p.op === 'replace')?.value).toBe('Acme Renamed')
+    expect(getPatch(updates[0], '/name')?.value).toBe('Acme Renamed')
   })
 
   it('should track findOneAndReplace with full document swap', async () => {
@@ -1939,7 +1940,7 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(update).toBeDefined()
-    const seatPatch = update?.patch?.find((p) => p.path === '/seatCount' && p.op === 'replace')
+    const seatPatch = getPatch(update, '/seatCount')
     expect(seatPatch?.value).toBe(35)
   })
 
@@ -1953,7 +1954,7 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(update).toBeDefined()
-    const seatPatch = update?.patch?.find((p) => p.path === '/seatCount' && p.op === 'replace')
+    const seatPatch = getPatch(update, '/seatCount')
     expect(seatPatch?.value).toBe(50)
   })
 
@@ -1967,7 +1968,7 @@ describe('plugin — organization e2e lifecycle', () => {
 
     const [update] = await HistoryModel.find({ op: 'updateOne', collectionId: org._id })
     expect(update).toBeDefined()
-    const seatPatch = update?.patch?.find((p) => p.path === '/seatCount' && p.op === 'replace')
+    const seatPatch = getPatch(update, '/seatCount')
     expect(seatPatch?.value).toBe(5)
   })
 
@@ -2080,9 +2081,9 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(paths).toContain('/seatCount')
     expect(paths.some((p) => p?.startsWith('/tags'))).toBe(true)
 
-    expect(update?.patch?.find((p) => p.path === '/name' && p.op === 'replace')?.value).toBe('Combined Corp')
-    expect(update?.patch?.find((p) => p.path === '/active' && p.op === 'replace')?.value).toBe(false)
-    expect(update?.patch?.find((p) => p.path === '/seatCount' && p.op === 'replace')?.value).toBe(75)
+    expect(getPatch(update, '/name')?.value).toBe('Combined Corp')
+    expect(getPatch(update, '/active')?.value).toBe(false)
+    expect(getPatch(update, '/seatCount')?.value).toBe(75)
   })
 
   it('$push subdocument into team array — should track nested array addition', async () => {
@@ -2169,7 +2170,7 @@ describe('plugin — organization e2e lifecycle', () => {
     expect(update?.patch).toBeDefined()
     expect(update?.patch?.length).toBeGreaterThan(0)
 
-    const nameOp = update?.patch?.find((p) => p.path === '/name' && p.op === 'replace')
+    const nameOp = getPatch(update, '/name')
     expect(nameOp).toBeDefined()
     expect(nameOp?.value).toBe('Changed')
   })

@@ -41,7 +41,7 @@ const OrderSchema = new Schema<Order>(
   {
     item: { type: String, required: true },
     quantity: { type: Number, required: true },
-    tags: { type: [String], default: undefined },
+    tags: { type: [String], default: (): string[] | undefined => undefined },
     address: { type: AddressSchema, required: true },
     notes: { type: String },
     priority: { type: Number, default: 0 },
@@ -640,7 +640,7 @@ describe('plugin — all features', () => {
       {
         item: { type: String, required: true },
         quantity: { type: Number, required: true },
-        tags: { type: [String], default: undefined },
+        tags: { type: [String], default: (): string[] | undefined => undefined },
         address: { type: AddressSchema, required: true },
       },
       { timestamps: true },
@@ -780,7 +780,7 @@ describe('plugin — all features', () => {
       {
         item: { type: String, required: true },
         quantity: { type: Number, required: true },
-        tags: { type: [String], default: undefined },
+        tags: { type: [String], default: (): string[] | undefined => undefined },
         address: { type: AddressSchema, required: true },
       },
       { timestamps: true },
@@ -813,7 +813,7 @@ describe('plugin — all features', () => {
       {
         item: { type: String, required: true },
         quantity: { type: Number, required: true },
-        tags: { type: [String], default: undefined },
+        tags: { type: [String], default: (): string[] | undefined => undefined },
         address: { type: AddressSchema, required: true },
       },
       { timestamps: true },
