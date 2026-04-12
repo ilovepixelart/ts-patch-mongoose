@@ -2,13 +2,14 @@
 
 ## Supported Versions
 
-Security fixes are issued only for the latest `3.x` release line. Older
-major versions (`1.x`, `2.x`) are no longer maintained — upgrade to `3.x`
-if you need a security fix.
+Security fixes are issued only for the latest `4.x` release line. Older
+major versions (`1.x` through `3.x`) are no longer maintained — upgrade
+to `4.x` if you need a security fix.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 3.x     | :white_check_mark: |
+| 4.x     | :white_check_mark: |
+| 3.x     | :x:                |
 | 2.x     | :x:                |
 | 1.x     | :x:                |
 
@@ -114,3 +115,29 @@ chase:
   The project targets the "passing" tier; "silver" and "gold" require
   multiple reviewers and documented security-review processes that are
   out of reach for a single-maintainer project.
+
+- **`Branch-Protection`** — `main` is protected by a repository ruleset
+  (force-push blocked, deletion blocked, PR required, squash-only merge,
+  required status checks for the full matrix, strict up-to-date policy,
+  code-quality gate, thread resolution required). **Merge mechanics:**
+  the "PR required" rule prevents direct pushes to `main`, but
+  `required_approving_review_count: 0` lets the single maintainer merge
+  their own PR once all required status checks pass. With no second
+  contributor, requiring a review would block every merge. The ruleset
+  includes an Admin bypass actor so the maintainer can recover from
+  emergencies (e.g. a broken `main` that can't merge through normal
+  checks). Scorecard's Tier 2 requires at least one approving reviewer
+  per PR, which is unreachable for a single-maintainer project without
+  self-approvals from a second account. Score caps at 4/10 — the
+  ceiling for a single-maintainer repo without self-review workflows.
+
+- **`Pinned-Dependencies`** — caps at ~7/10 due to a single structural
+  exception: the `npm i mongoose@<version>` step in the PR-check
+  matrix installs a different mongoose version per matrix cell from
+  the npm registry, and there is no hash-pinned lockfile shape that
+  supports matrix overrides. The exception is structural to the CI
+  matrix design and will persist as long as the project tests against
+  multiple mongoose majors. All GitHub Actions in every workflow are
+  SHA-pinned — there are no tag-pin exceptions anywhere (the previous
+  `slsa-github-generator` tag-pin was removed by the `actions/attest@v4`
+  migration).
