@@ -8,7 +8,8 @@ import { compare, type Operation } from '../src/json-patch'
 // Primitive values allowed as leaf nodes. Dates/BigInts/Regex are excluded
 // because our patch layer serializes through JSON.stringify so they wouldn't
 // round-trip anyway.
-const leafArb = (): fc.Arbitrary<unknown> => fc.oneof(fc.integer(), fc.float({ noNaN: true }), fc.string(), fc.boolean(), fc.constant(null))
+const leafArb = (): fc.Arbitrary<unknown> =>
+  fc.oneof(fc.integer(), fc.float({ noNaN: true, noDefaultInfinity: true }), fc.string(), fc.boolean(), fc.constant(null))
 
 // Recursive JSON-ish values: primitives, arrays, and objects of arbitrary shape.
 const jsonArb: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
