@@ -61,6 +61,7 @@
     "biome:fix": "npx @biomejs/biome check --write .",
     "test": "vitest run --coverage",
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
+    "clean": "rm -rf ./dist",
     "type:check": "tsc --noEmit",
     "type:check:tests": "tsc --noEmit -p tests/tsconfig.json",
     "build": "pkgroll --clean-dist",
@@ -73,7 +74,6 @@
     "fast-check": "4.7.0",
     "mongodb-memory-server": "11.0.1",
     "mongoose": "9.4.1",
-    "np": "11.2.0",
     "open-cli": "9.0.0",
     "pkgroll": "2.27.0",
     "simple-git-hooks": "2.13.1",
@@ -89,8 +89,5 @@
   },
   "np": {
     "publish": false
-  },
-  "overrides": {
-    "tmp": "0.2.5"
   }
 }
