@@ -3,7 +3,7 @@
 ## Supported Versions
 
 Security fixes are issued only for the latest `4.x` release line. Older
-major versions (`1.x` through `3.x`) are no longer maintained — upgrade
+major versions (`1.x` through `3.x`) are no longer maintained; upgrade
 to `4.x` if you need a security fix.
 
 | Version | Supported          |
@@ -49,20 +49,20 @@ In scope:
 
 Out of scope:
 
-- Vulnerabilities in `mongoose` itself — report those to the
+- Vulnerabilities in `mongoose` itself: report those to the
   [mongoose project](https://github.com/Automattic/mongoose/security).
 - Vulnerabilities in development-only dependencies listed under
-  `devDependencies` — those do not ship in the published package.
+  `devDependencies`, which do not ship in the published package.
 
 ## Supply Chain
 
 - `ts-patch-mongoose` has **zero runtime dependencies**. The only
   third-party code reaching consumer projects is `mongoose` itself
   (declared as a peer dependency).
-- Releases from `3.1.3` onward are published to npm with
+- Releases from `2.9.6` onward are published to npm with
   [provenance attestations](https://docs.npmjs.com/generating-provenance-statements)
   linking the tarball back to the exact GitHub Actions run that built
-  it — emitted automatically via `publishConfig.provenance: true`.
+  it, emitted automatically via `publishConfig.provenance: true`.
   Consumers can verify with `npm audit signatures` (built into npm,
   no extra install).
 - Every build additionally produces a **GitHub-native artifact
@@ -78,19 +78,19 @@ Out of scope:
     --signer-workflow ilovepixelart/ts-patch-mongoose/.github/workflows/publish.yaml
   ```
 
-  `gh attestation verify` is built into the `gh` CLI — no extra
-  tooling install required — and the `--signer-workflow` flag pins
+  `gh attestation verify` is built into the `gh` CLI (no extra
+  tooling install required), and the `--signer-workflow` flag pins
   verification to the exact workflow file that produced the
   attestation, blocking any other workflow in the repository from
   signing acceptable attestations.
 - The publish pipeline runs as two jobs, `build → publish`. Every
-  action in every workflow is **SHA-pinned** — there are no tag-pin
+  action in every workflow is **SHA-pinned**; there are no tag-pin
   exceptions anywhere. (The previous pipeline used
   `slsa-framework/slsa-github-generator`, which could not be
   SHA-pinned because `generate-builder.sh` rejected commit-SHA refs.
   Migrating to `actions/attest@v4` removed that exception.)
 
-## OpenSSF Scorecard — Accepted Findings
+## OpenSSF Scorecard: Accepted Findings
 
 The project runs [OpenSSF Scorecard](https://securityscorecards.dev/) on a
 weekly schedule (see `.github/workflows/scorecard.yaml`). The following
@@ -98,25 +98,25 @@ checks intentionally stay below their maximum score; the rationale is
 documented here so future reviewers understand why they are not bugs to
 chase:
 
-- **`Code-Review`** — Scorecard requires that recent commits be approved
+- **`Code-Review`**: Scorecard requires that recent commits be approved
   by a reviewer distinct from the author. `ts-patch-mongoose` has a single
   active maintainer, so every change is inherently self-merged. Requiring
   approvals would either block all work or force fake approvals. We rely
   on automated gates (CI status checks, CodeQL, Scorecard, SonarCloud,
   Socket, Biome, type checks) to catch issues instead of human review.
 
-- **`Contributors`** — Scorecard wants contributors from 3+ distinct
+- **`Contributors`**: Scorecard wants contributors from 3+ distinct
   organizations in the last 30 commits. As a personal project this is
   structurally unattainable; the score will move organically if external
   contributors join.
 
-- **`CII-Best-Practices`** — tracked at
+- **`CII-Best-Practices`**: tracked at
   [bestpractices.dev/projects/12473](https://www.bestpractices.dev/en/projects/12473).
   The project targets the "passing" tier; "silver" and "gold" require
   multiple reviewers and documented security-review processes that are
   out of reach for a single-maintainer project.
 
-- **`Branch-Protection`** — `main` is protected by a repository ruleset
+- **`Branch-Protection`**: `main` is protected by a repository ruleset
   (force-push blocked, deletion blocked, PR required, squash-only merge,
   required status checks for the full matrix, strict up-to-date policy,
   code-quality gate, thread resolution required). **Merge mechanics:**
@@ -124,20 +124,19 @@ chase:
   `required_approving_review_count: 0` lets the single maintainer merge
   their own PR once all required status checks pass. With no second
   contributor, requiring a review would block every merge. The ruleset
-  includes an Admin bypass actor so the maintainer can recover from
-  emergencies (e.g. a broken `main` that can't merge through normal
-  checks). Scorecard's Tier 2 requires at least one approving reviewer
+  has no bypass actors, so no account, the maintainer's included, can
+  push to `main` directly or merge around the required checks. Scorecard's Tier 2 requires at least one approving reviewer
   per PR, which is unreachable for a single-maintainer project without
-  self-approvals from a second account. Score caps at 4/10 — the
+  self-approvals from a second account. Score caps at 4/10, the
   ceiling for a single-maintainer repo without self-review workflows.
 
-- **`Pinned-Dependencies`** — caps at ~7/10 due to a single structural
+- **`Pinned-Dependencies`**: caps at ~7/10 due to a single structural
   exception: the `npm i mongoose@<version>` step in the PR-check
   matrix installs a different mongoose version per matrix cell from
   the npm registry, and there is no hash-pinned lockfile shape that
   supports matrix overrides. The exception is structural to the CI
   matrix design and will persist as long as the project tests against
   multiple mongoose majors. All GitHub Actions in every workflow are
-  SHA-pinned — there are no tag-pin exceptions anywhere (the previous
+  SHA-pinned; there are no tag-pin exceptions anywhere (the previous
   `slsa-github-generator` tag-pin was removed by the `actions/attest@v4`
   migration).

@@ -27,12 +27,12 @@ I need to track changes of mongoose models and save them as patch history (audit
 
 ```json
 {
-  "node": "20.x || 22.x || 24.x",
+  "node": ">=20",
   "mongoose": ">=6.6.0 <10"
 }
 ```
 
-CI tests against mongoose `6.12.2`, `7.6.4`, `8.23.0`, and `9.4.1`.
+CI tests on Node.js `22.x`, `24.x`, and `26.x`, against mongoose `6.12.2`, `7.6.4`, `8.23.0`, and `9.4.1`.
 
 ## Features
 
@@ -46,7 +46,7 @@ CI tests against mongoose `6.12.2`, `7.6.4`, `8.23.0`, and `9.4.1`.
 
 ## Installation
 
-`mongoose` is a peer dependency — install it alongside `ts-patch-mongoose`.
+`mongoose` is a peer dependency: install it alongside `ts-patch-mongoose`.
 
 ```bash
 npm install ts-patch-mongoose mongoose
@@ -57,7 +57,7 @@ bun add ts-patch-mongoose mongoose
 
 ## Example
 
-Works with any Node.js framework — Express, Fastify, Koa, Hono, Nest, etc.
+Works with any Node.js framework: Express, Fastify, Koa, Hono, Nest, etc.
 \
 How to use it with Express: [ts-express-tsx](https://github.com/ilovepixelart/ts-express-tsx)
 
