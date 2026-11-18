@@ -4,11 +4,20 @@ import { compare as jsonPatchCompare, type Operation } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit, omitPaths } from './omit-deep'
 
-import type { HydratedDocument, MongooseError, Types } from 'mongoose'
+import type { ClientSession, HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 /** A patch context with the `select: false` paths to leave out of each document the plugin records or emits. */
 export type RecordContext<T> = PatchContext<T> & { hiddenPaths?: string[] }
+
+/**
+ * History is read and written outside the caller's transaction, also when mongoose 8+ would apply the session of
+ * transactionAsyncLocalStorage to an operation without one. Inside the transaction, a history write can fail it
+ * with a lock timeout while mongoose is still creating the history collection and its indexes, an aborted
+ * transaction would drop the entries of writes that a manual session keeps, and parallel history writes of one
+ * transaction conflict. Only an explicit null session, which the bulkWrite types do not declare, opts out.
+ */
+const outsideSession = { session: null } as unknown as { session?: ClientSession }
 
 const withoutHidden = <T, D>(context: RecordContext<T>, doc: D): D => omitPaths(doc, context.hiddenPaths ?? [])
 
@@ -121,7 +130,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: RecordContex
     if (history) {
       const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)
       const onError = opts.onError ?? console.error
-      await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
+      await HistoryModel.bulkWrite(bulk, { ordered: false, ...outsideSession }).catch((error: MongooseError) => {
         onError(error)
       })
     }
@@ -157,18 +166,17 @@ const diffChange = <T>(opts: PluginOptions<T>, context: RecordContext<T>, change
   return isEmpty(patch) ? null : { ...change, original, current, patch }
 }
 
-// History is read and written outside the caller's session, as in 4.0: a transaction that writes to the history
-// collection while mongoose is still creating it and its indexes can fail on a lock timeout. With mongoose 8+
-// transactionAsyncLocalStorage, mongoose applies the transaction's session to these operations, as in 4.x.
 const nextVersions = async (ids: Types.ObjectId[]): Promise<Map<string, number>> => {
   const versions = new Map<string, number>()
   if (ids.length === 1) {
     const id = ids[0] as Types.ObjectId
-    const last = await HistoryModel.findOne({ collectionId: id }).sort('-version').exec()
+    const last = await HistoryModel.findOne({ collectionId: id }, null, outsideSession).sort('-version').exec()
     if (last) versions.set(String(id), last.version + 1)
     return versions
   }
-  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }]).exec()
+  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }])
+    .option(outsideSession)
+    .exec()
   for (const row of rows) versions.set(String(row._id), row.version + 1)
   return versions
 }
@@ -192,9 +200,9 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
       }
     })
     if (entries.length === 1) {
-      await HistoryModel.create(entries)
+      await HistoryModel.create(entries, outsideSession)
     } else {
-      await HistoryModel.insertMany(entries, { ordered: false })
+      await HistoryModel.insertMany(entries, { ordered: false, ...outsideSession })
     }
   } catch (error) {
     onError(error as MongooseError)

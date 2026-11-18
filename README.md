@@ -206,7 +206,7 @@ try {
 }
 ```
 
-History entries are written outside the transaction: an entry is written as soon as its write succeeds, and stays when the transaction aborts afterwards. A write to the history collection inside a transaction can fail that transaction with a lock timeout while mongoose is still creating the collection and its indexes. With `transactionAsyncLocalStorage` (mongoose 8+), mongoose applies the transaction's session to every operation that has none, the history writes included, as in 4.x.
+History entries are written outside the transaction, also with `transactionAsyncLocalStorage`: an entry is written as soon as its write succeeds, and stays when the transaction aborts afterwards. Inside a transaction, a history write can fail that transaction with a lock timeout while mongoose is still creating the history collection and its indexes, and parallel history writes of one transaction conflict with each other.
 
 ## Subscribe
 
@@ -284,6 +284,7 @@ BookSchema.plugin(patchHistoryPlugin, {
 | `bulkWrite` | Not recorded | Recorded, see [How changes are recorded](#how-changes-are-recorded) | Remove any manual history for `bulkWrite`, or pass `ignoreHook: true` |
 | Errors after the write | A failure while looking up an upserted document rejected the operation | Every failure while recording goes to `onError`; the operation resolves | None |
 | Paths with `select: false` | Recorded with their values in the `doc` of create entries, in update patches when they changed, in create events, and in the `oldDoc` and `doc` of update events even when they did not change; deletes left them out | Left out of every entry and event; an update that changes only such paths records nothing | Set `includeHiddenPaths: true` to record them |
+| `transactionAsyncLocalStorage` | Mongoose applied the transaction's session to history writes, so an aborted transaction kept no entries, unlike a session passed explicitly | History is written outside the transaction in both cases; an aborted transaction keeps the entries of its writes | None |
 | Reads | One read before each update | One read before and one after each update | None |
 
 Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), with `includeHiddenPaths` changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing. Entries of different documents written in parallel (`Model.create` of an array saves in parallel) are stored in the order their writes completed.

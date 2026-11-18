@@ -302,6 +302,8 @@ describe('history characterization (no session)', () => {
     })
   })
 
+  // 5.0: history reads and writes pass an explicit null session, which keeps mongoose 8+ from applying the
+  // transactionAsyncLocalStorage session; mongoose's debug output shows it on these commands (4.x: none).
   describe('commands for single-document operations', () => {
     const run = async (action: () => Promise<unknown>) => {
       const recorded = recordCommands()
@@ -314,7 +316,7 @@ describe('history characterization (no session)', () => {
     it('save of a new document inserts it, then writes history with one bulkWrite', async () => {
       const { commands, sessionKeys } = await run(() => new ItemModel({ name: 'a' }).save())
       expect(commands).toEqual(['charitems.insertOne', 'history.bulkWrite'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.bulkWrite'])
     })
 
     // 5.0: the stored state is read before and after the write, history follows it
@@ -324,7 +326,7 @@ describe('history characterization (no session)', () => {
       doc.count = 1
       const { commands, sessionKeys } = await run(() => doc.save())
       expect(commands).toEqual(['charitems.findOne', 'charitems.updateOne', 'charitems.find', 'history.findOne', 'history.insertOne'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.findOne'])
     })
 
     // 5.0: the first match is read before the write and read back by _id after it
@@ -333,7 +335,7 @@ describe('history characterization (no session)', () => {
       const doc = await ItemModel.create({ name: 'a' })
       const { commands, sessionKeys } = await run(() => ItemModel.updateOne({ _id: doc._id }, { $set: { count: 1 } }))
       expect(commands).toEqual(['charitems.findOne', 'charitems.updateOne', 'charitems.find', 'history.findOne', 'history.insertOne'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.findOne'])
     })
 
     // 5.0: the target read replaces countDocuments and the cursor, and the new document is read by the upserted id
@@ -341,27 +343,27 @@ describe('history characterization (no session)', () => {
     it('an inserting upsert reads the target, updates, reads the new document and writes one bulkWrite', async () => {
       const { commands, sessionKeys } = await run(() => ItemModel.updateOne({ name: 'up' }, { $set: { count: 1 } }, { upsert: true }))
       expect(commands).toEqual(['charitems.findOne', 'charitems.updateOne', 'charitems.find', 'history.bulkWrite'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.bulkWrite'])
     })
 
     it('deleteOne reads the document, deletes it, then writes one bulkWrite', async () => {
       const doc = await ItemModel.create({ name: 'a' })
       const { commands, sessionKeys } = await run(() => ItemModel.deleteOne({ _id: doc._id }))
       expect(commands).toEqual(['charitems.findOne', 'charitems.deleteOne', 'history.bulkWrite'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.bulkWrite'])
     })
 
     it('deleteMany reads the documents once and writes one bulkWrite', async () => {
       await ItemModel.insertMany([{ name: 'a' }, { name: 'b' }])
       const { commands, sessionKeys } = await run(() => ItemModel.deleteMany({}))
       expect(commands).toEqual(['charitems.find', 'charitems.deleteMany', 'history.bulkWrite'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.bulkWrite'])
     })
 
     it('insertMany inserts the documents and writes one bulkWrite', async () => {
       const { commands, sessionKeys } = await run(() => ItemModel.insertMany([{ name: 'a' }, { name: 'b' }]))
       expect(commands).toEqual(['charitems.insertMany', 'history.bulkWrite'])
-      expect(sessionKeys).toEqual([])
+      expect(sessionKeys).toEqual(['history.bulkWrite'])
     })
   })
   // Mongoose 8+ can carry the transaction session through AsyncLocalStorage; the plugin's own
@@ -376,7 +378,8 @@ describe('history characterization (no session)', () => {
       }
     }
 
-    it('an aborted connection.transaction leaves neither the update nor its history', () =>
+    // 5.0: history is written outside the transaction, as with a session passed explicitly (4.x: ['create']).
+    it('an aborted connection.transaction leaves the update undone and keeps its history entry', () =>
       withAsyncLocalStorage(async () => {
         const doc = await ItemModel.create({ name: 'a' })
         await expect(
@@ -386,7 +389,7 @@ describe('history characterization (no session)', () => {
           }),
         ).rejects.toThrow('abort')
         expect((await ItemModel.findById(doc._id).lean())?.count).toBe(0)
-        expect((await entries()).map((r) => r.op)).toEqual(['create'])
+        expect((await entries()).map((r) => r.op)).toEqual(['create', 'updateOne'])
       }))
 
     it('a committed connection.transaction records the update of a document created in it', () =>

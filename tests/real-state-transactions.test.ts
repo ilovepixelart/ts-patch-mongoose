@@ -12,7 +12,13 @@ interface Counter {
 }
 
 const CounterSchema = new Schema<Counter>({ name: { type: String, required: true }, count: { type: Number, default: 0 } })
-CounterSchema.plugin(patchHistoryPlugin, { omit: ['__v'] })
+const errors: Error[] = []
+CounterSchema.plugin(patchHistoryPlugin, {
+  omit: ['__v'],
+  onError: (error) => {
+    errors.push(error)
+  },
+})
 const CounterModel = model<Counter>('RealTxCounter', CounterSchema)
 
 describe('history inside transactions', () => {
@@ -34,6 +40,7 @@ describe('history inside transactions', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('realtxcounters').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
+    errors.length = 0
   })
 
   const incInTransaction = async (id: unknown) => {
@@ -94,25 +101,60 @@ describe('history inside transactions', () => {
     ])
   })
 
-  it.skipIf(isMongooseLessThan8)('with transactionAsyncLocalStorage, history of a committed updateMany is written in the transaction with exact versions', async () => {
-    const [a, b] = await CounterModel.create([{ name: 'a' }, { name: 'b' }], { ordered: true })
+  const withAsyncLocalStorage = async (work: () => Promise<void>) => {
     mongoose.set('transactionAsyncLocalStorage' as never, true as never)
     try {
+      await work()
+    } finally {
+      mongoose.set('transactionAsyncLocalStorage' as never, false as never)
+    }
+  }
+
+  it.skipIf(isMongooseLessThan8)('with transactionAsyncLocalStorage, history is written outside the transaction with exact versions', async () => {
+    const [a, b] = await CounterModel.create([{ name: 'a' }, { name: 'b' }], { ordered: true })
+    await withAsyncLocalStorage(async () => {
       await mongoose.connection.transaction(async () => {
         await CounterModel.updateMany({}, { $inc: { count: 1 } })
         await CounterModel.updateMany({}, { $inc: { count: 1 } })
       })
-    } finally {
-      mongoose.set('transactionAsyncLocalStorage' as never, false as never)
-    }
-    const rows = await HistoryModel.find({ op: 'updateMany' }).sort({ version: 1 }).lean()
+      await mongoose.connection
+        .transaction(async () => {
+          await CounterModel.updateMany({}, { $inc: { count: 1 } })
+          await CounterModel.updateOne({ _id: a?._id }, { $inc: { count: 1 } })
+          await CounterModel.create({ name: 'c' })
+          throw new Error('abort')
+        })
+        .catch(() => undefined)
+    })
+    expect((await CounterModel.findById(a?._id).lean())?.count).toBe(2)
+    expect(await CounterModel.countDocuments({ name: 'c' })).toBe(0)
+    expect(await HistoryModel.countDocuments({ op: 'create', 'doc.name': 'c' })).toBe(1)
+    const rows = await HistoryModel.find({ op: { $in: ['updateMany', 'updateOne'] } })
+      .sort({ version: 1 })
+      .lean()
     expect(rows.map((r) => [String(r.collectionId), r.version]).sort()).toEqual(
       [
         [String(a?._id), 1],
         [String(a?._id), 2],
+        [String(a?._id), 3],
+        [String(a?._id), 4],
         [String(b?._id), 1],
         [String(b?._id), 2],
+        [String(b?._id), 3],
       ].sort(),
     )
+  })
+
+  it.skipIf(isMongooseLessThan8)('with transactionAsyncLocalStorage, Model.create of two documents records both', async () => {
+    await withAsyncLocalStorage(async () => {
+      await mongoose.connection.transaction(async () => {
+        // A first operation starts the transaction; the two saves of create then run in parallel inside it.
+        await CounterModel.findOne({})
+        await CounterModel.create([{ name: 'p' }, { name: 'q' }])
+      })
+    })
+    expect(await CounterModel.countDocuments({ name: { $in: ['p', 'q'] } })).toBe(2)
+    expect(errors).toEqual([])
+    expect((await HistoryModel.find({ op: 'create' }).lean()).map((r) => (r.doc as { name?: string }).name).sort()).toEqual(['p', 'q'])
   })
 })
