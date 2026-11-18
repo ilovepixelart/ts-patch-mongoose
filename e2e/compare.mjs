@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-const ENTRY_KEYS = new Set(['scenario', 'mongoose', 'reason'])
+const ENTRY_KEYS = new Set(['scenario', 'mongoose', 'paths', 'reason'])
 const MAX_PATHS = 8
 const MAX_VALUE = 300
 
@@ -12,27 +12,41 @@ const show = (value) => {
   return text.length > MAX_VALUE ? `${text.slice(0, MAX_VALUE)}...` : text
 }
 
-// The first paths at which two JSON values differ, including a change of key order.
-export const diffPaths = (baseline, candidate, path = '$', out = []) => {
-  if (out.length >= MAX_PATHS || JSON.stringify(baseline) === JSON.stringify(candidate)) return out
+// Every path at which two JSON values differ, including a change of key order, as { path, detail }.
+export const differences = (baseline, candidate, path = '$', out = []) => {
+  if (JSON.stringify(baseline) === JSON.stringify(candidate)) return out
   if (!isObject(baseline) || !isObject(candidate) || Array.isArray(baseline) !== Array.isArray(candidate)) {
-    out.push(`${path}: baseline ${show(baseline)}, candidate ${show(candidate)}`)
+    out.push({ path, detail: `baseline ${show(baseline)}, candidate ${show(candidate)}` })
     return out
   }
   const before = out.length
   for (const key of new Set([...Object.keys(baseline), ...Object.keys(candidate)])) {
-    diffPaths(baseline[key], candidate[key], Array.isArray(baseline) ? `${path}[${key}]` : `${path}.${key}`, out)
+    differences(baseline[key], candidate[key], Array.isArray(baseline) ? `${path}[${key}]` : `${path}.${key}`, out)
   }
-  if (out.length === before) out.push(`${path}: key order, baseline ${show(Object.keys(baseline))}, candidate ${show(Object.keys(candidate))}`)
+  if (out.length === before) out.push({ path, detail: `key order, baseline ${show(Object.keys(baseline))}, candidate ${show(Object.keys(candidate))}` })
   return out
 }
 
-const globToRegExp = (glob) =>
+const describe = (list) => list.slice(0, MAX_PATHS).map(({ path, detail }) => `${path}: ${detail}`)
+
+// The first paths at which two JSON values differ, for display.
+export const diffPaths = (baseline, candidate) => describe(differences(baseline, candidate))
+
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const globToRegExp = (glob) => new RegExp(`^${glob.split('*').map(escapeRegExp).join('[^/]+')}$`)
+
+// A difference path pattern: `*` matches within one key or index, `**` matches any rest of the path.
+export const pathToRegExp = (glob) =>
   new RegExp(
     `^${glob
-      .split('*')
-      .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-      .join('[^/]+')}$`,
+      .split(/(\*\*|\*)/)
+      .map((part) => {
+        if (part === '**') return '.*'
+        if (part === '*') return '[^.\\[\\]]+'
+        return escapeRegExp(part)
+      })
+      .join('')}$`,
   )
 
 export const loadAllowlist = (file) => {
@@ -45,7 +59,10 @@ export const loadAllowlist = (file) => {
     if (typeof entry.scenario !== 'string' || entry.scenario === '') throw new Error(`${where}: "scenario" must name the scenarios it covers`)
     if (typeof entry.reason !== 'string' || entry.reason.trim() === '') throw new Error(`${where}: "reason" must say why the change is intended`)
     if (entry.mongoose !== undefined && !Number.isInteger(entry.mongoose)) throw new Error(`${where}: "mongoose" must be a major version number`)
-    return { ...entry, pattern: globToRegExp(entry.scenario) }
+    if (!Array.isArray(entry.paths) || entry.paths.length === 0 || entry.paths.some((path) => typeof path !== 'string' || !path.startsWith('$'))) {
+      throw new Error(`${where}: "paths" must list the difference paths it allows, each starting with $`)
+    }
+    return { ...entry, pattern: globToRegExp(entry.scenario), pathPatterns: entry.paths.map(pathToRegExp) }
   })
 }
 
@@ -55,6 +72,8 @@ export const differingIds = (left, right) => {
   return [...ids].filter((id) => JSON.stringify(left[id]) !== JSON.stringify(right[id]))
 }
 
+// A scenario's difference is allowed only when every path at which it differs matches a path of an entry
+// that names the scenario; the paths no entry allows are the failure.
 export const compareBuilds = (baseline, candidate, allowlist, mongooseVersion) => {
   const major = Number.parseInt(mongooseVersion, 10)
   const applicable = allowlist.filter((entry) => entry.mongoose === undefined || entry.mongoose === major)
@@ -62,14 +81,18 @@ export const compareBuilds = (baseline, candidate, allowlist, mongooseVersion) =
   const failures = []
   const allowed = []
   for (const id of differingIds(baseline, candidate)) {
-    const entry = applicable.find((candidateEntry) => candidateEntry.pattern.test(id))
-    const detail = { id, paths: diffPaths(baseline[id], candidate[id]) }
-    if (entry) {
+    const entries = applicable.filter((entry) => entry.pattern.test(id))
+    const found = differences(baseline[id], candidate[id])
+    const reasons = new Set()
+    const unlisted = found.filter(({ path }) => {
+      const entry = entries.find((candidateEntry) => candidateEntry.pathPatterns.some((pattern) => pattern.test(path)))
+      if (!entry) return true
       used.add(entry)
-      allowed.push({ ...detail, reason: entry.reason })
-    } else {
-      failures.push(detail)
-    }
+      reasons.add(entry.reason)
+      return false
+    })
+    if (found.length > 0 && unlisted.length === 0) allowed.push({ id, paths: describe(found), reason: [...reasons].join('; ') })
+    else failures.push({ id, paths: describe(found.length > 0 ? unlisted : [{ path: '$', detail: 'differs' }]) })
   }
   const unused = applicable.filter((entry) => !used.has(entry)).map(({ scenario, reason }) => ({ scenario, reason }))
   return { failures, allowed, unused }

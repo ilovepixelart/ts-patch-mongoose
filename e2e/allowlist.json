@@ -1,4 +1,4 @@
 {
-  "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version) and `reason`. An entry that matches no difference fails the run: remove it once the change is published.",
+  "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version), `paths` (the difference paths it allows; `*` matches one key or index, `**` any rest of the path, e.g. `$.events[*].payload.doc.**`) and `reason`. A scenario that differs passes only when every path at which it differs is allowed. An entry that allows no difference fails the run: remove it once the change is published.",
   "entries": []
 }
