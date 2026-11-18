@@ -155,19 +155,23 @@ describe('patch history inside transactions', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  it.each(cases)('$name in an aborted transaction leaves no history', async ({ run }) => {
+  // History is written outside the caller's transaction, as in 4.0: inside it, manual transactions
+  // started while mongoose creates and indexes the history collection fail with LockTimeout. So an
+  // aborted transaction keeps the entries of the changes it attempted.
+  it.each(cases)('$name in an aborted transaction keeps its history, written outside the transaction', async ({ run }) => {
     const ids = await seed()
     const before = await history()
     const session = await mongoose.startSession()
+    let expected: Expected = []
     try {
       session.startTransaction()
-      await run(ids, session)
+      expected = await run(ids, session)
       await session.abortTransaction()
     } finally {
       await session.endSession()
     }
     expect(await AccountModel.countDocuments()).toBe(2)
-    expect(await history()).toEqual(before)
+    expect(await history()).toEqual([...before, ...asStrings(expected)])
   })
 
   it.each(cases)('$name on documents created in the same committed transaction records its history', async ({ run }) => {
