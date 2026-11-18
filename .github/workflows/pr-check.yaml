@@ -141,6 +141,40 @@ jobs:
             -Dsonar.coverage.exclusions=tests/**
             -Dsonar.qualitygate.wait=true
 
+  # Packs the package, installs the tarball into fresh consumer projects next to the latest
+  # published version, and fails on any behaviour difference allowlist.json does not list.
+  e2e:
+    name: E2E packed package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [24.x]
+        mongoose-version: [mongoose@6.12.2, mongoose@7.6.4, mongoose@8.23.0, mongoose@9.4.1]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Installing dependencies
+        run: npm ci --ignore-scripts
+
+      # The consumer projects install this mongoose version; the repository keeps its own.
+      - name: E2E with ${{ matrix.mongoose-version }}
+        env:
+          MONGOOSE: ${{ matrix.mongoose-version }}
+        run: npm run test:e2e -- --mongoose "$MONGOOSE"
+
   zizmor:
     name: Workflow audit (zizmor)
     runs-on: ubuntu-latest
@@ -164,7 +198,7 @@ jobs:
   # The one check branch rules require: it fails unless every job above succeeded.
   ci:
     name: CI
-    needs: [tests, sonar, zizmor]
+    needs: [tests, sonar, e2e, zizmor]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
