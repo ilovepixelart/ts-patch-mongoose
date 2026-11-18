@@ -2,14 +2,14 @@ import mongoose from 'mongoose'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, mapSeries, reportErrors } from '../helpers'
 import { createPatch, deletePatch, type UpdateChange, updatePatches } from '../patch'
 import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, idKey, type ReadOptions, type Snapshot } from '../state'
+import { isMongooseLessThan8 } from '../version'
+import { isFromBulkSave, type Override, type Static } from './model-statics'
 
-import type { HydratedDocument, Model, Schema } from 'mongoose'
+import type { HydratedDocument, Model } from 'mongoose'
 import type { PatchContext, PluginOptions } from '../types'
-import type { SavingIds } from './save-hooks'
 
 type Op = Record<string, Record<string, unknown> | undefined>
 type BulkOptions = Record<string, unknown> & { session?: mongoose.ClientSession | null }
-type BulkWrite = (this: unknown, ops: unknown, options?: unknown, callback?: unknown) => Promise<unknown>
 
 interface Target<T> {
   op: string
@@ -19,21 +19,15 @@ interface Target<T> {
 interface Plan<T> {
   updated: Map<string, Target<T>>
   deleted: Map<string, Target<T>>
-  skippedIds: Set<string>
+  ops: Op[]
   opNames: string[]
+  fromBulkSave: boolean
 }
 
 const updateOps = new Set(['updateOne', 'updateMany', 'replaceOne'])
 const deleteOps = new Set(['deleteOne', 'deleteMany'])
 
 const opName = (op: unknown): string => (isObjectLike(op) ? (Object.keys(op)[0] ?? '') : '')
-
-// bulkSave() runs the save hooks, which record the documents, and then writes them through bulkWrite().
-const targetId = (name: string, spec: Record<string, unknown>): unknown => {
-  if (name === 'insertOne') return (spec.document as { _id?: unknown } | undefined)?._id
-  const filter = spec.filter as { _id?: unknown } | undefined
-  return isObjectLike(filter?._id) && !('_bsontype' in filter._id) ? undefined : filter?._id
-}
 
 const remember = <T>(targets: Map<string, Target<T>>, op: string, docs: Snapshot<T>[]): void => {
   for (const doc of docs) {
@@ -42,23 +36,27 @@ const remember = <T>(targets: Map<string, Target<T>>, op: string, docs: Snapshot
   }
 }
 
-const capture = async <T>(model: Model<T>, ops: Op[], read: ReadOptions, saving: SavingIds): Promise<Plan<T>> => {
-  const plan: Plan<T> = { updated: new Map(), deleted: new Map(), skippedIds: new Set(), opNames: ops.map(opName) }
+const captureOp = async <T>(model: Model<T>, plan: Plan<T>, name: string, spec: Record<string, unknown>, read: ReadOptions): Promise<void> => {
+  const filter = (spec.filter ?? {}) as object
+  const many = name.endsWith('Many')
+  const opRead = { ...read, ...(spec.collation !== undefined && { collation: spec.collation }), ...(spec.sort !== undefined && { sort: spec.sort }) }
+  try {
+    if (updateOps.has(name)) remember(plan.updated, name, await findUpdateTargets(model, filter, many, opRead))
+    if (deleteOps.has(name)) remember(plan.deleted, name, await findDeleteTargets(model, filter, many, opRead))
+  } catch (error) {
+    // An operation mongoose cannot cast is left out of an unordered call and rejects an ordered one before any write.
+    if (!(error instanceof mongoose.Error)) throw error
+  }
+}
+
+const capture = async <T>(model: Model<T>, ops: Op[], read: ReadOptions, fromBulkSave: boolean): Promise<Plan<T>> => {
+  const plan: Plan<T> = { updated: new Map(), deleted: new Map(), ops, opNames: ops.map(opName), fromBulkSave }
 
   await mapSeries(ops, async (op, index) => {
     const name = plan.opNames[index] ?? ''
-    const spec = op[name] ?? {}
-    const id = targetId(name, spec)
-    if (id != null && saving.delete(idKey(id))) {
-      plan.skippedIds.add(idKey(id))
-      return
-    }
-
-    const filter = (spec.filter ?? {}) as object
-    const many = name.endsWith('Many')
-    const opRead = { ...read, ...(spec.collation !== undefined && { collation: spec.collation }), ...(spec.sort !== undefined && { sort: spec.sort }) }
-    if (updateOps.has(name)) remember(plan.updated, name, await findUpdateTargets(model, filter, many, opRead))
-    if (deleteOps.has(name)) remember(plan.deleted, name, await findDeleteTargets(model, filter, many, opRead))
+    // bulkSave() writes the documents its save hooks record, and never deletes.
+    if (fromBulkSave && !deleteOps.has(name)) return
+    await captureOp(model, plan, name, op[name] ?? {}, read)
   })
 
   return plan
@@ -70,14 +68,66 @@ const groupByOp = <T>(targets: Target<T>[]): Map<string, Snapshot<T>[]> => {
   return groups
 }
 
-const idsOf = (ids: unknown): [string, unknown][] => (isObjectLike(ids) ? Object.entries(ids) : [])
+const idsOf = (ids: unknown): [number, unknown][] => (isObjectLike(ids) ? Object.entries(ids).map(([index, id]) => [Number(index), id]) : [])
 
-const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context: PatchContext<T>, plan: Plan<T>, res: unknown, read: ReadOptions): Promise<void> => {
-  const result = (isObjectLike(res) ? res : {}) as { insertedIds?: unknown; upsertedIds?: unknown }
+const indexOf = (writeError: unknown): number => (isObjectLike(writeError) ? Number(writeError.index) : Number.NaN)
+
+const idOfFailed = (writeError: unknown): unknown => {
+  const op = isObjectLike(writeError) && isObjectLike(writeError.err) ? writeError.err.op : undefined
+  return isObjectLike(op) ? op._id : undefined
+}
+
+/**
+ * Ids of the documents the call inserted, taken from its insertOne operations (the driver sets a missing `_id`):
+ * not those whose insert failed, nor, in an ordered call, those after the first failure. The driver's own
+ * insertedIds are not used: below driver 7 an unordered call numbers them apart from the operations.
+ */
+const insertedIds = (ops: Op[], outcome: Record<string, unknown>, ordered: boolean): unknown[] => {
+  const errors = [outcome.writeErrors ?? []].flat()
+  const failed = new Set(
+    errors
+      .map(idOfFailed)
+      .filter((id) => id != null)
+      .map(idKey),
+  )
+  const last = ordered && !isEmpty(errors) ? Math.min(...errors.map(indexOf)) : ops.length
+  return ops.flatMap((op, index) => {
+    const id = (op.insertOne?.document as { _id?: unknown } | undefined)?._id
+    return id != null && index <= last && !failed.has(idKey(id)) ? [id] : []
+  })
+}
+
+/**
+ * The index in the call of each operation the driver numbered: an unordered call leaves out the operations that
+ * failed casting. Mongoose 8+ reports which; older versions do not report it in an order that can be mapped back.
+ */
+const sentIndexes = (count: number, outcome: Record<string, unknown>): number[] | undefined => {
+  const all = Array.from({ length: count }, (_, index) => index)
+  const reported = isObjectLike(outcome.mongoose) ? outcome.mongoose : outcome
+  const errors = reported.validationErrors
+  if (!isArray(errors) || isEmpty(errors)) return all
+  const results = reported.results
+  if (isMongooseLessThan8 || !isArray(results)) return undefined
+  return all.filter((index) => !errors.includes(results[index]))
+}
+
+const createdIds = (plan: Plan<unknown>, settled: unknown, ordered: boolean): { op: string; id: unknown }[] => {
+  const outcome = isObjectLike(settled) ? settled : {}
+  // A MongooseBulkWriteError, thrown after the write for operations that failed casting, carries the driver result.
+  const result = isObjectLike(outcome.rawResult) ? outcome.rawResult : outcome
+  const sent = sentIndexes(plan.opNames.length, outcome)
+  const inserted = insertedIds(plan.ops, outcome, ordered).map((id) => ({ op: 'create', id }))
+  const upserted = idsOf(result.upsertedIds).map(([index, id]) => {
+    const position = sent?.[index]
+    return { op: (position === undefined ? undefined : plan.opNames[position]) ?? 'bulkWrite', id }
+  })
+  return [...inserted, ...upserted]
+}
+
+const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context: PatchContext<T>, plan: Plan<T>, settled: unknown, read: ReadOptions, ordered: boolean): Promise<void> => {
+  if (plan.fromBulkSave) return
   const created: Target<T>[] = []
-  const inserted = idsOf(result.insertedIds).map(([, id]) => ({ op: 'create', id }))
-  const upserted = idsOf(result.upsertedIds).map(([index, id]) => ({ op: plan.opNames[Number(index)] ?? 'bulkWrite', id }))
-  const wanted = [...inserted, ...upserted].filter(({ id }) => !plan.skippedIds.has(idKey(id)))
+  const wanted = createdIds(plan as Plan<unknown>, settled, ordered)
   if (isEmpty(wanted)) return
 
   const states = await findLeanStates(
@@ -116,17 +166,19 @@ const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context
   })
 }
 
-const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, saving: SavingIds, base: BulkWrite, ops: unknown, options: BulkOptions | undefined): Promise<unknown> => {
+const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, base: Static, ops: unknown, options: BulkOptions | undefined): Promise<unknown> => {
   if (!isArray(ops) || isHookIgnored(options ?? {})) return base.call(model, ops, options)
 
   const read: ReadOptions = { session: options?.session ?? null }
-  const plan = await capture(model, ops as Op[], read, saving)
+  const plan = await capture(model, ops as Op[], read, isFromBulkSave(options))
 
   if (opts.preDelete && plan.deleted.size > 0) {
     await opts.preDelete(cloneDeep([...plan.deleted.values()].map(({ doc }) => doc as HydratedDocument<T>)))
   }
 
-  const res = await base.call(model, ops, options)
+  // A call that rejects may still have applied some operations, which are recorded before it rejects.
+  const write = base.call(model, ops, options)
+  const settled = await write.catch((error: unknown) => error)
 
   const context: PatchContext<T> = {
     op: 'bulkWrite',
@@ -138,9 +190,9 @@ const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, saving
   }
   await reportErrors(opts.onError, async () => {
     await recordChanged(model, opts, context, plan, read)
-    await recordCreated(model, opts, context, plan, res, read)
+    await recordCreated(model, opts, context, plan, settled, read, options?.ordered !== false)
   })
-  return res
+  return write
 }
 
 /**
@@ -148,12 +200,11 @@ const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, saving
  * to the operations or their options, so concurrent calls on one model could not be paired with the states
  * captured before them; wrapping the static keeps each call's states together on every mongoose version.
  */
-export const bulkWriteInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>, saving: SavingIds): void => {
-  const base = mongoose.Model.bulkWrite as unknown as BulkWrite
-
-  schema.static('bulkWrite', function (this: Model<T>, ops: unknown, options?: unknown, callback?: unknown) {
-    // Callbacks are left to mongoose untouched: mongoose 6 accepts them, later versions reject them.
-    if (typeof options === 'function' || typeof callback === 'function') return base.call(this, ops, options, callback)
-    return trackBulkWrite(this, opts, saving, base, ops, options as BulkOptions | undefined)
-  })
-}
+export const bulkWriteOverride =
+  <T>(opts: PluginOptions<T>): Override =>
+  (base) =>
+    function (this: unknown, ops: unknown, options?: unknown, callback?: unknown) {
+      // Callbacks are left to mongoose untouched: mongoose 6 accepts them, later versions reject them.
+      if (typeof options === 'function' || typeof callback === 'function') return base.call(this, ops, options, callback)
+      return trackBulkWrite(this as Model<T>, opts, base, ops, options as BulkOptions | undefined)
+    }

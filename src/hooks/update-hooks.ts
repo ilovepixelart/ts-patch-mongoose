@@ -92,8 +92,8 @@ const findUpserted = async <T>(query: Pick<HookContext<T>, 'getUpdate' | 'getFil
 }
 
 const changedTargets = <T>(op: string, targets: Snapshot<T>[], res: unknown): Snapshot<T>[] => {
-  if (countOf(res, 'modifiedCount') === 0) return []
-  if (!findOneAndMethods.has(op)) return targets
+  // findOneAnd* returns the document, whose own fields may include one named modifiedCount.
+  if (!findOneAndMethods.has(op)) return countOf(res, 'modifiedCount') === 0 ? [] : targets
   const doc = resultDocument(res)
   if (!doc) return []
   return doc._id == null ? targets : targets.filter((target) => idKey(target._id) === idKey(doc._id))

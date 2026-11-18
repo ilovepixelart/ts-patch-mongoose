@@ -67,6 +67,22 @@ describe('history inside transactions', () => {
     expect(rows.map((r) => [r.op, (r.patch ?? []).map((p) => (p as { value?: unknown }).value)])).toEqual([['updateOne', [0, 1]]])
   })
 
+  it('bulkSave(docs, { session }) in a transaction records the change read in that transaction', async () => {
+    const doc = await CounterModel.create({ name: 'a' })
+    await mongoose.connection.collection('history').deleteMany({})
+    const session = await mongoose.startSession()
+    try {
+      await session.withTransaction(async () => {
+        doc.count = 4
+        await CounterModel.bulkSave([doc], { session })
+      })
+    } finally {
+      await session.endSession()
+    }
+    const rows = await HistoryModel.find({ collectionId: doc._id }).lean()
+    expect(rows.map((r) => [r.op, (r.patch ?? []).map((p) => (p as { value?: unknown }).value)])).toEqual([['update', [0, 4]]])
+  })
+
   it('F8 red: two parallel $inc in transactions record 0->1 and 1->2 with distinct versions', async () => {
     const doc = await CounterModel.create({ name: 'a', count: 0 })
     await Promise.all([incInTransaction(doc._id), incInTransaction(doc._id)])

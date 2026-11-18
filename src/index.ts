@@ -1,7 +1,8 @@
 import { isEmpty, toObjectOptions } from './helpers'
-import { bulkWriteInitialize } from './hooks/bulk-write'
+import { bulkWriteOverride } from './hooks/bulk-write'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
-import { type SavingIds, saveHooksInitialize } from './hooks/save-hooks'
+import { bulkSaveOverride, overrideStatics } from './hooks/model-statics'
+import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
 import { createPatch, deletePatch } from './patch'
 import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
@@ -18,11 +19,10 @@ export * from './types'
 export type { Duration } from './ms'
 
 export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
-  const saving: SavingIds = new Set()
-  saveHooksInitialize(schema, opts, saving)
+  saveHooksInitialize(schema, opts)
   updateHooksInitialize(schema, opts)
   deleteHooksInitialize(schema, opts)
-  bulkWriteInitialize(schema, opts, saving)
+  overrideStatics(schema, { bulkWrite: bulkWriteOverride(opts), bulkSave: bulkSaveOverride })
 
   schema.post('insertMany', async function (docs) {
     const context = {

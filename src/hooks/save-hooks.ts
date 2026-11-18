@@ -1,17 +1,17 @@
 import { isEmpty, reportErrors, sessionOptions, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 import { findUpdatedStates, hiddenPaths, idKey } from '../state'
+import { sessionOf } from './model-statics'
 
-import type { HydratedDocument, Model, Schema } from 'mongoose'
+import type { ClientSession, HydratedDocument, Model, Schema } from 'mongoose'
 import type { PatchContext, PluginOptions } from '../types'
 
 type Pending<T> = { created: HydratedDocument<T> } | { original: HydratedDocument<T> }
 
-/** Ids of documents between their pre and post save hooks; bulkSave() writes them through bulkWrite(), which must not record them again. */
-export type SavingIds = Set<string>
-
-export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>, saving: SavingIds): void => {
+export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
   const pending = new WeakMap<object, Pending<T>>()
+
+  const sessionOfDoc = (doc: { $session: () => ClientSession | null }) => doc.$session() ?? sessionOf(doc) ?? null
 
   const contextOf = (doc: HydratedDocument<T>, op: string): PatchContext<T> => {
     const model = doc.constructor as Model<T>
@@ -19,7 +19,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
       op,
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
-      session: doc.$session() ?? null,
+      session: sessionOfDoc(doc),
     }
   }
 
@@ -31,16 +31,14 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
     } else if (this.isModified()) {
       const model = this.constructor as Model<T>
       const original = await model
-        .findById(this._id, hiddenPaths(model) || null, sessionOptions(this.$session()))
+        .findById(this._id, hiddenPaths(model) || null, sessionOptions(sessionOfDoc(this)))
         .lean()
         .exec()
       if (original) pending.set(this, { original: original as HydratedDocument<T> })
     }
-    saving.add(idKey(this._id))
   })
 
   schema.post('save', async function (this: HydratedDocument<T>) {
-    saving.delete(idKey(this._id))
     const entry = pending.get(this)
     if (!entry) return
     pending.delete(this)
@@ -59,7 +57,6 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
   })
 
   schema.post('save', function (this: HydratedDocument<T>, error: Error, _doc: unknown, next: (error?: Error) => void) {
-    saving.delete(idKey(this._id))
     pending.delete(this)
     next(error)
   })
