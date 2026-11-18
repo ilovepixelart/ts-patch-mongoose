@@ -1,7 +1,7 @@
 import { HistoryModel } from './model'
 import { type Duration, ms } from './ms'
 
-import type { QueryOptions, ToObjectOptions } from 'mongoose'
+import type { ClientSession, QueryOptions, ToObjectOptions } from 'mongoose'
 
 export const isArray = Array.isArray
 
@@ -132,6 +132,10 @@ export const chunk = <T>(array: T[], size: number): T[][] => {
 export const isHookIgnored = <T>(options: QueryOptions<T>): boolean => {
   return options.ignoreHook === true || (options.ignoreEvent === true && options.ignorePatchHistory === true)
 }
+
+// Only set the key when there is a session: an explicit session key, even undefined, stops
+// mongoose 8+ from applying the transactionAsyncLocalStorage session.
+export const sessionOptions = (session?: ClientSession | null): { session?: ClientSession } => (session ? { session } : {})
 
 export const toObjectOptions: ToObjectOptions = {
   depopulate: true,

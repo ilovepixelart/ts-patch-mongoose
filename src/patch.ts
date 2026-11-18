@@ -1,5 +1,5 @@
 import em from './em'
-import { chunk, isEmpty, isFunction } from './helpers'
+import { chunk, isEmpty, isFunction, sessionOptions } from './helpers'
 import { compare as jsonPatchCompare } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
@@ -97,7 +97,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
 
     if (history && !isEmpty(bulk)) {
       const onError = opts.onError ?? console.error
-      await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
+      await HistoryModel.bulkWrite(bulk, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
         onError(error)
       })
     }
@@ -123,7 +123,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
   if (history) {
     let version = 0
 
-    const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId })
+    const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId }, null, sessionOptions(context.session))
       .sort('-version')
       .exec()
 
@@ -133,17 +133,22 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
 
     const [user, reason, metadata] = await getData(opts, current)
     const onError = opts.onError ?? console.error
-    await HistoryModel.create({
-      op: context.op,
-      modelName: context.modelName,
-      collectionName: context.collectionName,
-      collectionId: original._id as Types.ObjectId,
-      patch,
-      version,
-      ...(user !== undefined && { user }),
-      ...(reason !== undefined && { reason }),
-      ...(metadata !== undefined && { metadata }),
-    }).catch((error: MongooseError) => {
+    await HistoryModel.create(
+      [
+        {
+          op: context.op,
+          modelName: context.modelName,
+          collectionName: context.collectionName,
+          collectionId: original._id as Types.ObjectId,
+          patch,
+          version,
+          ...(user !== undefined && { user }),
+          ...(reason !== undefined && { reason }),
+          ...(metadata !== undefined && { metadata }),
+        },
+      ],
+      sessionOptions(context.session),
+    ).catch((error: MongooseError) => {
       onError(error)
     })
   }
