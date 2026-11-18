@@ -40,6 +40,13 @@ CardSchema.pre('updateOne', async function () {
   }
 })
 
+// Registered after the plugin: moves the first match out of the filter between the capture and the write.
+CardSchema.pre('findOneAndUpdate', async function () {
+  if (this.getOptions().comment === 'race') {
+    await mongoose.connection.collection('edgecards').updateOne({ name: 'first' }, { $set: { count: 9 } })
+  }
+})
+
 const CardModel = model<Card>('EdgeCard', CardSchema)
 const errors: Error[] = []
 const NoteSchema = new Schema<{ text: string }>({ text: String })
@@ -132,6 +139,24 @@ describe('real-state history edge cases', () => {
     const res = await CardModel.updateOne({ name: 'appears' }, { $set: { count: 2 } }, { upsert: true })
     expect({ upserted: res.upsertedCount, matched: res.matchedCount }).toEqual({ upserted: 0, matched: 1 })
     expect(await rows()).toEqual([])
+  })
+
+  it('findOneAndUpdate records nothing for a captured doc it did not update', async () => {
+    await CardModel.insertMany([{ name: 'first' }, { name: 'second' }])
+    const updated = await CardModel.findOneAndUpdate({ count: 0 }, { $set: { note: 'x' } as never }, { comment: 'race', new: true, strict: false })
+    expect(updated?.name).toBe('second')
+    expect((await rows('findOneAndUpdate')).filter((r) => r.patch?.length)).toEqual([])
+  })
+
+  it('an update that modifies nothing does not read the stored state again', async () => {
+    const doc = await CardModel.create({ name: 'a' })
+    const commands: string[] = []
+    mongoose.set('debug', (collection: string, method: string) => {
+      commands.push(`${collection}.${method}`)
+    })
+    await CardModel.updateOne({ _id: doc._id }, { $set: { count: 0 } })
+    mongoose.set('debug', false)
+    expect(commands).toEqual(['edgecards.findOne', 'edgecards.updateOne'])
   })
 
   it('a filter with a collation records the doc the collation matched', async () => {
