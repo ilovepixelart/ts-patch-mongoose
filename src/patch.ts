@@ -1,5 +1,5 @@
 import em from './em'
-import { chunk, isEmpty, isFunction, mapSeries } from './helpers'
+import { chunk, HISTORY_BATCH_SIZE, isEmpty, isFunction, mapSeries } from './helpers'
 import { compare as jsonPatchCompare, type Operation } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit, omitPaths } from './omit-deep'
@@ -53,8 +53,25 @@ export const getValue = <T>(item: PromiseSettledResult<T>): T | undefined => {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
+// Getters already reported for an operation, by position (user, reason, metadata), so a getter
+// failing for every document of a multi-document operation is reported once.
+const reportedGetters = new WeakMap<object, Set<number>>()
+
+const reportRejections = <T>(opts: PluginOptions<T>, context: PatchContext<T> | undefined, results: PromiseSettledResult<unknown>[]): void => {
+  const onError = opts.onError ?? console.error
+  const reported = context ? (reportedGetters.get(context) ?? new Set<number>()) : new Set<number>()
+  if (context) reportedGetters.set(context, reported)
+
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'fulfilled' || reported.has(index)) continue
+    reported.add(index)
+    onError(result.reason instanceof Error ? result.reason : new Error(String(result.reason)))
+  }
+}
+
+export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>, context?: PatchContext<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
   return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
+    reportRejections(opts, context, [user, reason, metadata])
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
 }
@@ -71,7 +88,7 @@ export const emitEvent = <T>(context: PatchContext<T>, event: string | undefined
 
 const createdOrDeletedEntries = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, batch: HydratedDocument<T>[], omittedDocs: Partial<T>[]) =>
   mapSeries(batch, async (doc, index) => {
-    const [user, reason, metadata] = await getData(opts, doc)
+    const [user, reason, metadata] = await getData(opts, doc, context)
     return {
       insertOne: {
         document: {
@@ -97,7 +114,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: RecordContex
 
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
-  await mapSeries(chunk(docs, 1000), async (batch) => {
+  await mapSeries(chunk(docs, HISTORY_BATCH_SIZE), async (batch) => {
     const omittedDocs = batch.map((doc) => withoutHidden(context, getObjectOmit(opts, doc)))
 
     if (history) {
@@ -160,7 +177,7 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
   try {
     const versions = await nextVersions(changes.map((change) => change.original._id as Types.ObjectId))
     const entries = await mapSeries(changes, async (change) => {
-      const [user, reason, metadata] = await getData(opts, change.current)
+      const [user, reason, metadata] = await getData(opts, change.current, context)
       return {
         op: change.op ?? context.op,
         modelName: context.modelName,
@@ -176,7 +193,7 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
     if (entries.length === 1) {
       await HistoryModel.create(entries)
     } else {
-      await HistoryModel.insertMany(entries)
+      await HistoryModel.insertMany(entries, { ordered: false })
     }
   } catch (error) {
     onError(error as MongooseError)
@@ -185,7 +202,7 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
 
 /** Records the stored state before and after each change: history entries first, in one write per batch, then the update events. */
 export const updatePatches = async <T>(opts: PluginOptions<T>, context: RecordContext<T>, changes: UpdateChange<T>[]): Promise<void> => {
-  await mapSeries(chunk(changes, 1000), async (batch) => {
+  await mapSeries(chunk(changes, HISTORY_BATCH_SIZE), async (batch) => {
     const diffed = batch.map((change) => diffChange(opts, context, change)).filter((change): change is DiffedChange<T> => change !== null)
     if (isEmpty(diffed)) return
 

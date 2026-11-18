@@ -157,8 +157,9 @@ BookSchema.plugin(patchHistoryPlugin, {
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
 
-  // Custom error handler for failures while recording history (defaults to console.error).
-  // They happen after the write succeeded, so the operation itself does not reject.
+  // Custom error handler (defaults to console.error) for failures while recording history, which happen
+  // after the write succeeded, so the operation itself does not reject; and for getUser, getReason and
+  // getMetadata failures: those are reported once per operation, and the entry is still saved without that field
   onError: (error) => {
     console.error('Patch history error:', error)
   },
@@ -192,7 +193,7 @@ For every write the plugin reads the stored documents the write will touch, lets
 
 The reads before and after a write are separate queries. Outside a transaction, a write by another client between them is part of the recorded difference, and two concurrent updates of one document can receive the same `version`. Every entry still describes states that were stored. A `deleteMany` that races with another client deleting the same documents can record those documents too.
 
-Inside a transaction the reads use the transaction's session, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
+Pass the session the usual way (`{ session }` in query options, `.session(session)`, `doc.save({ session })`, `create(docs, { session })`, `insertMany(docs, { session })`, `bulkWrite(ops, { session })`, `bulkSave(docs, { session })`); with mongoose 8+ `transactionAsyncLocalStorage` it is picked up without passing it. Inside a transaction the reads use the transaction's session, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
 
 ```typescript
 const session = await mongoose.startSession()

@@ -1,4 +1,4 @@
-import { chunk, isEmpty, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
+import { chunk, HISTORY_BATCH_SIZE, isEmpty, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
 
 import type { ClientSession, HydratedDocument, Model, QueryOptions, Schema } from 'mongoose'
 import type { PluginOptions } from './types'
@@ -12,8 +12,6 @@ export interface ReadOptions {
   /** Projection that adds the `select: false` paths, when the plugin records them. */
   select?: string
 }
-
-const BATCH = 1000
 
 export const idKey = String
 
@@ -112,14 +110,14 @@ export const findDeleteTargets = async <T>(model: Model<T>, filter: object, many
 
 /** Stored state, as `toObject`, of the given ids, keyed by id. */
 export const findUpdatedStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions): Promise<Map<string, Snapshot<T>>> => {
-  const batches = await mapSeries(chunk(ids, BATCH), async (batch) => (await model.find({ _id: { $in: batch } } as never, read.select || null, queryOptions(read)).exec()) as HydratedDocument<T>[])
+  const batches = await mapSeries(chunk(ids, HISTORY_BATCH_SIZE), async (batch) => (await model.find({ _id: { $in: batch } } as never, read.select || null, queryOptions(read)).exec()) as HydratedDocument<T>[])
   return new Map(batches.flat().map((doc) => [idKey(doc._id), toSnapshot(doc)]))
 }
 
 /** Stored state, as lean objects, of the given ids, keyed by id. */
 export const findLeanStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions, projection: string | null = read.select || null): Promise<Map<string, Snapshot<T>>> => {
   const batches = await mapSeries(
-    chunk(ids, BATCH),
+    chunk(ids, HISTORY_BATCH_SIZE),
     async (batch) =>
       (await model
         .find<T>({ _id: { $in: batch } } as never, projection, queryOptions(read))
