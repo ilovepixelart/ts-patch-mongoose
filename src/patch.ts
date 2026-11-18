@@ -8,9 +8,9 @@ import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 /** A patch context with the `select: false` paths to leave out of each document the plugin records or emits. */
-export type RecordContext<T> = PatchContext<T> & { hiddenPathsOf?: ((doc: unknown) => string[]) | undefined }
+export type RecordContext<T> = PatchContext<T> & { hiddenPaths?: string[] }
 
-const withoutHidden = <T, D>(context: RecordContext<T>, doc: D): D => (context.hiddenPathsOf ? omitPaths(doc, context.hiddenPathsOf(doc)) : doc)
+const withoutHidden = <T, D>(context: RecordContext<T>, doc: D): D => omitPaths(doc, context.hiddenPaths ?? [])
 
 const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean => {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
@@ -32,8 +32,9 @@ export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>)
   return applyOmit(JSON.parse(JSON.stringify(doc, replacer)) as Partial<T>, opts)
 }
 
-export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
-  return applyOmit(isFunction(doc?.toObject) ? (doc.toObject() as Partial<T>) : doc, opts)
+// Hidden paths are left out before `omit`, which could otherwise remove what identifies them.
+export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>, hiddenPaths: string[] = []): Partial<T> => {
+  return applyOmit(omitPaths(isFunction(doc?.toObject) ? (doc.toObject() as Partial<T>) : doc, hiddenPaths), opts)
 }
 
 const getOptionalField = async <T, R>(fn: ((doc: HydratedDocument<T>) => Promise<R> | R) | undefined, doc?: HydratedDocument<T>): Promise<R | undefined> => {
@@ -115,7 +116,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: RecordContex
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
   await mapSeries(chunk(docs, HISTORY_BATCH_SIZE), async (batch) => {
-    const omittedDocs = batch.map((doc) => withoutHidden(context, getObjectOmit(opts, doc)))
+    const omittedDocs = batch.map((doc) => getObjectOmit(opts, doc, context.hiddenPaths))
 
     if (history) {
       const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)

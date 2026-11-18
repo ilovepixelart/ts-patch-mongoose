@@ -21,7 +21,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
       session: sessionOfDoc(doc),
-      hiddenPathsOf: hiddenOmit(model, opts),
+      hiddenPaths: hiddenOmit(model, opts),
     }
   }
 

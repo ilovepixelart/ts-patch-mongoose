@@ -1,4 +1,4 @@
-import { chunk, HISTORY_BATCH_SIZE, isEmpty, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
+import { chunk, HISTORY_BATCH_SIZE, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
 
 import type { ClientSession, HydratedDocument, Model, QueryOptions, Schema } from 'mongoose'
 import type { PluginOptions } from './types'
@@ -60,24 +60,19 @@ export const hiddenSelect = <T>(model: Model<T>, opts: PluginOptions<T>): string
         .join(' ')
     : ''
 
-type Discriminator = { schema: Schema & { discriminatorMapping?: { value?: unknown } } }
+// Mongoose registers every discriminator on the root model: a discriminator cannot have discriminators of its own.
+const discriminatorSchemas = (model: { discriminators?: Record<string, { schema: Schema }> | undefined }): Schema[] => Object.values(model.discriminators ?? {}).map(({ schema }) => schema)
 
 /**
- * The `select: false` paths to leave out of each state the plugin records or emits: those of the model's schema
- * and, for a document of a discriminator, those of the discriminator's schema. A read through the base model
- * applies only the base schema's projection, so the discriminator's paths are in the documents it returns.
+ * The `select: false` paths to leave out of every state the plugin records or emits: those of the model's schema
+ * and of every discriminator registered on it. A read through the base model applies only the base schema's
+ * projection, and a document cannot be relied on to name its discriminator (the key can be missing, unknown,
+ * changed by the update or left out by `omit`), so every document has the whole set left out.
  */
-export const hiddenOmit = <T>(model: Model<T>, opts: PluginOptions<T>): ((doc: unknown) => string[]) | undefined => {
-  if (opts.includeHiddenPaths) return undefined
-  const base = hiddenPaths(model)
-  const key = (model.schema as Schema).options.discriminatorKey ?? '__t'
-  const discriminators = Object.values((model.discriminators ?? {}) as Record<string, Discriminator>)
-  if (isEmpty(discriminators)) return () => base
-  return (doc) => {
-    const value = isObjectLike(doc) ? doc[key] : undefined
-    const discriminator = value === undefined ? undefined : discriminators.find(({ schema }) => schema.discriminatorMapping?.value === value)
-    return discriminator ? selectFalsePaths(discriminator.schema) : base
-  }
+export const hiddenOmit = <T>(model: Model<T>, opts: PluginOptions<T>): string[] => {
+  if (opts.includeHiddenPaths) return []
+  const schemas = [model.schema as Schema, ...discriminatorSchemas(model as never)]
+  return [...new Set(schemas.flatMap(selectFalsePaths))]
 }
 
 const toSnapshot = <T>(doc: HydratedDocument<T>): Snapshot<T> => doc.toObject(toObjectOptions) as Snapshot<T>

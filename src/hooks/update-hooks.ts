@@ -141,7 +141,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
       session: read.session ?? null,
-      hiddenPathsOf: hiddenOmit(model, opts),
+      hiddenPaths: hiddenOmit(model, opts),
       targets,
       read,
     }

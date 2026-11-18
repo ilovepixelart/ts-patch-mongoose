@@ -187,7 +187,7 @@ const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, base: 
     ignoreEvent: options?.ignoreEvent as boolean,
     ignorePatchHistory: options?.ignorePatchHistory as boolean,
     session: read.session ?? null,
-    hiddenPathsOf: hiddenOmit(model, opts),
+    hiddenPaths: hiddenOmit(model, opts),
   }
   await reportErrors(opts.onError, async () => {
     await recordChanged(model, opts, context, plan, read)

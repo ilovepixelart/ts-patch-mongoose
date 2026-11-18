@@ -48,10 +48,10 @@ interface Admin {
   keys?: { label?: string; value?: string }[]
 }
 
-const discriminatedModels = (includeHiddenPaths: boolean, prefix: string) => {
+const discriminatedModels = (includeHiddenPaths: boolean, prefix: string, omit = ['__v']) => {
   const schema = new Schema<Admin>({ name: String }, { discriminatorKey: 'kind' })
   schema.plugin(patchHistoryPlugin, {
-    omit: ['__v'],
+    omit,
     eventCreated: `${prefix}-created`,
     eventUpdated: `${prefix}-updated`,
     eventDeleted: `${prefix}-deleted`,
@@ -64,6 +64,15 @@ const discriminatedModels = (includeHiddenPaths: boolean, prefix: string) => {
 
 const [DiscBase, DiscChild] = discriminatedModels(false, 'hidden-disc')
 const [DiscBaseIncluded, DiscChildIncluded] = discriminatedModels(true, 'hidden-disc-included')
+const [DiscBaseOmitKey, DiscChildOmitKey] = discriminatedModels(false, 'hidden-disc-omitkey', ['__v', 'kind'])
+const [DiscBaseOmitKeyIncluded, DiscChildOmitKeyIncluded] = discriminatedModels(true, 'hidden-disc-omitkey-included', ['__v', 'kind'])
+
+// A stored document the discriminator lookup cannot place: written around mongoose, as another client or an
+// older schema version would.
+const storeRaw = async (M: Model<Admin>, kind: string | undefined) => {
+  const { insertedId } = await M.collection.insertOne({ ...(kind !== undefined && { kind }), ...withAdminSecrets(5), __v: 0 })
+  return insertedId
+}
 
 const withAdminSecrets = (n: number): Admin => ({ name: `a${n}`, passwordHash: `SECRET-p${n}`, profile: { pin: `SECRET-pin${n}`, nick: 'n' }, keys: [{ label: 'k', value: `SECRET-k${n}` }] })
 const adminChange = { name: 'changed', passwordHash: 'SECRET-p9', 'profile.pin': 'SECRET-pin9', keys: [{ label: 'k2', value: 'SECRET-k9' }] }
@@ -135,7 +144,7 @@ describe('paths declared with select: false', () => {
     await mongoose.connection.collection('history').deleteMany({})
     em.removeAllListeners()
     events.length = 0
-    for (const prefix of ['hidden-default', 'hidden-included', 'hidden-disc', 'hidden-disc-included']) {
+    for (const prefix of ['hidden-default', 'hidden-included', 'hidden-disc', 'hidden-disc-included', 'hidden-disc-omitkey', 'hidden-disc-omitkey-included']) {
       for (const kind of ['created', 'updated', 'deleted']) em.on(`${prefix}-${kind}`, (data: unknown) => events.push(data))
     }
   })
@@ -254,6 +263,40 @@ describe('paths declared with select: false', () => {
           } else {
             expect(all).not.toContain('SECRET')
             expect(eventText).not.toContain('SECRET')
+          }
+        })
+      })
+    }
+  })
+
+  describe('of documents whose discriminator cannot be told', () => {
+    for (const [title, Base, Child, included] of [
+      ['by default', DiscBase, DiscChild, false],
+      ['with includeHiddenPaths', DiscBaseIncluded, DiscChildIncluded, true],
+      ['by default, with the discriminator key in omit', DiscBaseOmitKey, DiscChildOmitKey, false],
+      ['with includeHiddenPaths and the discriminator key in omit', DiscBaseOmitKeyIncluded, DiscChildOmitKeyIncluded, true],
+    ] as const) {
+      describe(title, () => {
+        const childKind = () => (Child.schema as unknown as { discriminatorMapping: { value: string } }).discriminatorMapping.value
+        const cases: [string, () => PromiseLike<unknown>][] = [
+          ['updateOne of a document with an unknown discriminator key', async () => Base.updateOne({ _id: await storeRaw(Base, 'nobody') }, { $set: { name: 'changed' } })],
+          ['updateOne of a document without a discriminator key', async () => Base.updateOne({ _id: await storeRaw(Base, undefined) }, { $set: { name: 'changed' } })],
+          ['deleteOne of a document with an unknown discriminator key', async () => Base.deleteOne({ _id: await storeRaw(Base, 'nobody') })],
+          ['bulkWrite delete of a document without a discriminator key', async () => Base.bulkWrite([{ deleteOne: { filter: { _id: await storeRaw(Base, undefined) } } }] as never)],
+          ['an update that sets the discriminator key', async () => Base.updateOne({ _id: await storeRaw(Base, undefined) }, { $set: { kind: childKind(), name: 'changed' } }, { overwriteDiscriminatorKey: true } as never)],
+          ['deleteOne of a discriminator document on the base model', async () => Base.deleteOne({ _id: (await seedAdmin(Child))._id })],
+          ['create of a discriminator document', () => Child.create(withAdminSecrets(1))],
+        ]
+
+        it.each(cases)('%s', async (_name, run) => {
+          await run()
+          const rows = await HistoryModel.find({ modelName: { $in: [Base.modelName, Child.modelName] } }).lean()
+          expect(rows.length).toBeGreaterThan(0)
+          const text = JSON.stringify(rows) + JSON.stringify(events)
+          if (included) {
+            expect(text).toContain('SECRET')
+          } else {
+            expect(text).not.toContain('SECRET')
           }
         })
       })
