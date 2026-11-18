@@ -165,7 +165,7 @@ export const setPatchHistoryTTL = async (ttl: Duration, onError?: (error: Error)
 
     const expireAfterSeconds = milliseconds / 1000
 
-    if (existingIndex && existingIndex.expireAfterSeconds === expireAfterSeconds) {
+    if (existingIndex?.expireAfterSeconds === expireAfterSeconds) {
       return
     }
 
@@ -173,7 +173,7 @@ export const setPatchHistoryTTL = async (ttl: Duration, onError?: (error: Error)
       await HistoryModel.collection.dropIndex(name)
     }
 
-    await HistoryModel.collection.createIndex({ createdAt: 1 }, { expireAfterSeconds, name })
+    await HistoryModel.collection.createIndexes([{ key: { createdAt: 1 }, expireAfterSeconds, name }])
   } catch (err) {
     const handler = onError ?? console.error
     handler(err as Error)
