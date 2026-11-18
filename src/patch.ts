@@ -23,7 +23,7 @@ const replacer = (_key: string, value: unknown): unknown => {
 }
 
 export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>): Partial<T> => {
-  // NOSONAR — structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
+  // structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
   return applyOmit(JSON.parse(JSON.stringify(doc, replacer)) as Partial<T>, opts)
 }
 

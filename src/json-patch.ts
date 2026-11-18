@@ -35,7 +35,8 @@ const joinPath = (base: string, key: string): string => `${base}/${escapeToken(k
 const cloneValue = <T>(value: T): T => {
   if (value === undefined) return null as unknown as T
   if (value === null || typeof value !== 'object') return value
-  return JSON.parse(JSON.stringify(value)) as T // NOSONAR: structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
+  // structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
 const isContainer = (value: unknown): value is JsonContainer => {

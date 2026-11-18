@@ -114,7 +114,7 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
   }
 
   if (typeof record.toJSON === 'function') {
-    // NOSONAR — structuredClone cannot handle objects with non-cloneable methods (e.g. mongoose documents)
+    // structuredClone cannot handle objects with non-cloneable methods (e.g. mongoose documents)
     return JSON.parse(JSON.stringify(value)) as T
   }
 
@@ -128,7 +128,7 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
 export const mapSeries = async <I, O>(items: readonly I[], fn: (item: I, index: number) => Promise<O>): Promise<O[]> => {
   const results: O[] = []
   for (const [index, item] of items.entries()) {
-    results.push(await fn(item, index)) // NOSONAR sequential on purpose, see above
+    results.push(await fn(item, index))
   }
   return results
 }
