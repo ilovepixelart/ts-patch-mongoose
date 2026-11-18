@@ -186,7 +186,7 @@ For every write the plugin reads the stored documents the write will touch, lets
 
 The reads before and after a write are separate queries. Outside a transaction, a write by another client between them is part of the recorded difference, and two concurrent updates of one document can receive the same `version`. Every entry still describes states that were stored. A `deleteMany` that races with another client deleting the same documents can record those documents too.
 
-Inside a transaction the reads and the history writes use the transaction's session: an aborted transaction leaves no history, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
+Inside a transaction the reads use the transaction's session, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
 
 ```typescript
 const session = await mongoose.startSession()
@@ -198,6 +198,8 @@ try {
   await session.endSession()
 }
 ```
+
+History entries are written outside the transaction: an entry is written as soon as its write succeeds, and stays when the transaction aborts afterwards. A write to the history collection inside a transaction can fail that transaction with a lock timeout while mongoose is still creating the collection and its indexes. With `transactionAsyncLocalStorage` (mongoose 8+), mongoose applies the transaction's session to every operation that has none, the history writes included, as in 4.x.
 
 ## Subscribe
 

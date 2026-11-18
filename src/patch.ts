@@ -1,10 +1,10 @@
 import em from './em'
-import { chunk, isEmpty, isFunction, mapSeries, sessionOptions } from './helpers'
+import { chunk, isEmpty, isFunction, mapSeries } from './helpers'
 import { compare as jsonPatchCompare, type Operation } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
 
-import type { ClientSession, HydratedDocument, MongooseError, Types } from 'mongoose'
+import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean => {
@@ -98,7 +98,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
     if (history) {
       const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)
       const onError = opts.onError ?? console.error
-      await HistoryModel.bulkWrite(bulk, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
+      await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
         onError(error)
       })
     }
@@ -132,17 +132,18 @@ const diffChange = <T>(opts: PluginOptions<T>, change: UpdateChange<T>): DiffedC
   return isEmpty(patch) ? null : { ...change, patch }
 }
 
-const nextVersions = async (ids: Types.ObjectId[], session?: ClientSession | null): Promise<Map<string, number>> => {
+// History is read and written outside the caller's session, as in 4.0: a transaction that writes to the history
+// collection while mongoose is still creating it and its indexes can fail on a lock timeout. With mongoose 8+
+// transactionAsyncLocalStorage, mongoose applies the transaction's session to these operations, as in 4.x.
+const nextVersions = async (ids: Types.ObjectId[]): Promise<Map<string, number>> => {
   const versions = new Map<string, number>()
   if (ids.length === 1) {
     const id = ids[0] as Types.ObjectId
-    const last = await HistoryModel.findOne({ collectionId: id }, null, sessionOptions(session)).sort('-version').exec()
+    const last = await HistoryModel.findOne({ collectionId: id }).sort('-version').exec()
     if (last) versions.set(String(id), last.version + 1)
     return versions
   }
-  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }])
-    .option(sessionOptions(session))
-    .exec()
+  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }]).exec()
   for (const row of rows) versions.set(String(row._id), row.version + 1)
   return versions
 }
@@ -150,10 +151,7 @@ const nextVersions = async (ids: Types.ObjectId[], session?: ClientSession | nul
 const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, changes: DiffedChange<T>[]): Promise<void> => {
   const onError = opts.onError ?? console.error
   try {
-    const versions = await nextVersions(
-      changes.map((change) => change.original._id as Types.ObjectId),
-      context.session,
-    )
+    const versions = await nextVersions(changes.map((change) => change.original._id as Types.ObjectId))
     const entries = await mapSeries(changes, async (change) => {
       const [user, reason, metadata] = await getData(opts, change.current)
       return {
@@ -169,9 +167,9 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
       }
     })
     if (entries.length === 1) {
-      await HistoryModel.create(entries, sessionOptions(context.session))
+      await HistoryModel.create(entries)
     } else {
-      await HistoryModel.insertMany(entries, sessionOptions(context.session))
+      await HistoryModel.insertMany(entries)
     }
   } catch (error) {
     onError(error as MongooseError)

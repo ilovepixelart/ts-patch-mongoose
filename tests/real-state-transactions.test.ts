@@ -47,6 +47,26 @@ describe('history inside transactions', () => {
     }
   }
 
+  const abortWith = async (work: (session: mongoose.ClientSession) => Promise<unknown>) => {
+    const session = await mongoose.startSession()
+    try {
+      session.startTransaction()
+      await work(session)
+      await session.abortTransaction()
+    } finally {
+      await session.endSession()
+    }
+  }
+
+  it("history is written outside the caller's transaction: an aborted transaction keeps the entries of its writes", async () => {
+    const doc = await CounterModel.create({ name: 'a' })
+    await mongoose.connection.collection('history').deleteMany({})
+    await abortWith((session) => CounterModel.updateOne({ _id: doc._id }, { $inc: { count: 1 } }, { session }))
+    expect((await CounterModel.findById(doc._id).lean())?.count).toBe(0)
+    const rows = await HistoryModel.find({ collectionId: doc._id }).lean()
+    expect(rows.map((r) => [r.op, (r.patch ?? []).map((p) => (p as { value?: unknown }).value)])).toEqual([['updateOne', [0, 1]]])
+  })
+
   it('F8 red: two parallel $inc in transactions record 0->1 and 1->2 with distinct versions', async () => {
     const doc = await CounterModel.create({ name: 'a', count: 0 })
     await Promise.all([incInTransaction(doc._id), incInTransaction(doc._id)])
