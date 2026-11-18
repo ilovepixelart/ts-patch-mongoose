@@ -32,7 +32,7 @@ export const getJsonOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>)
   return applyOmit(JSON.parse(JSON.stringify(doc, replacer)) as Partial<T>, opts)
 }
 
-// Hidden paths are left out before `omit`, which could otherwise remove what identifies them.
+// Hidden paths are left out of the document as stored, before `omit` changes its shape.
 export const getObjectOmit = <T>(opts: PluginOptions<T>, doc: HydratedDocument<T>, hiddenPaths: string[] = []): Partial<T> => {
   return applyOmit(omitPaths(isFunction(doc?.toObject) ? (doc.toObject() as Partial<T>) : doc, hiddenPaths), opts)
 }
