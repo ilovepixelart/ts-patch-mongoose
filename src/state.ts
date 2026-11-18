@@ -52,7 +52,7 @@ export const findUpdateTargets = async <T>(model: Model<T>, filter: object, many
 /** Stored state, as lean objects, of the documents a delete will remove. */
 export const findDeleteTargets = async <T>(model: Model<T>, filter: object, many: boolean, read: ReadOptions): Promise<Snapshot<T>[]> => {
   if (many) {
-    return (await model.find<T>(filter, null, queryOptions(read)).lean().exec()) as Snapshot<T>[]
+    return (await model.find<T>(filter, null, queryOptions(read)).lean().exec()) as unknown as Snapshot<T>[]
   }
   const query = model.findOne<T>(filter, null, queryOptions(read))
   if (read.sort) query.sort(read.sort as never)
@@ -78,7 +78,7 @@ export const findLeanStates = async <T>(model: Model<T>, ids: unknown[], read: R
     const docs = (await model
       .find<T>({ _id: { $in: batch } } as never, projection, queryOptions(read))
       .lean()
-      .exec()) as Snapshot<T>[]
+      .exec()) as unknown as Snapshot<T>[]
     for (const doc of docs) states.set(idKey(doc._id), doc)
   }
   return states
