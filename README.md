@@ -276,7 +276,7 @@ BookSchema.plugin(patchHistoryPlugin, {
 | Errors after the write | A failure while looking up an upserted document rejected the operation | Every failure while recording goes to `onError`; the operation resolves | None |
 | Reads | One read before each update | One read before and one after each update | None |
 
-Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing.
+Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing. Entries of different documents written in parallel (`Model.create` of an array saves in parallel) are stored in the order their writes completed.
 
 Nothing else changes: the history entry fields, `op` names, version numbering, event payload shapes (`{ doc }`, `{ oldDoc, doc, patch }`, `{ oldDoc }`), plugin options, the `ignoreEvent`, `ignorePatchHistory` and `ignoreHook` query options, `preDelete` running before the delete with lean copies of the documents, and the exports.
 
