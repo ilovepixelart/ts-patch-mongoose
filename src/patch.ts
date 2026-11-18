@@ -1,5 +1,5 @@
 import em from './em'
-import { chunk, HISTORY_BATCH_SIZE, isEmpty, isFunction, sessionOptions } from './helpers'
+import { chunk, HISTORY_BATCH_SIZE, isEmpty, isFunction } from './helpers'
 import { compare as jsonPatchCompare } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
@@ -115,7 +115,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
 
     if (history && !isEmpty(bulk)) {
       const onError = opts.onError ?? console.error
-      await HistoryModel.bulkWrite(bulk, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
+      await HistoryModel.bulkWrite(bulk, { ordered: false }).catch((error: MongooseError) => {
         onError(error)
       })
     }
@@ -158,7 +158,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
 
   let version = 0
 
-  const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId }, null, sessionOptions(context.session))
+  const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId })
     .sort('-version')
     .exec()
 
@@ -168,15 +168,16 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
 
   const data = await getData(opts, current, context)
   const onError = opts.onError ?? console.error
-  await HistoryModel.create([updateEntry(context, original, patch, version, data)], sessionOptions(context.session)).catch((error: MongooseError) => {
+  await HistoryModel.create([updateEntry(context, original, patch, version, data)]).catch((error: MongooseError) => {
     onError(error)
   })
 }
 
-const nextVersions = async (ids: Types.ObjectId[], session: PatchContext<unknown>['session']): Promise<Map<string, number>> => {
-  const last = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }])
-    .option(sessionOptions(session))
-    .exec()
+// History is written outside the caller's session, as in 4.0. Inside a transaction it conflicts
+// with mongoose creating and indexing the history collection at startup: manual transactions
+// then fail with LockTimeout (TransientTransactionError).
+const nextVersions = async (ids: Types.ObjectId[]): Promise<Map<string, number>> => {
+  const last = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }]).exec()
   return new Map(last.map(({ _id, version }) => [String(_id), version + 1]))
 }
 
@@ -199,13 +200,10 @@ export const updatePatchBatch = async <T>(opts: PluginOptions<T>, context: Patch
   }
   if (isEmpty(pending)) return
 
-  const versions = await nextVersions(
-    pending.map(({ original }) => original._id as Types.ObjectId),
-    context.session,
-  )
+  const versions = await nextVersions(pending.map(({ original }) => original._id as Types.ObjectId))
   const entries = pending.map(({ original, patch, data }) => updateEntry(context, original, patch, versions.get(String(original._id)) ?? 0, data))
   const onError = opts.onError ?? console.error
-  await HistoryModel.insertMany(entries, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
+  await HistoryModel.insertMany(entries, { ordered: false }).catch((error: MongooseError) => {
     onError(error)
   })
 }
