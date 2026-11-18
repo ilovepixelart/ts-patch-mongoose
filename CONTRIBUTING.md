@@ -40,3 +40,19 @@ npm run build          # build with pkgroll
 - Database: mongodb-memory-server
 - Write tests for new features and bug fixes
 - Test behavior, not implementation details
+
+## End-to-end check of the packed package
+
+```bash
+npm run test:e2e                            # mongoose from devDependencies
+npm run test:e2e -- --mongoose 6.12.2       # another mongoose version
+```
+
+`npm run test:e2e` builds, packs the package with `npm pack`, and installs the tarball and the latest published version into two fresh consumer projects in the system temp directory. Each project runs the scenarios in `e2e/consumer/` twice, through `require` and through `import`, against its own in-memory replica set: every hooked operation in every session mode, with the history entries, events, getter calls and `onError` calls each one produces. The run fails when:
+
+- `require` or `import` of the package fails, or the two disagree on any scenario
+- any scenario differs from the published version and is not listed in `e2e/allowlist.json`
+- an `e2e/allowlist.json` entry matches no difference (remove entries once their change is published)
+- any manual transaction of the cold-start check fails
+
+An intended behaviour change goes into `e2e/allowlist.json` with the scenarios it changes and the reason. `--candidate <version|file.tgz>` and `--baseline <version>` replace the packed build or the published version; `--keep` keeps the consumer projects and their outputs (they are always kept when the run fails). CI runs it for every mongoose major.

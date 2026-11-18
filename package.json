@@ -62,6 +62,7 @@
     "lint:package": "publint --strict && attw --pack .",
     "test": "vitest run --coverage",
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
+    "test:e2e": "npm run build && node e2e/e2e.mjs",
     "clean": "rm -rf ./dist",
     "type:check": "tsc --noEmit",
     "type:check:tests": "tsc --noEmit -p tests/tsconfig.json",
