@@ -44,8 +44,25 @@ export const getValue = <T>(item: PromiseSettledResult<T>): T | undefined => {
   return item.status === 'fulfilled' ? item.value : undefined
 }
 
-export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
+// Getters already reported for an operation, by position (user, reason, metadata), so a getter
+// failing for every document of a multi-document operation is reported once.
+const reportedGetters = new WeakMap<object, Set<number>>()
+
+const reportRejections = <T>(opts: PluginOptions<T>, context: PatchContext<T> | undefined, results: PromiseSettledResult<unknown>[]): void => {
+  const onError = opts.onError ?? console.error
+  const reported = context ? (reportedGetters.get(context) ?? new Set<number>()) : new Set<number>()
+  if (context) reportedGetters.set(context, reported)
+
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' || reported.has(index)) return
+    reported.add(index)
+    onError(result.reason instanceof Error ? result.reason : new Error(String(result.reason)))
+  })
+}
+
+export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>, context?: PatchContext<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
   return Promise.allSettled([getUser(opts, doc), getReason(opts, doc), getMetadata(opts, doc)]).then(([user, reason, metadata]) => {
+    reportRejections(opts, context, [user, reason, metadata])
     return [getValue(user), getValue(reason), getValue(metadata)]
   })
 }
@@ -77,7 +94,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
       emitEvent(context, event, { [key]: omitted })
 
       if (history) {
-        const [user, reason, metadata] = await getData(opts, doc)
+        const [user, reason, metadata] = await getData(opts, doc, context)
         bulk.push({
           insertOne: {
             document: {
@@ -149,7 +166,7 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
     version = lastHistory.version + 1
   }
 
-  const data = await getData(opts, current)
+  const data = await getData(opts, current, context)
   const onError = opts.onError ?? console.error
   await HistoryModel.create([updateEntry(context, original, patch, version, data)], sessionOptions(context.session)).catch((error: MongooseError) => {
     onError(error)
@@ -177,7 +194,7 @@ export const updatePatchBatch = async <T>(opts: PluginOptions<T>, context: Patch
   for (const { current, original } of pairs) {
     const patch = diffAndEmit(opts, context, current, original)
     if (patch && history) {
-      pending.push({ original, patch, data: await getData(opts, current) })
+      pending.push({ original, patch, data: await getData(opts, current, context) })
     }
   }
   if (isEmpty(pending)) return
