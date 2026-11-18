@@ -121,6 +121,9 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
   return cloneCollection(value, seen)
 }
 
+// Documents per history write for multi-document operations.
+export const HISTORY_BATCH_SIZE = 1000
+
 export const chunk = <T>(array: T[], size: number): T[][] => {
   const result: T[][] = []
   for (let i = 0; i < array.length; i += size) {

@@ -1,6 +1,6 @@
 import { applyUpdate } from '../assign-update'
-import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, sessionOptions, toObjectOptions } from '../helpers'
-import { createPatch, updatePatch } from '../patch'
+import { cloneDeep, HISTORY_BATCH_SIZE, isArray, isEmpty, isHookIgnored, isObjectLike, sessionOptions, toObjectOptions } from '../helpers'
+import { createPatch, updatePatchBatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
 import type { HookContext, PluginOptions } from '../types'
@@ -74,10 +74,16 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
     const cursor = model.find(filter, null, sessionOptions(options.session)).cursor()
-    await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
-      const origDoc = doc.toObject(toObjectOptions) as HydratedDocument<T>
-      await updatePatch(opts, this._context, assignUpdate(doc, update, commands), origDoc)
-    })
+    await cursor.eachAsync(
+      async (docs: HydratedDocument<T>[]) => {
+        const pairs = docs.map((doc) => {
+          const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
+          return { current: assignUpdate(doc, update, commands), original }
+        })
+        await updatePatchBatch(opts, this._context, pairs)
+      },
+      { batchSize: HISTORY_BATCH_SIZE },
+    )
   })
 
   schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {

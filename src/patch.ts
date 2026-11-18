@@ -1,10 +1,11 @@
 import em from './em'
-import { chunk, isEmpty, isFunction, sessionOptions } from './helpers'
+import { chunk, HISTORY_BATCH_SIZE, isEmpty, isFunction, sessionOptions } from './helpers'
 import { compare as jsonPatchCompare } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
 
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
+import type { Operation } from './json-patch'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
 const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean => {
@@ -67,7 +68,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
 
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
-  const chunks = chunk(docs, 1000)
+  const chunks = chunk(docs, HISTORY_BATCH_SIZE)
   for (const batch of chunks) {
     const bulk = []
 
@@ -108,50 +109,88 @@ export const createPatch = async <T>(opts: PluginOptions<T>, context: PatchConte
   await bulkPatch(opts, context, 'eventCreated', 'createdDocs')
 }
 
-export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> => {
-  const history = isPatchHistoryEnabled(opts, context)
+type HistoryData = [User | undefined, string | undefined, Metadata | undefined]
 
+const diffAndEmit = <T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Operation[] | undefined => {
   const currentObject = getJsonOmit(opts, current)
   const originalObject = getJsonOmit(opts, original)
-  if (isEmpty(originalObject) || isEmpty(currentObject)) return
+  if (isEmpty(originalObject) || isEmpty(currentObject)) return undefined
 
   const patch = jsonPatchCompare(originalObject, currentObject, true)
-  if (isEmpty(patch)) return
+  if (isEmpty(patch)) return undefined
 
   emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
+  return patch
+}
 
-  if (history) {
-    let version = 0
+const updateEntry = <T>(context: PatchContext<T>, original: HydratedDocument<T>, patch: Operation[], version: number, [user, reason, metadata]: HistoryData) => ({
+  op: context.op,
+  modelName: context.modelName,
+  collectionName: context.collectionName,
+  collectionId: original._id as Types.ObjectId,
+  patch,
+  version,
+  ...(user !== undefined && { user }),
+  ...(reason !== undefined && { reason }),
+  ...(metadata !== undefined && { metadata }),
+})
 
-    const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId }, null, sessionOptions(context.session))
-      .sort('-version')
-      .exec()
+export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> => {
+  const patch = diffAndEmit(opts, context, current, original)
+  if (!patch || !isPatchHistoryEnabled(opts, context)) return
 
-    if (lastHistory) {
-      version = lastHistory.version + 1
-    }
+  let version = 0
 
-    const [user, reason, metadata] = await getData(opts, current)
-    const onError = opts.onError ?? console.error
-    await HistoryModel.create(
-      [
-        {
-          op: context.op,
-          modelName: context.modelName,
-          collectionName: context.collectionName,
-          collectionId: original._id as Types.ObjectId,
-          patch,
-          version,
-          ...(user !== undefined && { user }),
-          ...(reason !== undefined && { reason }),
-          ...(metadata !== undefined && { metadata }),
-        },
-      ],
-      sessionOptions(context.session),
-    ).catch((error: MongooseError) => {
-      onError(error)
-    })
+  const lastHistory = await HistoryModel.findOne({ collectionId: original._id as Types.ObjectId }, null, sessionOptions(context.session))
+    .sort('-version')
+    .exec()
+
+  if (lastHistory) {
+    version = lastHistory.version + 1
   }
+
+  const data = await getData(opts, current)
+  const onError = opts.onError ?? console.error
+  await HistoryModel.create([updateEntry(context, original, patch, version, data)], sessionOptions(context.session)).catch((error: MongooseError) => {
+    onError(error)
+  })
+}
+
+const nextVersions = async (ids: Types.ObjectId[], session: PatchContext<unknown>['session']): Promise<Map<string, number>> => {
+  const last = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }])
+    .option(sessionOptions(session))
+    .exec()
+  return new Map(last.map(({ _id, version }) => [String(_id), version + 1]))
+}
+
+// One version lookup and one insert per batch instead of a findOne and a create per document.
+// A single pair keeps the exact commands of updatePatch.
+export const updatePatchBatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, pairs: { current: HydratedDocument<T>; original: HydratedDocument<T> }[]): Promise<void> => {
+  const [first] = pairs
+  if (pairs.length === 1 && first) {
+    await updatePatch(opts, context, first.current, first.original)
+    return
+  }
+
+  const history = isPatchHistoryEnabled(opts, context)
+  const pending: { original: HydratedDocument<T>; patch: Operation[]; data: HistoryData }[] = []
+  for (const { current, original } of pairs) {
+    const patch = diffAndEmit(opts, context, current, original)
+    if (patch && history) {
+      pending.push({ original, patch, data: await getData(opts, current) })
+    }
+  }
+  if (isEmpty(pending)) return
+
+  const versions = await nextVersions(
+    pending.map(({ original }) => original._id as Types.ObjectId),
+    context.session,
+  )
+  const entries = pending.map(({ original, patch, data }) => updateEntry(context, original, patch, versions.get(String(original._id)) ?? 0, data))
+  const onError = opts.onError ?? console.error
+  await HistoryModel.insertMany(entries, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
+    onError(error)
+  })
 }
 
 export const deletePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> => {
