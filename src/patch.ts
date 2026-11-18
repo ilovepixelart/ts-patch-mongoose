@@ -2,10 +2,13 @@ import em from './em'
 import { chunk, isEmpty, isFunction, mapSeries } from './helpers'
 import { compare as jsonPatchCompare, type Operation } from './json-patch'
 import { HistoryModel } from './model'
-import { omitDeep as omit } from './omit-deep'
+import { omitDeep as omit, omitPaths } from './omit-deep'
 
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
+
+/** A patch context with the `select: false` paths to leave out of documents the plugin records without reading them. */
+export type RecordContext<T> = PatchContext<T> & { hiddenPaths?: string[] }
 
 const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean => {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
@@ -84,7 +87,7 @@ const createdOrDeletedEntries = async <T>(opts: PluginOptions<T>, context: Patch
     }
   })
 
-export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> => {
+export const bulkPatch = async <T>(opts: PluginOptions<T>, context: RecordContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> => {
   const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
   const docs = context[docsKey]
@@ -93,7 +96,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
   await mapSeries(chunk(docs, 1000), async (batch) => {
-    const omittedDocs = batch.map((doc) => getObjectOmit(opts, doc))
+    const omittedDocs = batch.map((doc) => omitPaths(getObjectOmit(opts, doc), context.hiddenPaths ?? []))
 
     if (history) {
       const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)
@@ -109,7 +112,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
   })
 }
 
-export const createPatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> => {
+export const createPatch = async <T>(opts: PluginOptions<T>, context: RecordContext<T>): Promise<void> => {
   await bulkPatch(opts, context, 'eventCreated', 'createdDocs')
 }
 
@@ -196,6 +199,6 @@ export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchConte
   await updatePatches(opts, context, [{ original, current }])
 }
 
-export const deletePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> => {
+export const deletePatch = async <T>(opts: PluginOptions<T>, context: RecordContext<T>): Promise<void> => {
   await bulkPatch(opts, context, 'eventDeleted', 'deletedDocs')
 }

@@ -53,4 +53,6 @@ export interface PluginOptions<T> {
   patchHistoryDisabled?: boolean
   preDelete?: (docs: HydratedDocument<T>[]) => Promise<void>
   onError?: (error: Error) => void
+  /** Records paths declared with `select: false` (password hashes, tokens) in history entries and events. They are left out by default. */
+  includeHiddenPaths?: boolean
 }

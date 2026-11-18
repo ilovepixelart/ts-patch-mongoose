@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, mapSeries, reportErrors } from '../helpers'
 import { createPatch, deletePatch, type UpdateChange, updatePatches } from '../patch'
-import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, idKey, type ReadOptions, type Snapshot } from '../state'
+import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenSelect, idKey, type ReadOptions, type Snapshot } from '../state'
 import { isMongooseLessThan8 } from '../version'
 import { isFromBulkSave, type Override, type Static } from './model-statics'
 
@@ -169,7 +169,7 @@ const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context
 const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, base: Static, ops: unknown, options: BulkOptions | undefined): Promise<unknown> => {
   if (!isArray(ops) || isHookIgnored(options ?? {})) return base.call(model, ops, options)
 
-  const read: ReadOptions = { session: options?.session ?? null }
+  const read: ReadOptions = { session: options?.session ?? null, select: hiddenSelect(model, opts) }
   const plan = await capture(model, ops as Op[], read, isFromBulkSave(options))
 
   if (opts.preDelete && plan.deleted.size > 0) {

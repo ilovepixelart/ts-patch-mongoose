@@ -166,6 +166,10 @@ BookSchema.plugin(patchHistoryPlugin, {
   // In case you just want to track changes in your models using events
   // and don't want to save changes to patch history collection
   // patchHistoryDisabled: true,
+
+  // Paths declared with `select: false` (password hashes, tokens) are left out of history and events.
+  // Set this to record them too
+  // includeHiddenPaths: true,
 })
 
 const Book = model('Book', BookSchema)
@@ -181,6 +185,7 @@ For every write the plugin reads the stored documents the write will touch, lets
 - `updateMany` and `deleteMany` touch every match. Their stored state is held in memory until the write finishes.
 - `bulkWrite` records the net change of each document it touched. Updates and deletes are recorded under the name of the operation that touched the document first (`updateOne`, `replaceOne`, `deleteMany`, ...), inserts as `create`. A call that fails part way records the operations that were applied, then rejects. `bulkSave` is recorded through the `save` hooks, once. Callback-style calls (mongoose 6) are not recorded.
 - `bulkWrite` reads the targets of all its operations before the call, one read per update or delete operation. An operation whose filter matches a document only because an earlier operation of the same call changed it is not recorded for that document: the call is one command to the server, and splitting it would change what it returns and how it fails. Unordered calls have no defined order anyway. Write such operations in separate calls.
+- Paths declared with `select: false` (password hashes, tokens), including those of subdocuments, are left out of history entries and events. An update that changes only such paths records nothing. Set `includeHiddenPaths: true` to record them.
 - An update costs one read before the write and one after it; an upsert that inserts reads the new document once. A delete costs one read before the write, as in 4.x. Creating documents costs no read, and neither does a `save` of an unmodified document.
 
 ### Concurrent writes and transactions
@@ -277,11 +282,12 @@ BookSchema.plugin(patchHistoryPlugin, {
 | Version key | A `save()` that changed an array did not record the `__v` increment; the `findOneAndReplace` event reported `__v: 0` for a replacement stored without one | The stored `__v` is part of the difference | Add `'__v'` to `omit` to keep it out of patches |
 | `bulkWrite` | Not recorded | Recorded, see [How changes are recorded](#how-changes-are-recorded) | Remove any manual history for `bulkWrite`, or pass `ignoreHook: true` |
 | Errors after the write | A failure while looking up an upserted document rejected the operation | Every failure while recording goes to `onError`; the operation resolves | None |
+| Paths with `select: false` | Recorded with their values in the `doc` of create entries, in update patches when they changed, in create events, and in the `oldDoc` and `doc` of update events even when they did not change; deletes left them out | Left out of every entry and event; an update that changes only such paths records nothing | Set `includeHiddenPaths: true` to record them |
 | Reads | One read before each update | One read before and one after each update | None |
 
-Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing. Entries of different documents written in parallel (`Model.create` of an array saves in parallel) are stored in the order their writes completed.
+Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), with `includeHiddenPaths` changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing. Entries of different documents written in parallel (`Model.create` of an array saves in parallel) are stored in the order their writes completed.
 
-Nothing else changes: the history entry fields, `op` names, version numbering, event payload shapes (`{ doc }`, `{ oldDoc, doc, patch }`, `{ oldDoc }`), plugin options, the `ignoreEvent`, `ignorePatchHistory` and `ignoreHook` query options, `preDelete` running before the delete with lean copies of the documents, and the exports.
+Nothing else changes: the history entry fields, `op` names, version numbering, event payload shapes (`{ doc }`, `{ oldDoc, doc, patch }`, `{ oldDoc }`), plugin options (`includeHiddenPaths` is added), the `ignoreEvent`, `ignorePatchHistory` and `ignoreHook` query options, `preDelete` running before the delete with lean copies of the documents, and the exports.
 
 ## Contributing
 

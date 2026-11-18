@@ -1,7 +1,7 @@
 import { applyUpdate } from '../assign-update'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, reportErrors, sessionOptions, toObjectOptions } from '../helpers'
 import { createPatch, updatePatches } from '../patch'
-import { countOf, findLeanStates, findUpdatedStates, findUpdateTargets, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot, upsertedId } from '../state'
+import { countOf, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenSelect, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot, upsertedId } from '../state'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
 import type { HookContext, PatchContext, PluginOptions } from '../types'
@@ -72,7 +72,7 @@ const findUpsertedByQuery = async <T>(query: Pick<HookContext<T>, 'getUpdate' | 
   for (const candidate of candidates) {
     if (isEmpty(candidate)) continue
     const found = await model
-      .findOne(candidate as never, null, sessionOptions(read.session))
+      .findOne(candidate as never, read.select || null, sessionOptions(read.session))
       .sort({ _id: -1 })
       .lean()
       .exec()
@@ -129,7 +129,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     if (isHookIgnored(options)) return
 
     const model = this.model as Model<T>
-    const read = readOptionsOf(options, findOneAndMethods.has(this.op))
+    const read = readOptionsOf(options, findOneAndMethods.has(this.op), hiddenSelect(model, opts))
     const targets = await findUpdateTargets(model, this.getFilter(), isMulti(this.op), read)
 
     this._context = {

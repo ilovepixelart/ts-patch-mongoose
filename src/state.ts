@@ -1,6 +1,7 @@
 import { chunk, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
 
-import type { ClientSession, HydratedDocument, Model, QueryOptions } from 'mongoose'
+import type { ClientSession, HydratedDocument, Model, QueryOptions, Schema } from 'mongoose'
+import type { PluginOptions } from './types'
 
 export type Snapshot<T> = HydratedDocument<T>
 
@@ -8,16 +9,19 @@ export interface ReadOptions {
   session?: ClientSession | null | undefined
   collation?: unknown
   sort?: unknown
+  /** Projection that adds the `select: false` paths, when the plugin records them. */
+  select?: string
 }
 
 const BATCH = 1000
 
 export const idKey = String
 
-export const readOptionsOf = <T>(options: QueryOptions<T>, withSort: boolean): ReadOptions => ({
+export const readOptionsOf = <T>(options: QueryOptions<T>, withSort: boolean, select: string): ReadOptions => ({
   session: options.session ?? null,
   collation: options.collation,
   ...(withSort && { sort: options.sort }),
+  select,
 })
 
 const queryOptions = (read: ReadOptions): Record<string, unknown> => ({
@@ -25,25 +29,41 @@ const queryOptions = (read: ReadOptions): Record<string, unknown> => ({
   ...(read.collation !== undefined && { collation: read.collation }),
 })
 
-// Paths declared with `select: false` are part of the stored state, so reads that diff states include them.
-export const hiddenPaths = <T>(model: Model<T>): string => {
-  const paths = model.schema.paths as Record<string, { options?: { select?: unknown } }>
-  return Object.keys(paths)
-    .filter((path) => paths[path]?.options?.select === false)
-    .map((path) => `+${path}`)
-    .join(' ')
+type PathType = { options?: { select?: unknown }; schema?: Schema }
+
+// A schema that nests itself is walked once along each path.
+const selectFalsePaths = (schema: Schema, prefix: string, walked: Set<Schema>): string[] => {
+  if (walked.has(schema)) return []
+  const within = new Set(walked).add(schema)
+  return Object.entries(schema.paths as Record<string, PathType>).flatMap(([path, type]) => {
+    if (type.options?.select === false) return [`${prefix}${path}`]
+    return type.schema ? selectFalsePaths(type.schema, `${prefix}${path}.`, within) : []
+  })
 }
+
+/** Paths declared with `select: false`, including those of subdocuments, as dotted paths. */
+export const hiddenPaths = <T>(model: Model<T>): string[] => selectFalsePaths(model.schema as Schema, '', new Set())
+
+/** Projection for reads of the stored state: the `select: false` paths are added only when the plugin records them. */
+export const hiddenSelect = <T>(model: Model<T>, opts: PluginOptions<T>): string =>
+  opts.includeHiddenPaths
+    ? hiddenPaths(model)
+        .map((path) => `+${path}`)
+        .join(' ')
+    : ''
+
+/** The `select: false` paths to leave out of documents the plugin records without reading them. */
+export const hiddenOmit = <T>(model: Model<T>, opts: PluginOptions<T>): string[] => (opts.includeHiddenPaths ? [] : hiddenPaths(model))
 
 const toSnapshot = <T>(doc: HydratedDocument<T>): Snapshot<T> => doc.toObject(toObjectOptions) as Snapshot<T>
 
 /** Stored state, as `toObject`, of the documents an update will touch: the first match for a single-document operation, every match otherwise. */
 export const findUpdateTargets = async <T>(model: Model<T>, filter: object, many: boolean, read: ReadOptions): Promise<Snapshot<T>[]> => {
-  const hidden = hiddenPaths(model)
   if (many) {
-    const docs = await model.find(filter, hidden || null, queryOptions(read)).exec()
+    const docs = await model.find(filter, read.select || null, queryOptions(read)).exec()
     return (docs as HydratedDocument<T>[]).map(toSnapshot)
   }
-  const query = model.findOne(filter, hidden || null, queryOptions(read))
+  const query = model.findOne(filter, read.select || null, queryOptions(read))
   if (read.sort) query.sort(read.sort as never)
   const doc = await query.exec()
   return doc ? [toSnapshot(doc as HydratedDocument<T>)] : []
@@ -52,9 +72,12 @@ export const findUpdateTargets = async <T>(model: Model<T>, filter: object, many
 /** Stored state, as lean objects, of the documents a delete will remove. */
 export const findDeleteTargets = async <T>(model: Model<T>, filter: object, many: boolean, read: ReadOptions): Promise<Snapshot<T>[]> => {
   if (many) {
-    return (await model.find<T>(filter, null, queryOptions(read)).lean().exec()) as unknown as Snapshot<T>[]
+    return (await model
+      .find<T>(filter, read.select || null, queryOptions(read))
+      .lean()
+      .exec()) as unknown as Snapshot<T>[]
   }
-  const query = model.findOne<T>(filter, null, queryOptions(read))
+  const query = model.findOne<T>(filter, read.select || null, queryOptions(read))
   if (read.sort) query.sort(read.sort as never)
   const doc = await query.lean().exec()
   return doc ? [doc as Snapshot<T>] : []
@@ -62,13 +85,12 @@ export const findDeleteTargets = async <T>(model: Model<T>, filter: object, many
 
 /** Stored state, as `toObject`, of the given ids, keyed by id. */
 export const findUpdatedStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions): Promise<Map<string, Snapshot<T>>> => {
-  const hidden = hiddenPaths(model)
-  const batches = await mapSeries(chunk(ids, BATCH), async (batch) => (await model.find({ _id: { $in: batch } } as never, hidden || null, queryOptions(read)).exec()) as HydratedDocument<T>[])
+  const batches = await mapSeries(chunk(ids, BATCH), async (batch) => (await model.find({ _id: { $in: batch } } as never, read.select || null, queryOptions(read)).exec()) as HydratedDocument<T>[])
   return new Map(batches.flat().map((doc) => [idKey(doc._id), toSnapshot(doc)]))
 }
 
 /** Stored state, as lean objects, of the given ids, keyed by id. */
-export const findLeanStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions, projection: string | null = null): Promise<Map<string, Snapshot<T>>> => {
+export const findLeanStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions, projection: string | null = read.select || null): Promise<Map<string, Snapshot<T>>> => {
   const batches = await mapSeries(
     chunk(ids, BATCH),
     async (batch) =>

@@ -498,11 +498,12 @@ describe('characterization: observable behaviour of the plugin', () => {
   })
 
   describe('stored state', () => {
-    it('a select: false path set by an update is recorded', async () => {
+    // 4.x recorded { op: 'add', path: '/secret', value: 's1' }; 5.0 records select: false paths only with includeHiddenPaths.
+    it('a select: false path set by an update is not recorded', async () => {
       const doc = await ThingModel.create({ name: 'a' })
-      await ThingModel.updateOne({ _id: doc._id }, { $set: { secret: 's1' } })
+      await ThingModel.updateOne({ _id: doc._id }, { $set: { secret: 's1', count: 1 } })
       const rows = await entries()
-      expect(rows[1]?.patch).toContainEqual({ op: 'add', path: '/secret', value: 's1' })
+      expect((rows[1]?.patch as { path: string }[] | undefined)?.map((p) => p.path)).toEqual(['/count', '/count'])
     })
   })
 })

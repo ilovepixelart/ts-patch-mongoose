@@ -4,11 +4,12 @@ import { deleteHooksInitialize } from './hooks/delete-hooks'
 import { bulkSaveOverride, overrideStatics } from './hooks/model-statics'
 import { saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
-import { createPatch, deletePatch } from './patch'
+import { createPatch, deletePatch, type RecordContext } from './patch'
+import { hiddenOmit } from './state'
 import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
 
 import type { HydratedDocument, Model, Schema } from 'mongoose'
-import type { PatchContext, PluginOptions } from './types'
+import type { PluginOptions } from './types'
 
 const remove = isMongooseLessThan7 ? 'remove' : 'deleteOne'
 
@@ -32,6 +33,7 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
       createdDocs: docs as unknown as HydratedDocument<T>[],
       // insertMany sets the session of its options on every hydrated document; lean ones carry none
       session: (docs as unknown as HydratedDocument<T>[])[0]?.$session?.() ?? null,
+      hiddenPaths: hiddenOmit(this as Model<T>, opts),
     }
 
     await createPatch(opts, context)
@@ -59,12 +61,13 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
       const original = this.toObject(toObjectOptions) as HydratedDocument<T>
       const model = this.constructor as Model<T>
 
-      const context: PatchContext<T> = {
+      const context: RecordContext<T> = {
         op: 'delete',
         modelName: opts.modelName ?? model.modelName,
         collectionName: opts.collectionName ?? model.collection.collectionName,
         deletedDocs: [original],
         session: this.$session(),
+        hiddenPaths: hiddenOmit(model, opts),
       }
 
       await deletePatch(opts, context)

@@ -1,10 +1,11 @@
 import { isEmpty, reportErrors, sessionOptions, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
-import { findUpdatedStates, hiddenPaths, idKey } from '../state'
+import { findUpdatedStates, hiddenOmit, hiddenSelect, idKey } from '../state'
 import { sessionOf } from './model-statics'
 
 import type { ClientSession, HydratedDocument, Model, Schema } from 'mongoose'
-import type { PatchContext, PluginOptions } from '../types'
+import type { RecordContext } from '../patch'
+import type { PluginOptions } from '../types'
 
 type Pending<T> = { created: HydratedDocument<T> } | { original: HydratedDocument<T> }
 
@@ -13,13 +14,14 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
 
   const sessionOfDoc = (doc: { $session: () => ClientSession | null }) => doc.$session() ?? sessionOf(doc) ?? null
 
-  const contextOf = (doc: HydratedDocument<T>, op: string): PatchContext<T> => {
+  const contextOf = (doc: HydratedDocument<T>, op: string): RecordContext<T> => {
     const model = doc.constructor as Model<T>
     return {
       op,
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
       session: sessionOfDoc(doc),
+      hiddenPaths: hiddenOmit(model, opts),
     }
   }
 
@@ -31,7 +33,7 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
     } else if (this.isModified()) {
       const model = this.constructor as Model<T>
       const original = await model
-        .findById(this._id, hiddenPaths(model) || null, sessionOptions(sessionOfDoc(this)))
+        .findById(this._id, hiddenSelect(model, opts) || null, sessionOptions(sessionOfDoc(this)))
         .lean()
         .exec()
       if (original) pending.set(this, { original: original as HydratedDocument<T> })
@@ -50,7 +52,8 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
       }
 
       const context = contextOf(this, 'update')
-      const states = await findUpdatedStates(this.constructor as Model<T>, [this._id], { session: context.session })
+      const model = this.constructor as Model<T>
+      const states = await findUpdatedStates(model, [this._id], { session: context.session, select: hiddenSelect(model, opts) })
       const current = states.get(idKey(this._id))
       if (current && !isEmpty(current)) await updatePatch(opts, context, current, entry.original)
     })
