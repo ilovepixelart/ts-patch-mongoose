@@ -121,6 +121,18 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
   return cloneCollection(value, seen)
 }
 
+/**
+ * Maps items one at a time: reads and writes that share a transaction session must not run in
+ * parallel, and getUser, getReason and getMetadata are called for one document at a time.
+ */
+export const mapSeries = async <I, O>(items: readonly I[], fn: (item: I, index: number) => Promise<O>): Promise<O[]> => {
+  const results: O[] = []
+  for (const [index, item] of items.entries()) {
+    results.push(await fn(item, index)) // NOSONAR sequential on purpose, see above
+  }
+  return results
+}
+
 export const chunk = <T>(array: T[], size: number): T[][] => {
   const result: T[][] = []
   for (let i = 0; i < array.length; i += size) {

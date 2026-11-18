@@ -1,4 +1,4 @@
-import { chunk, isObjectLike, sessionOptions, toObjectOptions } from './helpers'
+import { chunk, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
 
 import type { ClientSession, HydratedDocument, Model, QueryOptions } from 'mongoose'
 
@@ -12,7 +12,7 @@ export interface ReadOptions {
 
 const BATCH = 1000
 
-export const idKey = (id: unknown): string => String(id)
+export const idKey = String
 
 export const readOptionsOf = <T>(options: QueryOptions<T>, withSort: boolean): ReadOptions => ({
   session: options.session ?? null,
@@ -63,25 +63,21 @@ export const findDeleteTargets = async <T>(model: Model<T>, filter: object, many
 /** Stored state, as `toObject`, of the given ids, keyed by id. */
 export const findUpdatedStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions): Promise<Map<string, Snapshot<T>>> => {
   const hidden = hiddenPaths(model)
-  const states = new Map<string, Snapshot<T>>()
-  for (const batch of chunk(ids, BATCH)) {
-    const docs = (await model.find({ _id: { $in: batch } } as never, hidden || null, queryOptions(read)).exec()) as HydratedDocument<T>[]
-    for (const doc of docs) states.set(idKey(doc._id), toSnapshot(doc))
-  }
-  return states
+  const batches = await mapSeries(chunk(ids, BATCH), async (batch) => (await model.find({ _id: { $in: batch } } as never, hidden || null, queryOptions(read)).exec()) as HydratedDocument<T>[])
+  return new Map(batches.flat().map((doc) => [idKey(doc._id), toSnapshot(doc)]))
 }
 
 /** Stored state, as lean objects, of the given ids, keyed by id. */
 export const findLeanStates = async <T>(model: Model<T>, ids: unknown[], read: ReadOptions, projection: string | null = null): Promise<Map<string, Snapshot<T>>> => {
-  const states = new Map<string, Snapshot<T>>()
-  for (const batch of chunk(ids, BATCH)) {
-    const docs = (await model
-      .find<T>({ _id: { $in: batch } } as never, projection, queryOptions(read))
-      .lean()
-      .exec()) as unknown as Snapshot<T>[]
-    for (const doc of docs) states.set(idKey(doc._id), doc)
-  }
-  return states
+  const batches = await mapSeries(
+    chunk(ids, BATCH),
+    async (batch) =>
+      (await model
+        .find<T>({ _id: { $in: batch } } as never, projection, queryOptions(read))
+        .lean()
+        .exec()) as unknown as Snapshot<T>[],
+  )
+  return new Map(batches.flat().map((doc) => [idKey(doc._id), doc]))
 }
 
 /** The document a findOneAnd* query returned, unwrapping `includeResultMetadata` / `rawResult` results. */

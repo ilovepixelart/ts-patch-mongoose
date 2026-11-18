@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, reportErrors } from '../helpers'
+import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, mapSeries, reportErrors } from '../helpers'
 import { createPatch, deletePatch, type UpdateChange, updatePatches } from '../patch'
 import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, idKey, type ReadOptions, type Snapshot } from '../state'
 
@@ -45,13 +45,13 @@ const remember = <T>(targets: Map<string, Target<T>>, op: string, docs: Snapshot
 const capture = async <T>(model: Model<T>, ops: Op[], read: ReadOptions, saving: SavingIds): Promise<Plan<T>> => {
   const plan: Plan<T> = { updated: new Map(), deleted: new Map(), skippedIds: new Set(), opNames: ops.map(opName) }
 
-  for (const [index, op] of ops.entries()) {
+  await mapSeries(ops, async (op, index) => {
     const name = plan.opNames[index] ?? ''
     const spec = op[name] ?? {}
     const id = targetId(name, spec)
     if (id != null && saving.delete(idKey(id))) {
       plan.skippedIds.add(idKey(id))
-      continue
+      return
     }
 
     const filter = (spec.filter ?? {}) as object
@@ -59,7 +59,7 @@ const capture = async <T>(model: Model<T>, ops: Op[], read: ReadOptions, saving:
     const opRead = { ...read, ...(spec.collation !== undefined && { collation: spec.collation }), ...(spec.sort !== undefined && { sort: spec.sort }) }
     if (updateOps.has(name)) remember(plan.updated, name, await findUpdateTargets(model, filter, many, opRead))
     if (deleteOps.has(name)) remember(plan.deleted, name, await findDeleteTargets(model, filter, many, opRead))
-  }
+  })
 
   return plan
 }
@@ -89,9 +89,9 @@ const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context
     const doc = states.get(idKey(id))
     if (doc) created.push({ op, doc })
   }
-  for (const [op, docs] of groupByOp(created)) {
+  await mapSeries([...groupByOp(created)], async ([op, docs]) => {
     await createPatch(opts, { ...context, op, createdDocs: docs as HydratedDocument<T>[] })
-  }
+  })
 }
 
 const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context: PatchContext<T>, plan: Plan<T>, read: ReadOptions): Promise<void> => {
@@ -111,9 +111,9 @@ const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context
   await updatePatches(opts, context, changes)
 
   const removed = [...plan.deleted.entries()].filter(([key]) => !states.has(key)).map(([, target]) => target)
-  for (const [op, docs] of groupByOp(removed)) {
+  await mapSeries([...groupByOp(removed)], async ([op, docs]) => {
     await deletePatch(opts, { ...context, op, deletedDocs: docs as HydratedDocument<T>[] })
-  }
+  })
 }
 
 const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, saving: SavingIds, base: BulkWrite, ops: unknown, options: BulkOptions | undefined): Promise<unknown> => {

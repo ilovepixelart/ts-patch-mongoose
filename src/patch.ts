@@ -1,5 +1,5 @@
 import em from './em'
-import { chunk, isEmpty, isFunction, sessionOptions } from './helpers'
+import { chunk, isEmpty, isFunction, mapSeries, sessionOptions } from './helpers'
 import { compare as jsonPatchCompare, type Operation } from './json-patch'
 import { HistoryModel } from './model'
 import { omitDeep as omit } from './omit-deep'
@@ -64,6 +64,26 @@ export const emitEvent = <T>(context: PatchContext<T>, event: string | undefined
   }
 }
 
+const createdOrDeletedEntries = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, batch: HydratedDocument<T>[], omittedDocs: Partial<T>[]) =>
+  mapSeries(batch, async (doc, index) => {
+    const [user, reason, metadata] = await getData(opts, doc)
+    return {
+      insertOne: {
+        document: {
+          op: context.op,
+          modelName: context.modelName,
+          collectionName: context.collectionName,
+          collectionId: doc._id as Types.ObjectId,
+          doc: omittedDocs[index],
+          version: 0,
+          ...(user !== undefined && { user }),
+          ...(reason !== undefined && { reason }),
+          ...(metadata !== undefined && { metadata }),
+        },
+      },
+    }
+  })
+
 export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, eventKey: 'eventCreated' | 'eventDeleted', docsKey: 'createdDocs' | 'deletedDocs'): Promise<void> => {
   const history = isPatchHistoryEnabled(opts, context)
   const event = opts[eventKey]
@@ -72,33 +92,11 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
 
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
-  const chunks = chunk(docs, 1000)
-  for (const batch of chunks) {
-    const bulk = []
+  await mapSeries(chunk(docs, 1000), async (batch) => {
     const omittedDocs = batch.map((doc) => getObjectOmit(opts, doc))
 
     if (history) {
-      for (const [index, doc] of batch.entries()) {
-        const [user, reason, metadata] = await getData(opts, doc)
-        bulk.push({
-          insertOne: {
-            document: {
-              op: context.op,
-              modelName: context.modelName,
-              collectionName: context.collectionName,
-              collectionId: doc._id as Types.ObjectId,
-              doc: omittedDocs[index],
-              version: 0,
-              ...(user !== undefined && { user }),
-              ...(reason !== undefined && { reason }),
-              ...(metadata !== undefined && { metadata }),
-            },
-          },
-        })
-      }
-    }
-
-    if (history && !isEmpty(bulk)) {
+      const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)
       const onError = opts.onError ?? console.error
       await HistoryModel.bulkWrite(bulk, { ordered: false, ...sessionOptions(context.session) }).catch((error: MongooseError) => {
         onError(error)
@@ -108,7 +106,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: PatchContext
     for (const omitted of omittedDocs) {
       emitEvent(context, event, { [key]: omitted })
     }
-  }
+  })
 }
 
 export const createPatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>): Promise<void> => {
@@ -156,10 +154,9 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
       changes.map((change) => change.original._id as Types.ObjectId),
       context.session,
     )
-    const entries = []
-    for (const change of changes) {
+    const entries = await mapSeries(changes, async (change) => {
       const [user, reason, metadata] = await getData(opts, change.current)
-      entries.push({
+      return {
         op: change.op ?? context.op,
         modelName: context.modelName,
         collectionName: context.collectionName,
@@ -169,8 +166,8 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
         ...(user !== undefined && { user }),
         ...(reason !== undefined && { reason }),
         ...(metadata !== undefined && { metadata }),
-      })
-    }
+      }
+    })
     if (entries.length === 1) {
       await HistoryModel.create(entries, sessionOptions(context.session))
     } else {
@@ -183,9 +180,9 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
 
 /** Records the stored state before and after each change: history entries first, in one write per batch, then the update events. */
 export const updatePatches = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, changes: UpdateChange<T>[]): Promise<void> => {
-  for (const batch of chunk(changes, 1000)) {
+  await mapSeries(chunk(changes, 1000), async (batch) => {
     const diffed = batch.map((change) => diffChange(opts, change)).filter((change): change is DiffedChange<T> => change !== null)
-    if (isEmpty(diffed)) continue
+    if (isEmpty(diffed)) return
 
     if (isPatchHistoryEnabled(opts, context)) {
       await writeUpdateHistory(opts, context, diffed)
@@ -194,7 +191,7 @@ export const updatePatches = async <T>(opts: PluginOptions<T>, context: PatchCon
     for (const { original, current, patch } of diffed) {
       emitEvent(context, opts.eventUpdated, { oldDoc: original, doc: current, patch })
     }
-  }
+  })
 }
 
 export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> => {
