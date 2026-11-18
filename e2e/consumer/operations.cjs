@@ -1,6 +1,6 @@
 'use strict'
 
-// Every model operation the plugin hooks, plus bulkWrite, which it does not. Each `run` gets the
+// Every model operation the plugin records, bulkWrite included. Each `run` gets the
 // model, the session options of the current mode (`o`), and helpers for fixed ids and documents.
 // `available` gates operations that a mongoose major no longer has.
 
