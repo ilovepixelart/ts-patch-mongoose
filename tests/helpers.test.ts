@@ -10,7 +10,7 @@ vi.mock('../src/model', () => ({
     collection: {
       indexes: vi.fn(),
       dropIndex: vi.fn(),
-      createIndex: vi.fn(),
+      createIndexes: vi.fn(),
     },
   },
 }))
@@ -19,13 +19,13 @@ const name = 'createdAt_1_TTL'
 
 describe('useTTL', () => {
   let dropIndexSpy: MockInstance
-  let createIndexSpy: MockInstance
+  let createIndexesSpy: MockInstance
   const indexes = HistoryModel.collection.indexes as Mock
 
   beforeEach(() => {
     vi.clearAllMocks()
     dropIndexSpy = vi.spyOn(HistoryModel.collection, 'dropIndex')
-    createIndexSpy = vi.spyOn(HistoryModel.collection, 'createIndex')
+    createIndexesSpy = vi.spyOn(HistoryModel.collection, 'createIndexes')
   })
 
   afterEach(() => {
@@ -55,7 +55,7 @@ describe('useTTL', () => {
 
     await setPatchHistoryTTL(ttl)
     expect(dropIndexSpy).not.toHaveBeenCalled()
-    expect(createIndexSpy).not.toHaveBeenCalled()
+    expect(createIndexesSpy).not.toHaveBeenCalled()
   })
 
   it('should drop and recreate the index if TTL is different', async () => {
@@ -69,7 +69,7 @@ describe('useTTL', () => {
 
     await setPatchHistoryTTL(ttlAfter)
     expect(dropIndexSpy).toHaveBeenCalledWith(name)
-    expect(createIndexSpy).toHaveBeenCalledWith({ createdAt: 1 }, { expireAfterSeconds: expireAfterSecondsAfter, name })
+    expect(createIndexesSpy).toHaveBeenCalledWith([{ key: { createdAt: 1 }, expireAfterSeconds: expireAfterSecondsAfter, name }])
   })
 
   it('should create the index if it does not exist', async () => {
@@ -79,7 +79,7 @@ describe('useTTL', () => {
     indexes.mockResolvedValue([])
 
     await setPatchHistoryTTL(ttl)
-    expect(createIndexSpy).toHaveBeenCalledWith({ createdAt: 1 }, { expireAfterSeconds, name })
+    expect(createIndexesSpy).toHaveBeenCalledWith([{ key: { createdAt: 1 }, expireAfterSeconds, name }])
   })
 })
 
