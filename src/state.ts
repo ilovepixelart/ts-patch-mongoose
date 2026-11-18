@@ -1,4 +1,4 @@
-import { chunk, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
+import { chunk, isEmpty, isObjectLike, mapSeries, sessionOptions, toObjectOptions } from './helpers'
 
 import type { ClientSession, HydratedDocument, Model, QueryOptions, Schema } from 'mongoose'
 import type { PluginOptions } from './types'
@@ -32,17 +32,27 @@ const queryOptions = (read: ReadOptions): Record<string, unknown> => ({
 type PathType = { options?: { select?: unknown }; schema?: Schema }
 
 // A schema that nests itself is walked once along each path.
-const selectFalsePaths = (schema: Schema, prefix: string, walked: Set<Schema>): string[] => {
+const selectFalsePathsOf = (schema: Schema, prefix: string, walked: Set<Schema>): string[] => {
   if (walked.has(schema)) return []
   const within = new Set(walked).add(schema)
   return Object.entries(schema.paths as Record<string, PathType>).flatMap(([path, type]) => {
     if (type.options?.select === false) return [`${prefix}${path}`]
-    return type.schema ? selectFalsePaths(type.schema, `${prefix}${path}.`, within) : []
+    return type.schema ? selectFalsePathsOf(type.schema, `${prefix}${path}.`, within) : []
   })
 }
 
+const selectFalseCache = new WeakMap<Schema, string[]>()
+
+const selectFalsePaths = (schema: Schema): string[] => {
+  const cached = selectFalseCache.get(schema)
+  if (cached) return cached
+  const paths = selectFalsePathsOf(schema, '', new Set())
+  selectFalseCache.set(schema, paths)
+  return paths
+}
+
 /** Paths declared with `select: false`, including those of subdocuments, as dotted paths. */
-export const hiddenPaths = <T>(model: Model<T>): string[] => selectFalsePaths(model.schema as Schema, '', new Set())
+export const hiddenPaths = <T>(model: Model<T>): string[] => selectFalsePaths(model.schema as Schema)
 
 /** Projection for reads of the stored state: the `select: false` paths are added only when the plugin records them. */
 export const hiddenSelect = <T>(model: Model<T>, opts: PluginOptions<T>): string =>
@@ -52,8 +62,25 @@ export const hiddenSelect = <T>(model: Model<T>, opts: PluginOptions<T>): string
         .join(' ')
     : ''
 
-/** The `select: false` paths to leave out of documents the plugin records without reading them. */
-export const hiddenOmit = <T>(model: Model<T>, opts: PluginOptions<T>): string[] => (opts.includeHiddenPaths ? [] : hiddenPaths(model))
+type Discriminator = { schema: Schema & { discriminatorMapping?: { value?: unknown } } }
+
+/**
+ * The `select: false` paths to leave out of each state the plugin records or emits: those of the model's schema
+ * and, for a document of a discriminator, those of the discriminator's schema. A read through the base model
+ * applies only the base schema's projection, so the discriminator's paths are in the documents it returns.
+ */
+export const hiddenOmit = <T>(model: Model<T>, opts: PluginOptions<T>): ((doc: unknown) => string[]) | undefined => {
+  if (opts.includeHiddenPaths) return undefined
+  const base = hiddenPaths(model)
+  const key = (model.schema as Schema).options.discriminatorKey ?? '__t'
+  const discriminators = Object.values((model.discriminators ?? {}) as Record<string, Discriminator>)
+  if (isEmpty(discriminators)) return () => base
+  return (doc) => {
+    const value = isObjectLike(doc) ? doc[key] : undefined
+    const discriminator = value === undefined ? undefined : discriminators.find(({ schema }) => schema.discriminatorMapping?.value === value)
+    return discriminator ? selectFalsePaths(discriminator.schema) : base
+  }
+}
 
 const toSnapshot = <T>(doc: HydratedDocument<T>): Snapshot<T> => doc.toObject(toObjectOptions) as Snapshot<T>
 

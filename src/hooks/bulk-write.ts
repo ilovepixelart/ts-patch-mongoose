@@ -1,12 +1,12 @@
 import mongoose from 'mongoose'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, mapSeries, reportErrors } from '../helpers'
-import { createPatch, deletePatch, type UpdateChange, updatePatches } from '../patch'
-import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenSelect, idKey, type ReadOptions, type Snapshot } from '../state'
+import { createPatch, deletePatch, type RecordContext, type UpdateChange, updatePatches } from '../patch'
+import { findDeleteTargets, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenOmit, hiddenSelect, idKey, type ReadOptions, type Snapshot } from '../state'
 import { isMongooseLessThan8 } from '../version'
 import { isFromBulkSave, type Override, type Static } from './model-statics'
 
 import type { HydratedDocument, Model } from 'mongoose'
-import type { PatchContext, PluginOptions } from '../types'
+import type { PluginOptions } from '../types'
 
 type Op = Record<string, Record<string, unknown> | undefined>
 type BulkOptions = Record<string, unknown> & { session?: mongoose.ClientSession | null }
@@ -124,7 +124,7 @@ const createdIds = (plan: Plan<unknown>, settled: unknown, ordered: boolean): { 
   return [...inserted, ...upserted]
 }
 
-const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context: PatchContext<T>, plan: Plan<T>, settled: unknown, read: ReadOptions, ordered: boolean): Promise<void> => {
+const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context: RecordContext<T>, plan: Plan<T>, settled: unknown, read: ReadOptions, ordered: boolean): Promise<void> => {
   if (plan.fromBulkSave) return
   const created: Target<T>[] = []
   const wanted = createdIds(plan as Plan<unknown>, settled, ordered)
@@ -144,7 +144,7 @@ const recordCreated = async <T>(model: Model<T>, opts: PluginOptions<T>, context
   })
 }
 
-const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context: PatchContext<T>, plan: Plan<T>, read: ReadOptions): Promise<void> => {
+const recordChanged = async <T>(model: Model<T>, opts: PluginOptions<T>, context: RecordContext<T>, plan: Plan<T>, read: ReadOptions): Promise<void> => {
   if (plan.updated.size === 0 && plan.deleted.size === 0) return
 
   const states = await findUpdatedStates(
@@ -180,13 +180,14 @@ const trackBulkWrite = async <T>(model: Model<T>, opts: PluginOptions<T>, base: 
   const write = base.call(model, ops, options)
   const settled = await write.catch((error: unknown) => error)
 
-  const context: PatchContext<T> = {
+  const context: RecordContext<T> = {
     op: 'bulkWrite',
     modelName: opts.modelName ?? model.modelName,
     collectionName: opts.collectionName ?? model.collection.collectionName,
     ignoreEvent: options?.ignoreEvent as boolean,
     ignorePatchHistory: options?.ignorePatchHistory as boolean,
     session: read.session ?? null,
+    hiddenPathsOf: hiddenOmit(model, opts),
   }
   await reportErrors(opts.onError, async () => {
     await recordChanged(model, opts, context, plan, read)

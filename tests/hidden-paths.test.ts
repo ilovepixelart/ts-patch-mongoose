@@ -40,6 +40,34 @@ const BareSchema = new Schema<Account>({ name: String, secret: { type: String, s
 BareSchema.plugin(patchHistoryPlugin, {})
 const BareModel = model<Account>('HiddenBare', BareSchema)
 
+interface Admin {
+  name: string
+  kind?: string
+  passwordHash?: string
+  profile?: { pin?: string; nick?: string }
+  keys?: { label?: string; value?: string }[]
+}
+
+const discriminatedModels = (includeHiddenPaths: boolean, prefix: string) => {
+  const schema = new Schema<Admin>({ name: String }, { discriminatorKey: 'kind' })
+  schema.plugin(patchHistoryPlugin, {
+    omit: ['__v'],
+    eventCreated: `${prefix}-created`,
+    eventUpdated: `${prefix}-updated`,
+    eventDeleted: `${prefix}-deleted`,
+    ...(includeHiddenPaths && { includeHiddenPaths }),
+  })
+  const base = model<Admin>(`${prefix}-user`, schema)
+  const child = base.discriminator<Admin>(`${prefix}-admin`, new Schema({ passwordHash: { type: String, select: false }, profile: { pin: { type: String, select: false }, nick: String }, keys: [KeySchema] }))
+  return [base, child] as const
+}
+
+const [DiscBase, DiscChild] = discriminatedModels(false, 'hidden-disc')
+const [DiscBaseIncluded, DiscChildIncluded] = discriminatedModels(true, 'hidden-disc-included')
+
+const withAdminSecrets = (n: number): Admin => ({ name: `a${n}`, passwordHash: `SECRET-p${n}`, profile: { pin: `SECRET-pin${n}`, nick: 'n' }, keys: [{ label: 'k', value: `SECRET-k${n}` }] })
+const adminChange = { name: 'changed', passwordHash: 'SECRET-p9', 'profile.pin': 'SECRET-pin9', keys: [{ label: 'k2', value: 'SECRET-k9' }] }
+
 const withSecrets = (n: number): Account => ({ name: `n${n}`, secret: `SECRET-s${n}`, auth: { token: `SECRET-t${n}`, provider: 'p' }, keys: [{ label: 'k', value: `SECRET-k${n}` }] })
 const secretChange = { name: 'changed', secret: 'SECRET-s9', 'auth.token': 'SECRET-t9', keys: [{ label: 'k2', value: 'SECRET-k9' }] }
 
@@ -47,6 +75,13 @@ const events: unknown[] = []
 
 const seed = async (M: Model<Account>, n = 1) => {
   const doc = await M.create(withSecrets(n))
+  await mongoose.connection.collection('history').deleteMany({})
+  events.length = 0
+  return doc
+}
+
+const seedAdmin = async (M: Model<Admin>, n = 1) => {
+  const doc = await M.create(withAdminSecrets(n))
   await mongoose.connection.collection('history').deleteMany({})
   events.length = 0
   return doc
@@ -100,7 +135,7 @@ describe('paths declared with select: false', () => {
     await mongoose.connection.collection('history').deleteMany({})
     em.removeAllListeners()
     events.length = 0
-    for (const prefix of ['hidden-default', 'hidden-included']) {
+    for (const prefix of ['hidden-default', 'hidden-included', 'hidden-disc', 'hidden-disc-included']) {
       for (const kind of ['created', 'updated', 'deleted']) em.on(`${prefix}-${kind}`, (data: unknown) => events.push(data))
     }
   })
@@ -173,5 +208,55 @@ describe('paths declared with select: false', () => {
       const [row] = (await recorded('HiddenIncluded')).rows
       expect(row?.doc).toMatchObject(withSecrets(1))
     })
+  })
+
+  describe('declared only in a discriminator schema', () => {
+    for (const [title, Base, Child, included] of [
+      ['by default', DiscBase, DiscChild, false],
+      ['with includeHiddenPaths', DiscBaseIncluded, DiscChildIncluded, true],
+    ] as const) {
+      describe(title, () => {
+        const discOperations: [string, () => PromiseLike<unknown>][] = [
+          ['save (create)', () => Child.create(withAdminSecrets(1))],
+          ['insertMany', () => Child.insertMany([withAdminSecrets(1)])],
+          [
+            'save (update)',
+            async () => {
+              const { _id } = await seedAdmin(Child)
+              const doc = await Child.findById(_id).select('+passwordHash +profile.pin +keys.value')
+              doc?.set(adminChange)
+              await doc?.save()
+            },
+          ],
+          ['updateOne on the discriminator', async () => Child.updateOne({ _id: (await seedAdmin(Child))._id }, { $set: adminChange })],
+          ['updateOne on the base model', async () => Base.updateOne({ _id: (await seedAdmin(Child))._id }, { $set: { name: 'changed' } })],
+          ['findOneAndUpdate on the base model', async () => Base.findOneAndUpdate({ _id: (await seedAdmin(Child))._id }, { $set: { name: 'changed' } })],
+          ['deleteOne on the discriminator', async () => Child.deleteOne({ _id: (await seedAdmin(Child))._id })],
+          ['deleteOne on the base model', async () => Base.deleteOne({ _id: (await seedAdmin(Child))._id })],
+          [
+            'bulkWrite on the base model',
+            async () => {
+              const a = await seedAdmin(Child, 1)
+              const b = await seedAdmin(Child, 2)
+              await Base.bulkWrite([{ updateOne: { filter: { _id: a._id }, update: { $set: { name: 'changed' } } } }, { deleteOne: { filter: { _id: b._id } } }] as never)
+            },
+          ],
+        ]
+
+        it.each(discOperations)('%s', async (_name, run) => {
+          await run()
+          const { rows, text, events: eventText } = await recorded(Base.modelName)
+          const childRows = await HistoryModel.find({ modelName: Child.modelName }).lean()
+          const all = text + JSON.stringify(childRows)
+          expect(rows.length + childRows.length).toBeGreaterThan(0)
+          if (included) {
+            expect(all + eventText).toContain('SECRET')
+          } else {
+            expect(all).not.toContain('SECRET')
+            expect(eventText).not.toContain('SECRET')
+          }
+        })
+      })
+    }
   })
 })

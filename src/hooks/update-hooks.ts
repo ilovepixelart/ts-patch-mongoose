@@ -1,10 +1,11 @@
 import { applyUpdate } from '../assign-update'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, reportErrors, sessionOptions, toObjectOptions } from '../helpers'
 import { createPatch, updatePatches } from '../patch'
-import { countOf, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenSelect, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot, upsertedId } from '../state'
+import { countOf, findLeanStates, findUpdatedStates, findUpdateTargets, hiddenOmit, hiddenSelect, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot, upsertedId } from '../state'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
-import type { HookContext, PatchContext, PluginOptions } from '../types'
+import type { RecordContext } from '../patch'
+import type { HookContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
@@ -53,7 +54,7 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   return { update, commands }
 }
 
-type UpdateContext<T> = PatchContext<T> & { targets?: Snapshot<T>[]; read?: ReadOptions }
+type UpdateContext<T> = RecordContext<T> & { targets?: Snapshot<T>[]; read?: ReadOptions }
 type UpdateHookContext<T> = Omit<HookContext<T>, '_context'> & { _context?: UpdateContext<T> }
 
 const findOneAndMethods = new Set(['findOneAndUpdate', 'findOneAndReplace'])
@@ -140,6 +141,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
       session: read.session ?? null,
+      hiddenPathsOf: hiddenOmit(model, opts),
       targets,
       read,
     }

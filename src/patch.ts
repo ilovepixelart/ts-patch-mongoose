@@ -7,8 +7,10 @@ import { omitDeep as omit, omitPaths } from './omit-deep'
 import type { HydratedDocument, MongooseError, Types } from 'mongoose'
 import type { Metadata, PatchContext, PatchEvent, PluginOptions, User } from './types'
 
-/** A patch context with the `select: false` paths to leave out of documents the plugin records without reading them. */
-export type RecordContext<T> = PatchContext<T> & { hiddenPaths?: string[] }
+/** A patch context with the `select: false` paths to leave out of each document the plugin records or emits. */
+export type RecordContext<T> = PatchContext<T> & { hiddenPathsOf?: ((doc: unknown) => string[]) | undefined }
+
+const withoutHidden = <T, D>(context: RecordContext<T>, doc: D): D => (context.hiddenPathsOf ? omitPaths(doc, context.hiddenPathsOf(doc)) : doc)
 
 const isPatchHistoryEnabled = <T>(opts: PluginOptions<T>, context: PatchContext<T>): boolean => {
   return !opts.patchHistoryDisabled && !context.ignorePatchHistory
@@ -96,7 +98,7 @@ export const bulkPatch = async <T>(opts: PluginOptions<T>, context: RecordContex
   if (isEmpty(docs) || !docs || (!event && !history)) return
 
   await mapSeries(chunk(docs, 1000), async (batch) => {
-    const omittedDocs = batch.map((doc) => omitPaths(getObjectOmit(opts, doc), context.hiddenPaths ?? []))
+    const omittedDocs = batch.map((doc) => withoutHidden(context, getObjectOmit(opts, doc)))
 
     if (history) {
       const bulk = await createdOrDeletedEntries(opts, context, batch, omittedDocs)
@@ -126,13 +128,15 @@ interface DiffedChange<T> extends UpdateChange<T> {
   patch: Operation[]
 }
 
-const diffChange = <T>(opts: PluginOptions<T>, change: UpdateChange<T>): DiffedChange<T> | null => {
-  const currentObject = getJsonOmit(opts, change.current)
-  const originalObject = getJsonOmit(opts, change.original)
+const diffChange = <T>(opts: PluginOptions<T>, context: RecordContext<T>, change: UpdateChange<T>): DiffedChange<T> | null => {
+  const original = withoutHidden(context, change.original)
+  const current = withoutHidden(context, change.current)
+  const currentObject = getJsonOmit(opts, current)
+  const originalObject = getJsonOmit(opts, original)
   if (isEmpty(originalObject) || isEmpty(currentObject)) return null
 
   const patch = jsonPatchCompare(originalObject, currentObject, true)
-  return isEmpty(patch) ? null : { ...change, patch }
+  return isEmpty(patch) ? null : { ...change, original, current, patch }
 }
 
 // History is read and written outside the caller's session, as in 4.0: a transaction that writes to the history
@@ -180,9 +184,9 @@ const writeUpdateHistory = async <T>(opts: PluginOptions<T>, context: PatchConte
 }
 
 /** Records the stored state before and after each change: history entries first, in one write per batch, then the update events. */
-export const updatePatches = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, changes: UpdateChange<T>[]): Promise<void> => {
+export const updatePatches = async <T>(opts: PluginOptions<T>, context: RecordContext<T>, changes: UpdateChange<T>[]): Promise<void> => {
   await mapSeries(chunk(changes, 1000), async (batch) => {
-    const diffed = batch.map((change) => diffChange(opts, change)).filter((change): change is DiffedChange<T> => change !== null)
+    const diffed = batch.map((change) => diffChange(opts, context, change)).filter((change): change is DiffedChange<T> => change !== null)
     if (isEmpty(diffed)) return
 
     if (isPatchHistoryEnabled(opts, context)) {
@@ -195,7 +199,7 @@ export const updatePatches = async <T>(opts: PluginOptions<T>, context: PatchCon
   })
 }
 
-export const updatePatch = async <T>(opts: PluginOptions<T>, context: PatchContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> => {
+export const updatePatch = async <T>(opts: PluginOptions<T>, context: RecordContext<T>, current: HydratedDocument<T>, original: HydratedDocument<T>): Promise<void> => {
   await updatePatches(opts, context, [{ original, current }])
 }
 

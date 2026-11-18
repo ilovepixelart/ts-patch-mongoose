@@ -1,15 +1,16 @@
 import { cloneDeep, isEmpty, isHookIgnored, reportErrors } from '../helpers'
 import { deletePatch } from '../patch'
-import { countOf, findDeleteTargets, findLeanStates, hiddenSelect, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot } from '../state'
+import { countOf, findDeleteTargets, findLeanStates, hiddenOmit, hiddenSelect, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot } from '../state'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, QueryOptions, Schema } from 'mongoose'
-import type { HookContext, PatchContext, PluginOptions } from '../types'
+import type { RecordContext } from '../patch'
+import type { HookContext, PluginOptions } from '../types'
 
 const deleteMethods = ['remove', 'findOneAndDelete', 'findOneAndRemove', 'findByIdAndDelete', 'findByIdAndRemove', 'deleteOne', 'deleteMany']
 
 const findOneAndMethods = new Set(['findOneAndDelete', 'findOneAndRemove'])
 
-type DeleteContext<T> = PatchContext<T> & { read?: ReadOptions }
+type DeleteContext<T> = RecordContext<T> & { read?: ReadOptions }
 type DeleteHookContext<T> = Omit<HookContext<T>, '_context'> & { _context?: DeleteContext<T> }
 
 const isMulti = <T>(op: string, options: QueryOptions<T>): boolean => ['remove', 'deleteMany'].includes(op) && !options.single
@@ -52,6 +53,7 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
       session: read.session ?? null,
+      hiddenPathsOf: hiddenOmit(model, opts),
       read,
       ...(!isEmpty(docs) && { deletedDocs: docs as HydratedDocument<T>[] }),
     }
