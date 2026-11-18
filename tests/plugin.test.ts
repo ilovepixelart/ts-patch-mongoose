@@ -333,8 +333,9 @@ describe('plugin', () => {
       await UserModel.findOneAndUpdate({ role: 'user' }, { $set: { name: 'Bob' } }).exec()
     }
 
+    // update() with multi changes both docs; findOneAndUpdate() changes only the first match
     const history = await HistoryModel.find({})
-    expect(history).toHaveLength(4)
+    expect(history).toHaveLength(isMongooseLessThan7 ? 4 : 3)
 
     const [first, second, third, fourth] = history
 
@@ -383,20 +384,25 @@ describe('plugin', () => {
     ])
 
     // 4 update
-    expect(fourth.version).toBe(1)
-    expect(fourth.modelName).toBe('User')
-    expect(fourth.collectionName).toBe('users')
-    expect(fourth.collectionId).toEqual(alice._id)
+    if (isMongooseLessThan7) {
+      expect(fourth.version).toBe(1)
+      expect(fourth.modelName).toBe('User')
+      expect(fourth.collectionName).toBe('users')
+      expect(fourth.collectionId).toEqual(alice._id)
 
-    expect(fourth.doc).toBeUndefined()
+      expect(fourth.doc).toBeUndefined()
 
-    expect(fourth.patch).toHaveLength(2)
-    expect(fourth.patch).toMatchObject([
-      { op: 'test', path: '/name', value: 'Alice' },
-      { op: 'replace', path: '/name', value: 'Bob' },
-    ])
+      expect(fourth.patch).toHaveLength(2)
+      expect(fourth.patch).toMatchObject([
+        { op: 'test', path: '/name', value: 'Alice' },
+        { op: 'replace', path: '/name', value: 'Bob' },
+      ])
+    } else {
+      expect(fourth).toBeUndefined()
+      expect((await UserModel.findById(alice._id))?.name).toBe('Alice')
+    }
 
-    expect(em.emit).toHaveBeenCalledTimes(4)
+    expect(em.emit).toHaveBeenCalledTimes(isMongooseLessThan7 ? 4 : 3)
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: first.doc })
     expect(em.emit).toHaveBeenCalledWith(USER_CREATED, { doc: second.doc })
     expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
@@ -404,11 +410,13 @@ describe('plugin', () => {
       doc: expect.objectContaining({ _id: john._id, name: 'Bob', role: 'user' }),
       patch: third.patch,
     })
-    expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
-      oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
-      doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
-      patch: fourth.patch,
-    })
+    if (isMongooseLessThan7) {
+      expect(em.emit).toHaveBeenCalledWith(USER_UPDATED, {
+        oldDoc: expect.objectContaining({ _id: alice._id, name: 'Alice', role: 'user' }),
+        doc: expect.objectContaining({ _id: alice._id, name: 'Bob', role: 'user' }),
+        patch: fourth.patch,
+      })
+    }
   })
 
   it('should create many', async () => {

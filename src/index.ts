@@ -1,6 +1,7 @@
 import { isEmpty, toObjectOptions } from './helpers'
+import { bulkWriteInitialize } from './hooks/bulk-write'
 import { deleteHooksInitialize } from './hooks/delete-hooks'
-import { saveHooksInitialize } from './hooks/save-hooks'
+import { type SavingIds, saveHooksInitialize } from './hooks/save-hooks'
 import { updateHooksInitialize } from './hooks/update-hooks'
 import { createPatch, deletePatch } from './patch'
 import { isMongooseLessThan7, isMongooseLessThan8 } from './version'
@@ -17,9 +18,11 @@ export * from './types'
 export type { Duration } from './ms'
 
 export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
-  saveHooksInitialize(schema, opts)
+  const saving: SavingIds = new Set()
+  saveHooksInitialize(schema, opts, saving)
   updateHooksInitialize(schema, opts)
   deleteHooksInitialize(schema, opts)
+  bulkWriteInitialize(schema, opts, saving)
 
   schema.post('insertMany', async function (docs) {
     const context = {
@@ -27,6 +30,8 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
       modelName: opts.modelName ?? this.modelName,
       collectionName: opts.collectionName ?? this.collection.collectionName,
       createdDocs: docs as unknown as HydratedDocument<T>[],
+      // insertMany sets the session of its options on every hydrated document; lean ones carry none
+      session: (docs as unknown as HydratedDocument<T>[])[0]?.$session?.() ?? null,
     }
 
     await createPatch(opts, context)
@@ -59,6 +64,7 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
         modelName: opts.modelName ?? model.modelName,
         collectionName: opts.collectionName ?? model.collection.collectionName,
         deletedDocs: [original],
+        session: this.$session(),
       }
 
       await deletePatch(opts, context)

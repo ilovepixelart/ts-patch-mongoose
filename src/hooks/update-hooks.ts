@@ -1,9 +1,10 @@
 import { applyUpdate } from '../assign-update'
-import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, toObjectOptions } from '../helpers'
-import { createPatch, updatePatch } from '../patch'
+import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, reportErrors, sessionOptions, toObjectOptions } from '../helpers'
+import { createPatch, updatePatches } from '../patch'
+import { countOf, findLeanStates, findUpdatedStates, findUpdateTargets, idKey, type ReadOptions, readOptionsOf, resultDocument, type Snapshot, upsertedId } from '../state'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
-import type { HookContext, PluginOptions } from '../types'
+import type { HookContext, PatchContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
 
@@ -52,64 +53,107 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   return { update, commands }
 }
 
+type UpdateContext<T> = PatchContext<T> & { targets?: Snapshot<T>[]; read?: ReadOptions }
+type UpdateHookContext<T> = Omit<HookContext<T>, '_context'> & { _context?: UpdateContext<T> }
+
+const findOneAndMethods = new Set(['findOneAndUpdate', 'findOneAndReplace'])
+
+// Mongoose 6 sends the deprecated update() through the driver's update(), which updates every match.
+const isMulti = (op: string): boolean => op === 'updateMany' || op === 'update'
+
+// The upserted document cannot be read by id when the query returns neither the document nor its id
+// (findOneAnd* without `new`), so it is looked up by the update and the filter.
+const findUpsertedByQuery = async <T>(query: Pick<HookContext<T>, 'getUpdate' | 'getFilter'>, model: Model<T>, read: ReadOptions): Promise<HydratedDocument<T> | null> => {
+  const { update, commands } = splitUpdateAndCommands(query.getUpdate())
+  const simulated = assignUpdate(model.hydrate({}), update, commands) as unknown as Record<string, unknown>
+  const simulatedFilter = Object.fromEntries(Object.entries(simulated).filter(([, v]) => v !== undefined))
+  const candidates = [update, simulatedFilter, query.getFilter()]
+
+  for (const candidate of candidates) {
+    if (isEmpty(candidate)) continue
+    const found = await model
+      .findOne(candidate as never, null, sessionOptions(read.session))
+      .sort({ _id: -1 })
+      .lean()
+      .exec()
+    if (found) return found as HydratedDocument<T>
+  }
+  return null
+}
+
+const findUpserted = async <T>(query: Pick<HookContext<T>, 'getUpdate' | 'getFilter'>, model: Model<T>, res: unknown, read: ReadOptions): Promise<HydratedDocument<T> | null> => {
+  const id = upsertedId(res) ?? resultDocument(res)?._id
+  if (id != null) {
+    const states = await findLeanStates(model, [id], read)
+    return states.get(idKey(id)) ?? null
+  }
+  if (countOf(res, 'upsertedCount') === 0) return null
+  return findUpsertedByQuery(query, model, read)
+}
+
+const changedTargets = <T>(op: string, targets: Snapshot<T>[], res: unknown): Snapshot<T>[] => {
+  if (countOf(res, 'modifiedCount') === 0) return []
+  if (!findOneAndMethods.has(op)) return targets
+  const doc = resultDocument(res)
+  if (!doc) return []
+  return doc._id == null ? targets : targets.filter((target) => idKey(target._id) === idKey(doc._id))
+}
+
+const recordUpdate = async <T>(query: Pick<HookContext<T>, 'getUpdate' | 'getFilter' | 'op' | 'model'>, opts: PluginOptions<T>, context: UpdateContext<T>, read: ReadOptions, res: unknown): Promise<void> => {
+  const model = query.model as Model<T>
+
+  if (context.isNew) {
+    const created = await findUpserted(query, model, res, read)
+    if (created) await createPatch(opts, { ...context, createdDocs: [created] })
+    return
+  }
+
+  const targets = changedTargets(query.op, context.targets ?? [], res)
+  if (isEmpty(targets)) return
+
+  const states = await findUpdatedStates(
+    model,
+    targets.map((target) => target._id),
+    read,
+  )
+  const changes = targets.flatMap((original) => {
+    const current = states.get(idKey(original._id))
+    return current ? [{ original, current }] : []
+  })
+  await updatePatches(opts, context, changes)
+}
+
 export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
-  schema.pre(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
+  schema.pre(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: UpdateHookContext<T>) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
 
     const model = this.model as Model<T>
-    const filter = this.getFilter()
+    const read = readOptionsOf(options, findOneAndMethods.has(this.op))
+    const targets = await findUpdateTargets(model, this.getFilter(), isMulti(this.op), read)
 
     this._context = {
       op: this.op,
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
-      isNew: Boolean(options.upsert) && (await model.countDocuments(filter).exec()) === 0,
+      isNew: Boolean(options.upsert) && targets.length === 0,
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
+      session: read.session ?? null,
+      targets,
+      read,
     }
-
-    const updateQuery = this.getUpdate()
-    const { update, commands } = splitUpdateAndCommands(updateQuery)
-
-    const cursor = model.find(filter).cursor()
-    await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
-      const origDoc = doc.toObject(toObjectOptions) as HydratedDocument<T>
-      await updatePatch(opts, this._context, assignUpdate(doc, update, commands), origDoc)
-    })
   })
 
-  schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: UpdateHookContext<T>, res: unknown) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
-    if (!this._context) return
+    const context = this._context
+    const read = context?.read
+    if (!context || !read) return
 
-    if (!this._context.isNew) return
-
-    const model = this.model as Model<T>
-    const updateQuery = this.getUpdate()
-    const { update, commands } = splitUpdateAndCommands(updateQuery)
-
-    const filter = this.getFilter()
-    const simulated = assignUpdate(model.hydrate({}), update, commands) as unknown as Record<string, unknown>
-    const simulatedFilter = Object.fromEntries(Object.entries(simulated).filter(([, v]) => v !== undefined))
-    const candidates = [update, simulatedFilter, filter]
-
-    let current: HydratedDocument<T> | null = null
-    for (const query of candidates) {
-      if (current || isEmpty(query)) continue
-      const found = await model
-        .findOne(query as never)
-        .sort({ _id: -1 })
-        .lean()
-        .exec()
-      current = found as HydratedDocument<T>
-    }
-
-    if (current) {
-      this._context.createdDocs = [current] as HydratedDocument<T>[]
-
-      await createPatch(opts, this._context)
-    }
+    await reportErrors(opts.onError, async () => {
+      await recordUpdate(this, opts, context, read, res)
+    })
   })
 }

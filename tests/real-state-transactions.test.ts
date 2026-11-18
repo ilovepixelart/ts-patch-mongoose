@@ -22,7 +22,7 @@ describe('history inside transactions', () => {
     await mongoose.connect(replSet.getUri())
     await CounterModel.init()
     await HistoryModel.init()
-  })
+  }, 60_000)
 
   afterAll(async () => {
     await mongoose.connection.dropDatabase()

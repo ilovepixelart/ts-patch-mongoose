@@ -197,7 +197,11 @@ describe('characterization: observable behaviour of the plugin', () => {
       doc.tags.push('x')
       await doc.save()
       const [row] = await HistoryModel.find({ modelName: 'CharPlain', op: 'update' }).lean()
-      expect(row?.patch).toEqual([{ op: 'add', path: '/tags/0', value: 'x' }])
+      expect(row?.patch).toEqual([
+        { op: 'test', path: '/__v', value: 0 },
+        { op: 'replace', path: '/__v', value: 1 },
+        { op: 'add', path: '/tags/0', value: 'x' },
+      ])
     })
 
     it('without omit, an updateOne records no version key change', async () => {
@@ -474,14 +478,14 @@ describe('characterization: observable behaviour of the plugin', () => {
       const order = trace()
       await ThingModel.updateOne({ _id: doc._id }, { $set: { name: 'b' } })
       mongoose.set('debug', false)
-      expect(order).toEqual([UPDATED, 'history.insertOne', 'charthings.updateOne'])
+      expect(order).toEqual(['charthings.updateOne', 'history.insertOne', UPDATED])
     })
 
     it('orders the save() insert, its event and its history write', async () => {
       const order = trace()
       await ThingModel.create({ name: 'a' })
       mongoose.set('debug', false)
-      expect(order).toEqual([CREATED, 'history.bulkWrite', 'charthings.insertOne'])
+      expect(order).toEqual(['charthings.insertOne', 'history.bulkWrite', CREATED])
     })
 
     it('orders the delete, its event and its history write', async () => {
@@ -489,7 +493,7 @@ describe('characterization: observable behaviour of the plugin', () => {
       const order = trace()
       await ThingModel.deleteOne({ _id: doc._id })
       mongoose.set('debug', false)
-      expect(order).toEqual(['charthings.deleteOne', DELETED, 'history.bulkWrite'])
+      expect(order).toEqual(['charthings.deleteOne', 'history.bulkWrite', DELETED])
     })
   })
 

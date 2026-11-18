@@ -52,13 +52,35 @@ const LooseSchema = new Schema<{ sku: string }>({ sku: String }, { strict: false
 LooseSchema.plugin(patchHistoryPlugin, { omit: ['__v'] })
 const LooseModel = model('RealLoose', LooseSchema)
 
-const [major = 0, minor = 0] = mongoose.version.split('.').map(Number)
-const hasBulkWriteHooks = major > 8 || (major === 8 && minor >= 2)
-
 const updates = async (id?: Types.ObjectId) => {
   const filter: Record<string, unknown> = { op: { $nin: ['create'] }, patch: { $ne: [] } }
   if (id) filter.collectionId = id
   return HistoryModel.find(filter).sort({ createdAt: 1, _id: 1 }).lean()
+}
+
+type Op = { op: string; path: string; value?: unknown }
+
+// RFC 6902 add, remove, replace and test, enough to replay recorded patches onto a plain object.
+const replay = (source: Record<string, unknown>, patch: Op[]): Record<string, unknown> => {
+  const target = structuredClone(source)
+  for (const { op, path, value } of patch) {
+    const keys = path.split('/').slice(1)
+    const last = keys.pop() as string
+    const parent = keys.reduce<Record<string, unknown>>((node, key) => node[key] as Record<string, unknown>, target)
+    if (op === 'test') {
+      expect(parent[last]).toEqual(value)
+    } else if (Array.isArray(parent)) {
+      const index = last === '-' ? parent.length : Number(last)
+      if (op === 'add') parent.splice(index, 0, value)
+      if (op === 'remove') parent.splice(index, 1)
+      if (op === 'replace') parent[index] = value
+    } else if (op === 'remove') {
+      delete parent[last]
+    } else {
+      parent[last] = value
+    }
+  }
+  return target
 }
 
 const count = (event: string) => {
@@ -151,29 +173,35 @@ describe('history records the real stored states', () => {
       const doc = await ItemModel.create({ sku: 'a', tags: ['x', 'y', 'z'] })
       await ItemModel.updateOne({ _id: doc._id }, { $pull: { tags: { $in: ['x', 'y'] } } })
       expect((await ItemModel.findById(doc._id).lean())?.tags).toEqual(['z'])
-      expect(await updates(doc._id)).toHaveLength(1)
+      const rows = await updates(doc._id)
+      expect(rows).toHaveLength(1)
+      expect(replay({ tags: ['x', 'y', 'z'] }, rows[0]?.patch ?? [])).toEqual({ tags: ['z'] })
     })
 
     it('F3 red: positional $ update records the change', async () => {
       const doc = await ItemModel.create({ sku: 'a', lines: [{ name: 'p', qty: 1 }] })
       await ItemModel.updateOne({ _id: doc._id, 'lines.name': 'p' }, { $set: { 'lines.$.qty': 5 } })
       expect((await ItemModel.findById(doc._id).lean())?.lines[0]?.qty).toBe(5)
-      expect(await updates(doc._id)).toHaveLength(1)
+      const rows = await updates(doc._id)
+      expect(rows).toHaveLength(1)
+      expect(replay({ lines: [{ name: 'p', qty: 1 }] }, rows[0]?.patch ?? [])).toEqual({ lines: [{ name: 'p', qty: 5 }] })
     })
 
     it('F3 red: arrayFilters update records the change', async () => {
       const doc = await ItemModel.create({ sku: 'a', lines: [{ name: 'p', qty: 1 }] })
       await ItemModel.updateOne({ _id: doc._id }, { $set: { 'lines.$[l].qty': 7 } }, { arrayFilters: [{ 'l.name': 'p' }] })
       expect((await ItemModel.findById(doc._id).lean())?.lines[0]?.qty).toBe(7)
-      expect(await updates(doc._id)).toHaveLength(1)
+      const rows = await updates(doc._id)
+      expect(rows).toHaveLength(1)
+      expect(replay({ lines: [{ name: 'p', qty: 1 }] }, rows[0]?.patch ?? [])).toEqual({ lines: [{ name: 'p', qty: 7 }] })
     })
 
-    it('F3 red: $push with $position records the element at the position it was inserted', async () => {
+    it('F3 red: $push with $position records a patch that turns the old array into the stored one', async () => {
       const doc = await ItemModel.create({ sku: 'a', tags: ['b', 'c'] })
       await ItemModel.updateOne({ _id: doc._id }, { $push: { tags: { $each: ['a'], $position: 0 } } })
       expect((await ItemModel.findById(doc._id).lean())?.tags).toEqual(['a', 'b', 'c'])
       const [row] = await updates(doc._id)
-      expect(row?.patch).toEqual([{ op: 'add', path: '/tags/0', value: 'a' }])
+      expect(replay({ tags: ['b', 'c'] }, row?.patch ?? [])).toEqual({ tags: ['a', 'b', 'c'] })
     })
 
     it('F3 control: $pull of an exact value records the removal', async () => {
@@ -203,7 +231,7 @@ describe('history records the real stored states', () => {
   })
 
   describe('F5 bulkWrite', () => {
-    it.runIf(hasBulkWriteHooks)('F5 red: bulkWrite records updates, replacements, inserts and deletes and emits their events', async () => {
+    it('F5 red: bulkWrite records updates, replacements, inserts and deletes and emits their events', async () => {
       const [a, b, c] = await ItemModel.create([{ sku: 'a', count: 1 }, { sku: 'b' }, { sku: 'c' }], { ordered: true })
       const events = { created: count(ITEM_CREATED), updated: count(ITEM_UPDATED), deleted: count(ITEM_DELETED) }
       await ItemModel.bulkWrite([
@@ -232,14 +260,14 @@ describe('history records the real stored states', () => {
       expect({ created: events.created.n, updated: events.updated.n, deleted: events.deleted.n }).toEqual({ created: 1, updated: 2, deleted: 1 })
     })
 
-    it.runIf(hasBulkWriteHooks)('F5 red: bulkWrite upsert that inserts records a create-shaped entry', async () => {
+    it('F5 red: bulkWrite upsert that inserts records a create-shaped entry', async () => {
       await ItemModel.bulkWrite([{ updateOne: { filter: { sku: 'u' }, update: { $set: { count: 2 } }, upsert: true } }])
       const doc = await ItemModel.findOne({ sku: 'u' }).orFail()
       const rows = await HistoryModel.find({ collectionId: doc._id }).lean()
       expect(rows.map((r) => [r.op, r.version, (r.doc as { count: number }).count])).toEqual([['updateOne', 0, 2]])
     })
 
-    it.runIf(hasBulkWriteHooks)('F5 control: bulkWrite with ignoreHook records nothing', async () => {
+    it('F5 control: bulkWrite with ignoreHook records nothing', async () => {
       const doc = await ItemModel.create({ sku: 'a', count: 1 })
       await ItemModel.bulkWrite([{ updateOne: { filter: { _id: doc._id }, update: { $set: { count: 9 } } } }], { ignoreHook: true } as never)
       expect(await updates(doc._id)).toHaveLength(0)
