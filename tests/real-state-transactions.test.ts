@@ -4,6 +4,7 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import mongoose, { model, Schema } from 'mongoose'
 import { patchHistoryPlugin } from '../src/index'
 import { HistoryModel } from '../src/model'
+import { isMongooseLessThan8 } from '../src/version'
 
 interface Counter {
   name: string
@@ -55,5 +56,27 @@ describe('history inside transactions', () => {
       [1, [0, 1]],
       [2, [1, 2]],
     ])
+  })
+
+  it.skipIf(isMongooseLessThan8)('with transactionAsyncLocalStorage, history of a committed updateMany is written in the transaction with exact versions', async () => {
+    const [a, b] = await CounterModel.create([{ name: 'a' }, { name: 'b' }], { ordered: true })
+    mongoose.set('transactionAsyncLocalStorage' as never, true as never)
+    try {
+      await mongoose.connection.transaction(async () => {
+        await CounterModel.updateMany({}, { $inc: { count: 1 } })
+        await CounterModel.updateMany({}, { $inc: { count: 1 } })
+      })
+    } finally {
+      mongoose.set('transactionAsyncLocalStorage' as never, false as never)
+    }
+    const rows = await HistoryModel.find({ op: 'updateMany' }).sort({ version: 1 }).lean()
+    expect(rows.map((r) => [String(r.collectionId), r.version]).sort()).toEqual(
+      [
+        [String(a?._id), 1],
+        [String(a?._id), 2],
+        [String(b?._id), 1],
+        [String(b?._id), 2],
+      ].sort(),
+    )
   })
 })

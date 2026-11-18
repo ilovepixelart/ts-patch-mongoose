@@ -142,7 +142,9 @@ const nextVersions = async (ids: Types.ObjectId[], session?: ClientSession | nul
     if (last) versions.set(String(id), last.version + 1)
     return versions
   }
-  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }]).session(session ?? null)
+  const rows = await HistoryModel.aggregate<{ _id: Types.ObjectId; version: number }>([{ $match: { collectionId: { $in: ids } } }, { $group: { _id: '$collectionId', version: { $max: '$version' } } }])
+    .option(sessionOptions(session))
+    .exec()
   for (const row of rows) versions.set(String(row._id), row.version + 1)
   return versions
 }
