@@ -1,4 +1,25 @@
 {
   "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version), `paths` (the difference paths it allows; `*` matches one key or index, `**` any rest of the path, e.g. `$.events[*].payload.doc.**`) and `reason`. A scenario that differs passes only when every path at which it differs is allowed. An entry that allows no difference fails the run: remove it once the change is published.",
-  "entries": []
+  "entries": [
+    {
+      "scenario": "faulty/*/*",
+      "paths": ["$.onError[*]"],
+      "reason": "4.1.2 restores 4.0.2: a failing getUser, getReason or getMetadata is no longer reported to onError (4.1.0 reporting withdrawn, #401); the entry is still written without the value"
+    },
+    {
+      "scenario": "*/upsert:*-insert/committed",
+      "paths": ["$.history[*]", "$.events[*]", "$.getterCalls[*]"],
+      "reason": "4.1.2 restores 4.0.2: the plugin reads outside the caller's transaction again (4.1.0 session reads failed every write in a transaction under a non-primary read preference, #401), so an upsert that inserts inside a manual transaction is not seen and not recorded, as in 4.0.2"
+    },
+    {
+      "scenario": "*/upsert:*-insert/aborted",
+      "paths": ["$.history[*]", "$.events[*]", "$.getterCalls[*]"],
+      "reason": "4.1.2 restores 4.0.2: the plugin reads outside the caller's transaction again (#401), so an upsert that inserts inside a manual transaction is not seen and not recorded, as in 4.0.2"
+    },
+    {
+      "scenario": "*/updateMany/*",
+      "paths": ["$.history[*]"],
+      "reason": "4.1.2 restores 4.0.2: updateMany history is written one entry at a time again (4.1.0 batching withdrawn, #401), so stored entries have 4.0.2's key order"
+    }
+  ]
 }

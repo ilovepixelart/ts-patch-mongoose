@@ -1,4 +1,4 @@
-import { sessionOptions, toObjectOptions } from '../helpers'
+import { toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, Schema } from 'mongoose'
@@ -16,13 +16,12 @@ export const saveHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
       createdDocs: [current],
-      session: this.$session(),
     }
 
     if (this.isNew) {
       await createPatch(opts, context)
     } else {
-      const original = await model.findById(current._id, null, sessionOptions(context.session)).lean().exec()
+      const original = await model.findById(current._id).lean().exec()
       if (original) {
         await updatePatch(opts, context, current, original as HydratedDocument<T>)
       }

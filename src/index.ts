@@ -27,8 +27,6 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
       modelName: opts.modelName ?? this.modelName,
       collectionName: opts.collectionName ?? this.collection.collectionName,
       createdDocs: docs as unknown as HydratedDocument<T>[],
-      // insertMany sets the session of its options on every hydrated document; lean ones carry none
-      session: (docs as unknown as HydratedDocument<T>[])[0]?.$session?.() ?? null,
     }
 
     await createPatch(opts, context)
@@ -61,7 +59,6 @@ export const patchHistoryPlugin = <T>(schema: Schema<T>, opts: PluginOptions<T>)
         modelName: opts.modelName ?? model.modelName,
         collectionName: opts.collectionName ?? model.collection.collectionName,
         deletedDocs: [original],
-        session: this.$session(),
       }
 
       await deletePatch(opts, context)

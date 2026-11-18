@@ -1,4 +1,4 @@
-import type { ClientSession, HydratedDocument, Query, Types } from 'mongoose'
+import type { HydratedDocument, Query, Types } from 'mongoose'
 import type { Operation } from './json-patch'
 
 export interface History {
@@ -31,7 +31,6 @@ export interface PatchContext<T> {
   deletedDocs?: HydratedDocument<T>[]
   ignoreEvent?: boolean
   ignorePatchHistory?: boolean
-  session?: ClientSession | null
 }
 
 export type HookContext<T> = Query<T, T> & { op: string; _context: PatchContext<T> }

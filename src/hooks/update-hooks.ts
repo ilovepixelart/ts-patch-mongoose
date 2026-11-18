@@ -1,6 +1,6 @@
 import { applyUpdate } from '../assign-update'
-import { cloneDeep, HISTORY_BATCH_SIZE, isArray, isEmpty, isHookIgnored, isObjectLike, sessionOptions, toObjectOptions } from '../helpers'
-import { createPatch, updatePatchBatch } from '../patch'
+import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, toObjectOptions } from '../helpers'
+import { createPatch, updatePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
 import type { HookContext, PluginOptions } from '../types'
@@ -64,26 +64,19 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
       op: this.op,
       modelName: opts.modelName ?? model.modelName,
       collectionName: opts.collectionName ?? model.collection.collectionName,
-      isNew: Boolean(options.upsert) && (await model.countDocuments(filter, sessionOptions(options.session)).exec()) === 0,
+      isNew: Boolean(options.upsert) && (await model.countDocuments(filter).exec()) === 0,
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
-      session: options.session ?? null,
     }
 
     const updateQuery = this.getUpdate()
     const { update, commands } = splitUpdateAndCommands(updateQuery)
 
-    const cursor = model.find(filter, null, sessionOptions(options.session)).cursor()
-    await cursor.eachAsync(
-      async (docs: HydratedDocument<T>[]) => {
-        const pairs = docs.map((doc) => {
-          const original = doc.toObject(toObjectOptions) as HydratedDocument<T>
-          return { current: assignUpdate(doc, update, commands), original }
-        })
-        await updatePatchBatch(opts, this._context, pairs)
-      },
-      { batchSize: HISTORY_BATCH_SIZE },
-    )
+    const cursor = model.find(filter).cursor()
+    await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
+      const origDoc = doc.toObject(toObjectOptions) as HydratedDocument<T>
+      await updatePatch(opts, this._context, assignUpdate(doc, update, commands), origDoc)
+    })
   })
 
   schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
@@ -106,7 +99,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     for (const query of candidates) {
       if (current || isEmpty(query)) continue
       const found = await model
-        .findOne(query as never, null, sessionOptions(this._context.session))
+        .findOne(query as never)
         .sort({ _id: -1 })
         .lean()
         .exec()
