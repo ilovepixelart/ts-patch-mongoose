@@ -108,6 +108,9 @@ jobs:
       - name: Biome
         run: npm run biome
 
+      - name: E2E tooling tests
+        run: npm run test:e2e:tools
+
       - name: Type check tests
         run: npm run type:check:tests
 
