@@ -1,4 +1,4 @@
-import { cloneDeep, isArray, isEmpty, isHookIgnored } from '../helpers'
+import { cloneDeep, isArray, isEmpty, isHookIgnored, sessionOptions } from '../helpers'
 import { deletePatch } from '../patch'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema } from 'mongoose'
@@ -20,15 +20,16 @@ export const deleteHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
       collectionName: opts.collectionName ?? model.collection.collectionName,
       ignoreEvent: options.ignoreEvent as boolean,
       ignorePatchHistory: options.ignorePatchHistory as boolean,
+      session: options.session ?? null,
     }
 
     if (['remove', 'deleteMany'].includes(this._context.op) && !options.single) {
-      const docs = await model.find<T>(filter).lean().exec()
+      const docs = await model.find<T>(filter, null, sessionOptions(options.session)).lean().exec()
       if (!isEmpty(docs)) {
         this._context.deletedDocs = docs as HydratedDocument<T>[]
       }
     } else {
-      const doc = await model.findOne<T>(filter).lean().exec()
+      const doc = await model.findOne<T>(filter, null, sessionOptions(options.session)).lean().exec()
       if (!isEmpty(doc)) {
         this._context.deletedDocs = [doc] as HydratedDocument<T>[]
       }
