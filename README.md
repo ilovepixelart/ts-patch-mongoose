@@ -36,7 +36,8 @@ CI tests on Node.js `22.x` and `24.x` against mongoose `6.12.2`, `7.6.4`, `8.23.
 
 ## Features
 
-- Track changes in mongoose models
+- Track changes in mongoose models: `save`, `insertMany`, query updates and deletes, and `bulkWrite`
+- Record what MongoDB stored: each entry is the diff between the stored document before and after the write
 - Save changes in a separate collection as a patch history
 - Emit events when a model is created, updated or deleted
 - Omit fields that you don't want to track in patch history
@@ -156,7 +157,8 @@ BookSchema.plugin(patchHistoryPlugin, {
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
 
-  // Custom error handler for history write failures (defaults to console.error)
+  // Custom error handler for failures while recording history (defaults to console.error).
+  // They happen after the write succeeded, so the operation itself does not reject.
   onError: (error) => {
     console.error('Patch history error:', error)
   },
@@ -169,6 +171,32 @@ BookSchema.plugin(patchHistoryPlugin, {
 const Book = model('Book', BookSchema)
 
 export default Book
+```
+
+## How changes are recorded
+
+For every write the plugin reads the stored documents the write will touch, lets the write run, reads them again by `_id`, and records the difference. History entries are written first, in one write per batch of up to 1000 documents, then the events are emitted. A write that fails records nothing and emits nothing.
+
+- `updateOne`, `replaceOne` and the `findOneAnd*` methods touch one document: the first match of the filter, with the `sort` and `collation` of `findOneAnd*`. When a filter matches several documents, use a unique filter, or `findOneAndUpdate` with `sort`, to make the choice explicit.
+- `updateMany` and `deleteMany` touch every match. Their stored state is held in memory until the write finishes.
+- `bulkWrite` records the net change of each document it touched. Updates and deletes are recorded under the name of the operation that touched the document first (`updateOne`, `replaceOne`, `deleteMany`, ...), inserts as `create`. `bulkSave` is recorded through the `save` hooks, once. Callback-style calls (mongoose 6) are not recorded.
+- An update costs one read before the write and one after it; an upsert that inserts reads the new document once. A delete costs one read before the write, as in 4.x. Creating documents costs no read, and neither does a `save` of an unmodified document.
+
+### Concurrent writes and transactions
+
+The reads before and after a write are separate queries. Outside a transaction, a write by another client between them is part of the recorded difference, and two concurrent updates of one document can receive the same `version`. Every entry still describes states that were stored. A `deleteMany` that races with another client deleting the same documents can record those documents too.
+
+Inside a transaction the reads and the history writes use the transaction's session: an aborted transaction leaves no history, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
+
+```typescript
+const session = await mongoose.startSession()
+try {
+  await session.withTransaction(async () => {
+    await Book.updateOne({ _id: bookId }, { $inc: { stock: -1 } }, { session })
+  })
+} finally {
+  await session.endSession()
+}
 ```
 
 ## Subscribe
@@ -231,6 +259,26 @@ BookSchema.plugin(patchHistoryPlugin, {
   omit: ['__v', 'createdAt', 'updatedAt'],
 })
 ```
+
+## Migrating from 4.x to 5.0
+
+4.x produced history and events in pre hooks, before the write, from a simulation of the update applied to every document matching the filter. 5.0 records the stored states before and after the write. Breaking changes first:
+
+| Area | 4.x | 5.0 | What to do |
+| --- | --- | --- | --- |
+| Event timing | Create and update events were emitted before the write, and before their history entry | Emitted after the write succeeded and after the history entry was written | A listener that reads the database now sees the new state; use `oldDoc` for the previous one |
+| Failed writes | A write the server rejected (duplicate key, for example) still recorded history and emitted its event | Records and emits nothing | None |
+| Single-document updates | `updateOne`, `replaceOne` and `findOneAnd*` recorded every document matching the filter; `findOneAndUpdate` ignored `sort` | One entry, for the document the operation changed | None |
+| Deletes | `findOneAndDelete` ignored `sort`, so history and `preDelete` got the first match; a delete that removed nothing was recorded | The removed documents; nothing when nothing was removed | None |
+| Patch contents | Conditional `$pull`, positional `$`, `arrayFilters` and pipeline updates recorded nothing; `$position` was recorded at the wrong index; `replaceOne` did not record removed fields; a `$set` that strict mode dropped was recorded | The difference between the stored documents | None |
+| Version key | A `save()` that changed an array did not record the `__v` increment; the `findOneAndReplace` event reported `__v: 0` for a replacement stored without one | The stored `__v` is part of the difference | Add `'__v'` to `omit` to keep it out of patches |
+| `bulkWrite` | Not recorded | Recorded, see [How changes are recorded](#how-changes-are-recorded) | Remove any manual history for `bulkWrite`, or pass `ignoreHook: true` |
+| Errors after the write | A failure while looking up an upserted document rejected the operation | Every failure while recording goes to `onError`; the operation resolves | None |
+| Reads | One read before each update | One read before and one after each update | None |
+
+Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing.
+
+Nothing else changes: the history entry fields, `op` names, version numbering, event payload shapes (`{ doc }`, `{ oldDoc, doc, patch }`, `{ oldDoc }`), plugin options, the `ignoreEvent`, `ignorePatchHistory` and `ignoreHook` query options, `preDelete` running before the delete with lean copies of the documents, and the exports.
 
 ## Contributing
 
