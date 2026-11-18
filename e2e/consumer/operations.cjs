@@ -6,6 +6,7 @@
 
 const has = (name) => (M) => typeof M[name] === 'function'
 const hasDocument = (name) => (M) => typeof M.prototype[name] === 'function'
+const fromMajor = (major) => (M) => Number.parseInt(M.base.version, 10) >= major
 
 const operations = [
   { name: 'save:new', run: ({ M, o, fresh }) => new M(fresh(10, 'new')).save(o) },
@@ -21,8 +22,9 @@ const operations = [
   },
   { name: 'save:unchanged', run: async ({ M, o, oid }) => (await M.findById(oid(1), null, o)).save(o) },
   { name: 'create', run: ({ M, o, fresh }) => M.create([fresh(10, 'new')], o) },
-  // Mongoose 7+ saves in series with `ordered`; mongoose 8+ requires it with a session.
-  { name: 'create:many', run: ({ M, o, fresh }) => M.create([fresh(10, 'new1'), fresh(11, 'new2')], { ...o, ordered: true }) },
+  // `ordered` (mongoose 7+) saves in series; mongoose 8+ requires it with a session. Mongoose 6
+  // saves in parallel, and parallel operations in one transaction fail at random.
+  { name: 'create:many', available: fromMajor(7), run: ({ M, o, fresh }) => M.create([fresh(10, 'new1'), fresh(11, 'new2')], { ...o, ordered: true }) },
   { name: 'insertMany', run: ({ M, o, fresh }) => M.insertMany([fresh(10, 'new1'), fresh(11, 'new2')], o) },
   { name: 'insertMany:lean', run: ({ M, o, fresh }) => M.insertMany([fresh(10, 'new1'), fresh(11, 'new2')], { ...o, lean: true }) },
   { name: 'updateOne', run: ({ M, o, oid }) => M.updateOne({ _id: oid(1) }, { $set: { n: 50 } }, o) },

@@ -162,7 +162,7 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet }) => {
 
     const unavailable = (M, operation, mode) => {
       if (ALS_MODES.has(mode) && !als) return `transactionAsyncLocalStorage needs mongoose 8.4+, have ${mongoose.version}`
-      if (operation.available && !operation.available(M)) return `${operation.name} does not exist in mongoose ${mongoose.version}`
+      if (operation.available && !operation.available(M)) return `${operation.name} is not available in mongoose ${mongoose.version}`
       return undefined
     }
 
