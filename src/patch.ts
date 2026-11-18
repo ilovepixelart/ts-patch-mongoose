@@ -53,11 +53,11 @@ const reportRejections = <T>(opts: PluginOptions<T>, context: PatchContext<T> | 
   const reported = context ? (reportedGetters.get(context) ?? new Set<number>()) : new Set<number>()
   if (context) reportedGetters.set(context, reported)
 
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled' || reported.has(index)) return
+  for (const [index, result] of results.entries()) {
+    if (result.status === 'fulfilled' || reported.has(index)) continue
     reported.add(index)
     onError(result.reason instanceof Error ? result.reason : new Error(String(result.reason)))
-  })
+  }
 }
 
 export const getData = async <T>(opts: PluginOptions<T>, doc?: HydratedDocument<T>, context?: PatchContext<T>): Promise<[User | undefined, string | undefined, Metadata | undefined]> => {
