@@ -1,0 +1,4 @@
+{
+  "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version) and `reason`. An entry that matches no difference fails the run: remove it once the change is published.",
+  "entries": []
+}
