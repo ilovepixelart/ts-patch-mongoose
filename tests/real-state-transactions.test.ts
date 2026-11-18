@@ -47,7 +47,7 @@ describe('history inside transactions', () => {
     }
   }
 
-  const abortWith = async (work: (session: mongoose.ClientSession) => Promise<unknown>) => {
+  const abortWith = async (work: (session: mongoose.ClientSession) => PromiseLike<unknown>) => {
     const session = await mongoose.startSession()
     try {
       session.startTransaction()
