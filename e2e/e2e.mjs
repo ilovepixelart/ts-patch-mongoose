@@ -99,7 +99,7 @@ const checkBuilds = (baseline, candidate) => {
   const allowlist = loadAllowlist(args.allowlist)
   const { failures: diffs, allowed, unused } = compareBuilds(baseline.scenarios, candidate.scenarios, allowlist, mongooseVersion)
   for (const { id, paths, reason } of allowed) console.log(`[e2e] allowed difference ${id} (${reason})\n  ${paths.join('\n  ')}`)
-  for (const { id, paths } of diffs) failures.push(`behaviour differs from the baseline in ${id} (not in allowlist.json):\n  ${paths.join('\n  ')}`)
+  for (const { id, paths } of diffs) failures.push(`behaviour differs from the baseline in ${id} at paths allowlist.json does not allow:\n  ${paths.join('\n  ')}`)
   for (const { scenario, reason } of unused) failures.push(`allowlist.json entry "${scenario}" (${reason}) matches no difference: remove it`)
 }
 

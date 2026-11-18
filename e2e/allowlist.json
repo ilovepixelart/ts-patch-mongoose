@@ -1,209 +1,428 @@
 {
-  "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version) and `reason`. An entry that matches no difference fails the run: remove it once the change is published.",
+  "description": "Intended behaviour differences between this build and the latest published version. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version), `paths` (the difference paths it allows; `*` matches one key or index, `**` any rest of the path, e.g. `$.events[*].payload.doc.**`) and `reason`. A scenario that differs passes only when every path at which it differs is allowed. An entry that allows no difference fails the run: remove it once the change is published.",
   "entries": [
     {
       "scenario": "*/save:existing/*",
-      "reason": "save() of a modified document reports the document as stored after the write, so the incremented version key (__v) is in the update event's doc, the getters' argument and, where __v is not omitted, the patch"
+      "paths": [
+        "$.events[*].payload.doc.value.__v",
+        "$.getterCalls[*].arg.value.__v"
+      ],
+      "reason": "save() of a modified document reports the document as stored after the write, with the version key (__v) the save incremented"
+    },
+    {
+      "scenario": "disabled/save:existing/*",
+      "paths": ["$.events[*].payload.patch.value[*]"],
+      "reason": "Without omit, the update event's patch includes the version key (__v) the save added to the stored document"
     },
     {
       "scenario": "*/updateOne/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "*/updateMany/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/updateOne:implicit-set/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/findOneAndUpdate/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/findByIdAndUpdate/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/update/*",
       "mongoose": 6,
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update"
+      "paths": ["$.events[*].payload.doc.value", "$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/updateOne:ignoreEvent/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update; ignoreEvent still records the entry"
+      "paths": ["$.getterCalls[*].arg.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/updateOne:ignorePatchHistory/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update; ignorePatchHistory still emits the event"
+      "paths": ["$.events[*].payload.doc.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/updateMany:ignorePatchHistory/*",
-      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, with the key order of oldDoc, not a simulation of the update; ignorePatchHistory still emits the events"
+      "paths": ["$.events[*].payload.doc.value"],
+      "reason": "The update event's doc and the getters' argument are the document read back from the database after the write, in the key order of oldDoc, not a simulation of the update"
     },
     {
       "scenario": "full/updateOne:operators/*",
-      "reason": "The update event's doc and the getters' argument are the document read back after the write: a path removed by $unset is absent instead of present as undefined"
+      "paths": [
+        "$.events[*].payload.doc.value.secret",
+        "$.getterCalls[*].arg.value.secret"
+      ],
+      "reason": "The update event's doc and the getters' argument are the document read back after the write: the path $unset removed is absent instead of present as undefined"
     },
     {
       "scenario": "full/upsert:updateOne-match/*",
+      "paths": [
+        "$.events[*].payload.doc.value.__v",
+        "$.getterCalls[*].arg.value.__v"
+      ],
       "reason": "The update event's doc and the getters' argument are the document read back after the write: a version key the stored document does not have is absent instead of present as undefined"
     },
     {
       "scenario": "full/updateOne:pipeline/*",
-      "reason": "An update pipeline is recorded from the stored states; 4.x could not simulate it and recorded nothing"
+      "paths": ["$.history[*]", "$.events[*]", "$.getterCalls[*]"],
+      "reason": "An update pipeline is recorded from the stored states (entry, event, getter calls); 4.x could not simulate it and recorded nothing"
     },
     {
       "scenario": "full/replaceOne/*",
-      "reason": "The patch is the difference between the stored documents, so fields the replacement drops are recorded as removed"
+      "paths": [
+        "$.history[*].patch[*]",
+        "$.history[*].patch[*].*",
+        "$.events[*].payload.patch.value[*]",
+        "$.events[*].payload.patch.value[*].*",
+        "$.events[*].payload.doc.value.labels[*]",
+        "$.events[*].payload.doc.value.meta",
+        "$.events[*].payload.doc.value.secret",
+        "$.getterCalls[*].arg.value.labels[*]",
+        "$.getterCalls[*].arg.value.meta",
+        "$.getterCalls[*].arg.value.secret"
+      ],
+      "reason": "The patch is the difference between the stored documents, so the fields the replacement drops are recorded as removed, and the update event's doc and the getters' argument are the stored replacement without them"
     },
     {
       "scenario": "full/findOneAndReplace/*",
-      "reason": "The patch is the difference between the stored documents, so fields the replacement drops are recorded as removed"
+      "paths": [
+        "$.history[*].patch[*]",
+        "$.history[*].patch[*].*",
+        "$.events[*].payload.patch.value[*]",
+        "$.events[*].payload.patch.value[*].*",
+        "$.events[*].payload.doc.value.labels[*]",
+        "$.events[*].payload.doc.value.meta",
+        "$.events[*].payload.doc.value.secret",
+        "$.getterCalls[*].arg.value.labels[*]",
+        "$.getterCalls[*].arg.value.meta",
+        "$.getterCalls[*].arg.value.secret",
+        "$.events[*].payload.doc.value.tags[*]",
+        "$.getterCalls[*].arg.value.tags[*]"
+      ],
+      "reason": "The patch is the difference between the stored documents, so the fields the replacement drops are recorded as removed, and the update event's doc and the getters' argument are the stored replacement without them"
     },
     {
       "scenario": "full/bulkWrite/*",
-      "reason": "bulkWrite is recorded: entries, events and getter calls for the documents it updated and deleted; 4.x recorded nothing"
+      "paths": [
+        "$.history[*]",
+        "$.events[*]",
+        "$.getterCalls[*]",
+        "$.preDelete[*]"
+      ],
+      "reason": "bulkWrite is recorded: entries, events and getter calls for the documents it updated and deleted, and preDelete before its deletes; 4.x recorded nothing"
     },
     {
       "scenario": "*/save:new/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
-      "scenario": "*/deleteOne/als-aborted",
+      "scenario": "*/save:existing/als-aborted",
       "mongoose": 8,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "*/deleteMany/als-aborted",
-      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "*/insertMany/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/updateOne/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/updateMany/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "*/upsert:updateOne-insert/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/deleteOne/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/deleteMany/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/create/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/create:many/als-aborted",
       "mongoose": 8,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/deleteMany:ignoreEvent/als-aborted",
-      "mongoose": 8,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/deleteOne:document/als-aborted",
-      "mongoose": 8,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/findByIdAndDelete/als-aborted",
-      "mongoose": 8,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/findOneAndDelete/als-aborted",
-      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/insertMany:lean/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:implicit-set/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:operators/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:ignoreEvent/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndUpdate/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findByIdAndUpdate/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/replaceOne/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndReplace/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/upsert:updateOne-match/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/upsert:findOneAndUpdate-insert/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/upsert:replaceOne-insert/als-aborted",
       "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/deleteOne:document/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/deleteMany:ignoreEvent/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndDelete/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findByIdAndDelete/als-aborted",
+      "mongoose": 8,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "*/save:new/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
-      "scenario": "*/deleteOne/als-aborted",
+      "scenario": "*/save:existing/als-aborted",
       "mongoose": 9,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "*/deleteMany/als-aborted",
-      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "*/insertMany/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/updateOne/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/updateMany/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "*/upsert:updateOne-insert/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/deleteOne/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "*/deleteMany/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/create/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/create:many/als-aborted",
       "mongoose": 9,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/deleteMany:ignoreEvent/als-aborted",
-      "mongoose": 9,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/deleteOne:document/als-aborted",
-      "mongoose": 9,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/findByIdAndDelete/als-aborted",
-      "mongoose": 9,
-      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
-    },
-    {
-      "scenario": "full/findOneAndDelete/als-aborted",
-      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/insertMany:lean/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:implicit-set/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:operators/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/updateOne:ignoreEvent/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndUpdate/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findByIdAndUpdate/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/replaceOne/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndReplace/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/upsert:updateOne-match/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/upsert:findOneAndUpdate-insert/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     },
     {
       "scenario": "full/upsert:replaceOne-insert/als-aborted",
       "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/deleteOne:document/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/deleteMany:ignoreEvent/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findOneAndDelete/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
+      "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
+    },
+    {
+      "scenario": "full/findByIdAndDelete/als-aborted",
+      "mongoose": 9,
+      "paths": ["$.history[*]"],
       "reason": "History is written outside the transaction also with transactionAsyncLocalStorage, so an aborted transaction keeps the entries of the writes it made, as with a session passed explicitly"
     }
   ]
