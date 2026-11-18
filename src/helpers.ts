@@ -114,11 +114,23 @@ export const cloneDeep = <T>(value: T, seen = new WeakMap<object, unknown>()): T
   }
 
   if (typeof record.toJSON === 'function') {
-    // NOSONAR — structuredClone cannot handle objects with non-cloneable methods (e.g. mongoose documents)
+    // structuredClone cannot handle objects with non-cloneable methods (e.g. mongoose documents)
     return JSON.parse(JSON.stringify(value)) as T
   }
 
   return cloneCollection(value, seen)
+}
+
+/**
+ * Maps items one at a time: reads and writes that share a transaction session must not run in
+ * parallel, and getUser, getReason and getMetadata are called for one document at a time.
+ */
+export const mapSeries = async <I, O>(items: readonly I[], fn: (item: I, index: number) => Promise<O>): Promise<O[]> => {
+  const results: O[] = []
+  for (const [index, item] of items.entries()) {
+    results.push(await fn(item, index))
+  }
+  return results
 }
 
 // Documents per history write for multi-document operations.
@@ -139,6 +151,15 @@ export const isHookIgnored = <T>(options: QueryOptions<T>): boolean => {
 // Only set the key when there is a session: an explicit session key, even undefined, stops
 // mongoose 8+ from applying the transactionAsyncLocalStorage session.
 export const sessionOptions = (session?: ClientSession | null): { session?: ClientSession } => (session ? { session } : {})
+
+/** Runs work that follows a write that already succeeded: a failure goes to onError instead of rejecting the write. */
+export const reportErrors = async (onError: ((error: Error) => void) | undefined, work: () => Promise<void>): Promise<void> => {
+  try {
+    await work()
+  } catch (error) {
+    ;(onError ?? console.error)(error as Error)
+  }
+}
 
 export const toObjectOptions: ToObjectOptions = {
   depopulate: true,

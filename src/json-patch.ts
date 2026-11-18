@@ -35,7 +35,9 @@ const joinPath = (base: string, key: string): string => `${base}/${escapeToken(k
 const cloneValue = <T>(value: T): T => {
   if (value === undefined) return null as unknown as T
   if (value === null || typeof value !== 'object') return value
-  return JSON.parse(JSON.stringify(value)) as T // NOSONAR: structuredClone cannot handle mongoose documents (they contain non-cloneable methods)
+  // Patch values are JSON: the round trip turns a Date into its ISO string and drops undefined, where
+  // structuredClone would keep both, and it fails on values with methods, such as mongoose documents.
+  return JSON.parse(JSON.stringify(value)) as T
 }
 
 const isContainer = (value: unknown): value is JsonContainer => {

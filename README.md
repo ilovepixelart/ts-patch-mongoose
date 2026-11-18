@@ -36,7 +36,8 @@ CI tests on Node.js `22.x` and `24.x` against mongoose `6.12.2`, `7.6.4`, `8.23.
 
 ## Features
 
-- Track changes in mongoose models
+- Track changes in mongoose models: `save`, `insertMany`, query updates and deletes, and `bulkWrite`
+- Record what MongoDB stored: each entry is the diff between the stored document before and after the write
 - Save changes in a separate collection as a patch history
 - Emit events when a model is created, updated or deleted
 - Omit fields that you don't want to track in patch history
@@ -156,9 +157,9 @@ BookSchema.plugin(patchHistoryPlugin, {
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
 
-  // Custom error handler (defaults to console.error) for history write failures, and for getUser,
-  // getReason and getMetadata failures: those are reported once per operation, and the entry is
-  // still saved without that field
+  // Custom error handler (defaults to console.error) for failures while recording history, which happen
+  // after the write succeeded, so the operation itself does not reject; and for getUser, getReason and
+  // getMetadata failures: those are reported once per operation, and the entry is still saved without that field
   onError: (error) => {
     console.error('Patch history error:', error)
   },
@@ -166,6 +167,10 @@ BookSchema.plugin(patchHistoryPlugin, {
   // In case you just want to track changes in your models using events
   // and don't want to save changes to patch history collection
   // patchHistoryDisabled: true,
+
+  // Paths declared with `select: false` (password hashes, tokens) are left out of history and events.
+  // Set this to record them too
+  // includeHiddenPaths: true,
 })
 
 const Book = model('Book', BookSchema)
@@ -173,11 +178,35 @@ const Book = model('Book', BookSchema)
 export default Book
 ```
 
-## Transactions
+## How changes are recorded
 
-Pass the session the usual way (`{ session }` in query options, `.session(session)`, `doc.save({ session })`, `create(docs, { session })`, `insertMany(docs, { session })`). The plugin reads the changed documents in that session, so changes to documents created earlier in the same transaction are recorded. With mongoose 8+ `transactionAsyncLocalStorage`, the session is picked up without passing it.
+For every write the plugin reads the stored documents the write will touch, lets the write run, reads them again by `_id`, and records the difference. History entries are written first, in one write per batch of up to 1000 documents, then the events are emitted. A write that fails records nothing and emits nothing.
 
-Patch history itself is written outside the transaction: an aborted transaction keeps the history entries of the changes it attempted. Writing history inside the caller's transaction made manual transactions fail with `LockTimeout` while mongoose was still creating the history collection and its indexes at startup.
+- `updateOne`, `replaceOne` and the `findOneAnd*` methods touch one document: the first match of the filter, with the `sort` and `collation` of `findOneAnd*`. When a filter matches several documents, use a unique filter, or `findOneAndUpdate` with `sort`, to make the choice explicit.
+- `updateMany` and `deleteMany` touch every match. Their stored state is held in memory until the write finishes.
+- `bulkWrite` records the net change of each document it touched. Updates and deletes are recorded under the name of the operation that touched the document first (`updateOne`, `replaceOne`, `deleteMany`, ...), inserts as `create`. A call that fails part way records the operations that were applied, then rejects. `bulkSave` is recorded through the `save` hooks, once. Callback-style calls (mongoose 6) are not recorded.
+- `bulkWrite` reads the targets of all its operations before the call, one read per update or delete operation. An operation whose filter matches a document only because an earlier operation of the same call changed it is not recorded for that document: the call is one command to the server, and splitting it would change what it returns and how it fails. Unordered calls have no defined order anyway. Write such operations in separate calls.
+- Paths declared with `select: false` (password hashes, tokens), including those of subdocuments, are left out of history entries and events. The paths of the model's schema and of all its discriminators are left out of every document of the model, whatever its discriminator key says, so a path that is `select: false` in one discriminator is also left out of the others. An update that changes only such paths records nothing. Set `includeHiddenPaths: true` to record them.
+- An update costs one read before the write and one after it; an upsert that inserts reads the new document once. A delete costs one read before the write, as in 4.x. Creating documents costs no read, and neither does a `save` of an unmodified document.
+
+### Concurrent writes and transactions
+
+The reads before and after a write are separate queries. Outside a transaction, a write by another client between them is part of the recorded difference, and two concurrent updates of one document can receive the same `version`. Every entry still describes states that were stored. A `deleteMany` that races with another client deleting the same documents can record those documents too.
+
+Pass the session the usual way (`{ session }` in query options, `.session(session)`, `doc.save({ session })`, `create(docs, { session })`, `insertMany(docs, { session })`, `bulkWrite(ops, { session })`, `bulkSave(docs, { session })`); with mongoose 8+ `transactionAsyncLocalStorage` it is picked up without passing it. Inside a transaction the reads use the transaction's session, and MongoDB's write-conflict retry serialises updates to one document, so patches and versions are exact. Run writes that must be audited exactly in a transaction:
+
+```typescript
+const session = await mongoose.startSession()
+try {
+  await session.withTransaction(async () => {
+    await Book.updateOne({ _id: bookId }, { $inc: { stock: -1 } }, { session })
+  })
+} finally {
+  await session.endSession()
+}
+```
+
+History entries are written outside the transaction, also with `transactionAsyncLocalStorage`: an entry is written as soon as its write succeeds, and stays when the transaction aborts afterwards. Inside a transaction, a history write can fail that transaction with a lock timeout while mongoose is still creating the history collection and its indexes, and parallel history writes of one transaction conflict with each other.
 
 ## Subscribe
 
@@ -239,6 +268,28 @@ BookSchema.plugin(patchHistoryPlugin, {
   omit: ['__v', 'createdAt', 'updatedAt'],
 })
 ```
+
+## Migrating from 4.x to 5.0
+
+4.x produced history and events in pre hooks, before the write, from a simulation of the update applied to every document matching the filter. 5.0 records the stored states before and after the write. Breaking changes first:
+
+| Area | 4.x | 5.0 | What to do |
+| --- | --- | --- | --- |
+| Event timing | Create and update events were emitted before the write, and before their history entry | Emitted after the write succeeded and after the history entry was written | A listener that reads the database now sees the new state; use `oldDoc` for the previous one |
+| Failed writes | A write the server rejected (duplicate key, for example) still recorded history and emitted its event | Records and emits nothing | None |
+| Single-document updates | `updateOne`, `replaceOne` and `findOneAnd*` recorded every document matching the filter; `findOneAndUpdate` ignored `sort` | One entry, for the document the operation changed | None |
+| Deletes | `findOneAndDelete` ignored `sort`, so history and `preDelete` got the first match; a delete that removed nothing was recorded | The removed documents; nothing when nothing was removed | None |
+| Patch contents | Conditional `$pull`, positional `$`, `arrayFilters` and pipeline updates recorded nothing; `$position` was recorded at the wrong index; `replaceOne` did not record removed fields; a `$set` that strict mode dropped was recorded | The difference between the stored documents | None |
+| Version key | A `save()` that changed an array did not record the `__v` increment; the `findOneAndReplace` event reported `__v: 0` for a replacement stored without one | The stored `__v` is part of the difference | Add `'__v'` to `omit` to keep it out of patches |
+| `bulkWrite` | Not recorded | Recorded, see [How changes are recorded](#how-changes-are-recorded) | Remove any manual history for `bulkWrite`, or pass `ignoreHook: true` |
+| Errors after the write | A failure while looking up an upserted document rejected the operation | Every failure while recording goes to `onError`; the operation resolves | None |
+| Paths with `select: false` | Recorded with their values in the `doc` of create entries, in update patches when they changed, in create events, and in the `oldDoc` and `doc` of update events even when they did not change; deletes left them out | Left out of every entry and event; an update that changes only such paths records nothing | Set `includeHiddenPaths: true` to record them |
+| `transactionAsyncLocalStorage` | Mongoose applied the transaction's session to history writes, so an aborted transaction kept no entries, unlike a session passed explicitly | History is written outside the transaction in both cases; an aborted transaction keeps the entries of its writes | None |
+| Reads | One read before each update | One read before and one after each update | None |
+
+Smaller corrections: `Map` paths are diffed by their entries (4.x serialized them as `{}`), with `includeHiddenPaths` changes to `select: false` paths are diffed against their stored value, and a `save()` that modifies nothing reads nothing and records nothing. Entries of different documents written in parallel (`Model.create` of an array saves in parallel) are stored in the order their writes completed.
+
+Nothing else changes: the history entry fields, `op` names, version numbering, event payload shapes (`{ doc }`, `{ oldDoc, doc, patch }`, `{ oldDoc }`), plugin options (`includeHiddenPaths` is added), the `ignoreEvent`, `ignorePatchHistory` and `ignoreHook` query options, `preDelete` running before the delete with lean copies of the documents, and the exports.
 
 ## Contributing
 

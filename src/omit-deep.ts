@@ -54,3 +54,17 @@ export const omitDeep = <T>(value: T, keys: string | string[]): T => {
 
   return result as T
 }
+
+const omitPath = (value: unknown, path: string[]): unknown => {
+  if (Array.isArray(value)) return value.map((item) => omitPath(item, path))
+  const [head, ...rest] = path
+  if (head === undefined || !isPlainObject(value) || !Object.hasOwn(value, head)) return value
+  if (rest.length === 0) {
+    const { [head]: _omitted, ...others } = value
+    return others
+  }
+  return { ...value, [head]: omitPath(value[head], rest) }
+}
+
+/** Leaves each dotted path out, through arrays, without changing the given value. */
+export const omitPaths = <T>(value: T, paths: string[]): T => paths.reduce<unknown>((result, path) => omitPath(result, path.split('.')), value) as T
