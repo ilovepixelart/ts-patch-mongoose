@@ -156,7 +156,9 @@ BookSchema.plugin(patchHistoryPlugin, {
     await SomeOtherModel.deleteMany({ bookId: { $in: bookIds } })
   },
 
-  // Custom error handler for history write failures (defaults to console.error)
+  // Custom error handler (defaults to console.error) for history write failures, and for getUser,
+  // getReason and getMetadata failures: those are reported once per operation, and the entry is
+  // still saved without that field
   onError: (error) => {
     console.error('Patch history error:', error)
   },
@@ -170,6 +172,12 @@ const Book = model('Book', BookSchema)
 
 export default Book
 ```
+
+## Transactions
+
+Pass the session the usual way (`{ session }` in query options, `.session(session)`, `doc.save({ session })`, `create(docs, { session })`, `insertMany(docs, { session })`). The plugin reads the documents and reads and writes patch history in that session, so an aborted transaction leaves no history and changes to documents created earlier in the same transaction are recorded. With mongoose 8+ `transactionAsyncLocalStorage`, the session is picked up without passing it.
+
+`insertMany(docs, { session, lean: true })` returns plain objects that do not carry the session, so their history is written outside the transaction.
 
 ## Subscribe
 
