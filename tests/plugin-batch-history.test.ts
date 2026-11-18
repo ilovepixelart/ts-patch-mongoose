@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { model, Schema } from 'mongoose'
 import { patchHistoryPlugin } from '../src/index'
@@ -18,6 +18,11 @@ const RowSchema = new Schema<Row>({
 RowSchema.plugin(patchHistoryPlugin, { omit: ['__v'] })
 
 const RowModel = model<Row>('BatchRow', RowSchema)
+
+const onError = vi.fn()
+const ReportedSchema = new Schema<Row>({ sku: { type: String, required: true }, note: { type: String } })
+ReportedSchema.plugin(patchHistoryPlugin, { omit: ['__v'], onError })
+const ReportedModel = model<Row>('BatchReportedRow', ReportedSchema)
 
 const BATCH = 1000
 
@@ -59,6 +64,7 @@ describe('history writes for multi-document operations', () => {
 
   afterEach(() => {
     mongoose.set('debug', false)
+    vi.restoreAllMocks()
   })
 
   it('updateMany over 1000 documents reads versions and writes history in one command each', async () => {
@@ -105,4 +111,19 @@ describe('history writes for multi-document operations', () => {
     expect(commands).toEqual(['bulkWrite'])
     expect((await entries('create')).map((r) => r.id)).toEqual(ids)
   }, 60_000)
+
+  it('updateMany over documents that have no history yet records version 0 for them', async () => {
+    const { insertedIds } = await mongoose.connection.collection('batchrows').insertMany([{ sku: 'a' }, { sku: 'b' }])
+    await RowModel.updateMany({}, { $set: { note: 'x' } })
+    expect(await entries('updateMany')).toEqual(Object.values(insertedIds).map((id) => ({ id: String(id), version: 0, patch: [{ op: 'add', path: '/note', value: 'x' }] })))
+  })
+
+  it('a failed batch history write is reported to onError once and the update still applies', async () => {
+    await ReportedModel.insertMany([{ sku: 'a' }, { sku: 'b' }])
+    const failure = new Error('insertMany failed')
+    vi.spyOn(HistoryModel, 'insertMany').mockRejectedValueOnce(failure)
+    await ReportedModel.updateMany({}, { $set: { note: 'x' } })
+    expect(onError.mock.calls).toEqual([[failure]])
+    expect(await ReportedModel.countDocuments({ note: 'x' })).toBe(2)
+  })
 })
