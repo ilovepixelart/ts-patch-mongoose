@@ -177,5 +177,14 @@ describe('applyUpdate', () => {
       const result = applyUpdate({ a: 1 }, { $unset: { 'missing.child.leaf': '' } })
       expect(result).toEqual({ a: 1 })
     })
+
+    // Characterization: only the top level is copied. The plugin always passes a fresh toObject() copy.
+    it('characterization: writes a nested change through to the input, which shares nested objects with the result', () => {
+      const input = { top: 1, o: { x: 1 } }
+      const result = applyUpdate(input, { $inc: { 'o.x': 1 }, $set: { top: 2 } })
+      expect(result).toEqual({ top: 2, o: { x: 2 } })
+      expect(input).toEqual({ top: 1, o: { x: 2 } })
+      expect(result.o).toBe(input.o)
+    })
   })
 })
