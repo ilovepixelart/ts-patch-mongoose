@@ -72,3 +72,15 @@ Mutation testing changes `src/` one small edit at a time and checks that a test 
 - Reports are written to `reports/mutation/`. A surviving mutant needs a test or scenario (`e2e/consumer/operations/`,
   grouped by hook), or, when no input can tell it apart from the original, a
   `// Stryker disable next-line <mutator>: <reason>` comment.
+
+## Laws
+
+```bash
+npm run laws         # the gate: proofs (with --verdict), claims, generated modules
+npm run laws:fast    # the same without --verdict, when Lean is not installed
+npm run laws:write   # regenerate laws/generated/ after changing a model
+```
+
+`laws/` states the library's contract in [Bend](https://bend-lang.com) and proves it. The models (`patch.bend` for json-patch `compare`, `chunk.bend`, `omit.bend` for `omitDeep`, `history.bend` for what each create, update and delete writes to history and emits as events, under every configuration and query switch) mirror `src/`. `SPEC.bend` holds the predicates the laws use, `LAWS.bend` the proven laws, `PROOF.bend` their proofs and lemmas, and `CLAIMS.bend` the laws stated but not yet proven. The tests in `tests/laws/` import the models as compiled ES modules (`laws/generated/`) and hold the TypeScript to them: `compare`, `chunk` and `omitDeep` on random inputs, and the plugin on random command sequences against MongoDB, comparing every history entry, event and stored document with the model's, and checking that replaying a document's history gives the stored document. They also check each claim of `CLAIMS.bend` on the models.
+
+When a change to `src/` changes behaviour, change the model to match, run `npm run laws:write` and `npm run laws`; a proof that fails means the change breaks a law. A claim moves from `CLAIMS.bend` to `LAWS.bend` with its proof. `--verdict` rechecks the proofs with BendTT's kernel, which has a proof in Lean; it needs Bend 2.0.40 and Lean v4.34.0 (`leanprover/lean4:v4.34.0` through elan), the versions CI pins in the `laws` job. Bend's guide (`bend guide`) and the demos in its repository show the conventions followed here: a `LAWS.bend` that states only the contract, a `SPEC.bend` kept apart from the models, constructor arms rather than fallback arms in anything a proof splits on, and no `@unsafe`.

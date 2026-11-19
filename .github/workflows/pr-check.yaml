@@ -178,6 +178,57 @@ jobs:
           MONGOOSE: ${{ matrix.mongoose-version }}
         run: npm run test:e2e -- --mongoose "$MONGOOSE"
 
+  # The proofs of laws/ (npm run laws): Bend checks them, and --verdict rechecks them with BendTT's
+  # kernel, which Lean builds. Both toolchains are pinned and checked against the release digests.
+  laws:
+    name: Laws (Bend proofs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      BEND_VERSION: 2.0.40
+      BEND_SHA256: c9ff8d67bd903fb6ad9a26b43d8a62c01021de82a44d55ce4a3dcd4732113d6b
+      LEAN_VERSION: 4.34.0
+      LEAN_SHA256: caaa98356098c85dc0fcbbd28e1ec66f39eb6551829972b752ff20e1286b646b
+      # bend otherwise asks bend-lang.com for its latest version once a day
+      BEND_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js 24.x
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.x
+
+      # What bend-lang.com/install.sh does, at a pinned version: the release archive, its digest, ~/.bend.
+      - name: Install Bend ${{ env.BEND_VERSION }}
+        run: |
+          set -euo pipefail
+          archive="bend-${BEND_VERSION}-linux-x64.tar.gz"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/bendlang/bend/releases/download/v${BEND_VERSION}/$archive"
+          echo "${BEND_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          mkdir -p "$HOME/.bend/bin"
+          mv "$RUNNER_TEMP/bend/bend2" "$RUNNER_TEMP/bend/guide" "$HOME/.bend/"
+          mv "$RUNNER_TEMP/bend/bin/bend" "$HOME/.bend/bin/bend"
+
+      - name: Install Lean ${{ env.LEAN_VERSION }}
+        run: |
+          set -euo pipefail
+          archive="lean-${LEAN_VERSION}-linux.tar.zst"
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/$archive"
+          echo "${LEAN_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/lean"
+          tar --zstd -xf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/lean" --strip-components=1
+          echo "$RUNNER_TEMP/lean/bin" >> "$GITHUB_PATH"
+
+      - name: Check the laws
+        run: npm run laws
+
   zizmor:
     name: Workflow audit (zizmor)
     runs-on: ubuntu-latest
@@ -201,7 +252,7 @@ jobs:
   # The one check branch rules require: it fails unless every job above succeeded.
   ci:
     name: CI
-    needs: [tests, sonar, e2e, zizmor]
+    needs: [tests, sonar, e2e, laws, zizmor]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
