@@ -1,6 +1,7 @@
 import Base
 import ./patch.bend as P
 import ./chunk.bend as C
+import ./entry.bend as E
 import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
@@ -384,3 +385,23 @@ def Laws.upsert_missing_honours_ignore_history(c, o, store, hist, evs, id, doc, 
     case Hs.Cfg{+h, +v}:
       %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.hist_of(Hs.upsert_pick(_, Hs.Cfg{h, v}, o, Hs.Flags{False{}, ev, True{}}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}
       umh(h, v, ev, o, id, doc, store, hist, evs)
+
+# ---- entry metadata ----
+
+def Laws.failed_getter_is_undefined():
+  {==}
+
+def field_disc(m: Maybe<E.Field>) -> Type:
+  match m:
+    case None{}:
+      Empty
+    case Some{x}:
+      Unit
+
+def Laws.null_getter_is_stored(e):
+  # the left side computes to Some{FNull{}}, the right is None{}
+  %e : field_disc(_)
+  Unit{}
+
+def Laws.name_option_wins(n, m):
+  {==}

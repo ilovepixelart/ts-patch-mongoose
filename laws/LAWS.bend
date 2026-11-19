@@ -5,6 +5,7 @@
 import Base
 import ./patch.bend as P
 import ./chunk.bend as C
+import ./entry.bend as E
 import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
@@ -121,3 +122,19 @@ law upsert_missing_honours_ignore_history:
   for +ev: Bool
   for e: {Hs.find(store, id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
   {Hs.hist_of(Hs.call(c, o, Hs.S{store, hist, evs}, Hs.Upsert{id, doc, Hs.Flags{False{}, ev, True{}}})) == hist : +List<Hs.Hist>}
+
+# ---- entry metadata ----
+
+# LAW: a getter that throws or rejects stores nothing, as one that returns undefined does.
+law failed_getter_is_undefined:
+  {E.field(E.Failed{}) == E.field(E.Undefined{}) : Maybe<E.Field>}
+
+# LAW: a getter that returns null stores null: only undefined, a throw or a rejection store nothing.
+law null_getter_is_stored:
+  {E.field(E.Null{}) != {None{} : Maybe<E.Field>} : Maybe<E.Field>}
+
+# LAW: a name option, when set, is the entry's name, whatever the model is called.
+law name_option_wins:
+  for +n: Nat
+  for +m: Nat
+  {E.name(Some{n}, m) == n : Nat}

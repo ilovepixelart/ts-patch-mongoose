@@ -15,7 +15,7 @@ import { parseArgs, promisify } from 'node:util'
 
 const exec = promisify(execFile)
 const here = dirname(fileURLToPath(import.meta.url))
-const MODELS = ['patch', 'chunk', 'omit', 'history']
+const MODELS = ['patch', 'chunk', 'omit', 'history', 'entry']
 const { values: args } = parseArgs({ options: { fast: { type: 'boolean', default: false }, write: { type: 'boolean', default: false } } })
 
 const installed = join(homedir(), '.bend', 'bin', 'bend')
