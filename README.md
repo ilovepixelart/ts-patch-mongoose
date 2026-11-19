@@ -32,7 +32,7 @@ I need to track changes of mongoose models and save them as patch history (audit
 }
 ```
 
-CI tests on Node.js `22.x` and `24.x` against mongoose `6.12.2`, `7.6.4`, `8.23.0`, and `9.4.1`, and on `26.x` with the mongoose version the lockfile pins.
+CI tests on Node.js `22.x` and `24.x` against mongoose `6.13.13`, `7.8.14`, `8.24.10`, and `9.12.2` (the latest of each major), and on `26.x` with the mongoose version the lockfile pins.
 
 ## Features
 
