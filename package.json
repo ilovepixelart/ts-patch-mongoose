@@ -69,7 +69,7 @@
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
     "test:shuffle": "vitest run --sequence.shuffle.tests",
     "test:e2e": "npm run build && node e2e/e2e.mjs",
-    "test:e2e:tools": "node --test e2e/compare.test.mjs",
+    "test:e2e:tools": "node --test \"e2e/**/*.test.mjs\"",
     "clean": "rm -rf ./dist",
     "type:check": "tsc --noEmit",
     "type:check:tests": "tsc --noEmit -p tests/tsconfig.json",

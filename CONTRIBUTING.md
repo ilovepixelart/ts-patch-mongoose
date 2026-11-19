@@ -48,8 +48,9 @@ npm run test:e2e                            # mongoose from devDependencies
 npm run test:e2e -- --mongoose 6.12.2       # another mongoose version
 ```
 
-`npm run test:e2e` builds, packs the package with `npm pack`, and installs the tarball and the latest published version into two fresh consumer projects in the system temp directory. Each project runs the scenarios in `e2e/consumer/` twice, through `require` and through `import`, against its own in-memory replica set: every hooked operation in every session mode, with the history entries, events, getter calls and `onError` calls each one produces. The run fails when:
+`npm run test:e2e` builds, packs the package with `npm pack`, and installs the tarball and the latest published version into two fresh consumer projects in the system temp directory. Each project runs the scenarios in `e2e/consumer/` twice, through `require` and through `import`, against its own in-memory replica set: every hooked operation and update operator in every session mode, under plugin option profiles defined in `e2e/consumer/scenarios.cjs`, with the history entries, events, getter calls and `onError` calls each one produces, plus the TTL index after each `setPatchHistoryTTL` call and a batch larger than one history bulk write. The run fails when:
 
+- a consumer project installed another mongoose version than the exact one requested
 - `require` or `import` of the package fails, or the two disagree on any scenario
 - any scenario differs from the published version at a path that no `e2e/allowlist.json` entry for that scenario allows
 - an `e2e/allowlist.json` entry allows no difference (remove entries once their change is published)

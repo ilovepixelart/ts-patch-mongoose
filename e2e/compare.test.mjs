@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, describe, it } from 'node:test'
-import { compareBuilds, loadAllowlist, pathToRegExp } from './compare.mjs'
+import { compareBuilds, loadAllowlist, pathToRegExp, versionMismatches } from './compare.mjs'
 
 const dir = mkdtempSync(join(tmpdir(), 'e2e-compare-'))
 after(() => rmSync(dir, { recursive: true, force: true }))
@@ -90,5 +90,25 @@ describe('loadAllowlist', () => {
 
   it('rejects an unknown key', () => {
     assert.throws(() => allowlist([{ ...eventDoc, path: '$' }]), /unknown keys path/)
+  })
+})
+
+describe('versionMismatches', () => {
+  const found = (candidate, baseline) => [
+    { name: 'candidate', version: candidate },
+    { name: 'baseline', version: baseline },
+  ]
+
+  it('accepts versions that are exactly the one requested', () => {
+    assert.deepEqual(versionMismatches('mongoose', '8.24.10', found('8.24.10', '8.24.10')), [])
+  })
+
+  it('names each one that has another version', () => {
+    assert.deepEqual(versionMismatches('mongodb', '8.2.6', found('8.2.6', '8.0.4')), ['baseline has mongodb 8.0.4, not the requested 8.2.6'])
+  })
+
+  it('does not compare when the request is a range or tag', () => {
+    assert.deepEqual(versionMismatches('mongoose', '8', found('8.24.10', '8.23.0')), [])
+    assert.deepEqual(versionMismatches('mongoose', 'latest', found('9.12.2', '9.0.0')), [])
   })
 })
