@@ -36,28 +36,6 @@ law replay_matches_store:
   st = Hs.run(cmds, Hs.Cfg{True{}, ev}, Hs.empty())
   {Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j) == Spec.doc_lookup(Hs.find(Hs.store_of(st), id), j) : Maybe<Maybe<Nat>>}
 
-# CLAIM: the stored documents depend on the commands only: never on the configuration, the switches,
-# the history or the events.
-law store_independent:
-  for cmds: List<Hs.Cmd>
-  for +c: Hs.Cfg
-  for st: Hs.State
-  {Hs.store_of(Hs.run(cmds, c, st)) == Spec.store_run(cmds, Hs.store_of(st)) : +List<Hs.Rec>}
-
-# CLAIM: with patch history disabled, no command writes history.
-law disabled_writes_no_history:
-  for cmds: List<Hs.Cmd>
-  for +ev: Bool
-  for st: Hs.State
-  {Hs.hist_of(Hs.run(cmds, Hs.Cfg{False{}, ev}, st)) == Hs.hist_of(st) : +List<Hs.Hist>}
-
-# CLAIM: with no events configured, no command emits one.
-law unconfigured_emits_nothing:
-  for cmds: List<Hs.Cmd>
-  for +h: Bool
-  for st: Hs.State
-  {Hs.evs_of(Hs.run(cmds, Hs.Cfg{h, False{}}, st)) == Hs.evs_of(st) : +List<Hs.Ev>}
-
 # ---- omit ----
 
 # CLAIM: a key the omit option lists never reaches history: no command records it in an entry's

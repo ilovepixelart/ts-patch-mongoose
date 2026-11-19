@@ -441,3 +441,232 @@ def Laws.ttl_below_second_drops(e, neg, frac):
       {==}
     case False{}:
       {==}
+
+# ---- disabled history: one step, then any commands ----
+
+# writes is False whatever the switches when history is off.
+def dis_write(ops: +List<P.Op>, +ev: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_write(ops, Hs.Cfg{False{}, ev}, f, id, old, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match ops f:
+    case Nil{} f:
+      {==}
+    case Con{o, os} Hs.Flags{h, e, i}:
+      {==}
+
+def dis_omit(none: Bool, +ev: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_omit(none, Hs.Cfg{False{}, ev}, o, f, id, old, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match none:
+    case True{}:
+      {==}
+    case False{}:
+      dis_write(Hs.ops_data(P.diff(Hs.strip(Hs.omit_keys(o), old), Hs.strip(Hs.omit_keys(o), doc))), ev, f, id, old, doc, store, hist, evs)
+
+def dis_update_hook(skip: Bool, +ev: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_hook(skip, Hs.Cfg{False{}, ev}, o, f, id, old, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match skip:
+    case True{}:
+      {==}
+    case False{}:
+      dis_omit(Hs.blank(o, old, doc), ev, o, f, id, old, doc, store, hist, evs)
+
+def dis_update(found: Maybe<+List<P.Entry>>, +ev: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_pick(found, Hs.Cfg{False{}, ev}, o, f, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      dis_update_hook(Hs.skipped(f), ev, o, f, id, old, doc, store, hist, evs)
+
+def dis_delete_hook(skip: Bool, +ev: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.delete_hook(skip, Hs.Cfg{False{}, ev}, o, f, id, old, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match skip f:
+    case True{} f:
+      {==}
+    case False{} Hs.Flags{h, e, i}:
+      {==}
+
+def dis_delete(found: Maybe<+List<P.Entry>>, +ev: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.delete_pick(found, Hs.Cfg{False{}, ev}, o, f, id, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      dis_delete_hook(Hs.skipped(f), ev, o, f, id, old, store, hist, evs)
+
+def dis_create(found: Maybe<+List<P.Entry>>, +ev: Bool, +o: Hs.Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.create_pick(found, Hs.Cfg{False{}, ev}, o, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{old}:
+      {==}
+
+# LEMMA: with history off, one command writes no history.
+law disabled_step:
+  for +ev: Bool
+  for +o: Hs.Omit
+  for st: Hs.State
+  for cmd: Hs.Cmd
+  {Hs.hist_of(Hs.step_with(Hs.Cfg{False{}, ev}, o, st, cmd)) == Hs.hist_of(st) : +List<Hs.Hist>}
+def disabled_step(ev, o, st, cmd):
+  match st cmd:
+    case Hs.S{+store, +hist, +evs} Hs.Create{+id, +doc}:
+      dis_create(Hs.find(store, id), ev, o, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Update{+id, +doc, +f}:
+      dis_update(Hs.find(store, id), ev, o, f, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Delete{+id, +f}:
+      dis_delete(Hs.find(store, id), ev, o, f, id, store, hist, evs)
+
+def Laws.disabled_writes_no_history(cmds, ev, st):
+  match cmds st:
+    case Nil{} Hs.S{+store, +hist, +evs}:
+      {==}
+    case Con{+cmd, cs} Hs.S{+store, +hist, +evs}:
+      %Equal.sym(+List<Hs.Hist>, Hs.hist_of(Hs.run(cs, Hs.Cfg{False{}, ev}, Hs.step_with(Hs.Cfg{False{}, ev}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))), Hs.hist_of(Hs.step_with(Hs.Cfg{False{}, ev}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)), Laws.disabled_writes_no_history(cs, ev, Hs.step_with(Hs.Cfg{False{}, ev}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))) : {_ == hist : +List<Hs.Hist>}
+      disabled_step(ev, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)
+
+# ---- unconfigured events: one step, then any commands ----
+
+# emits is False whatever the switches when no event is configured.
+def unc_write(ops: +List<P.Op>, +h: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.update_write(ops, Hs.Cfg{h, False{}}, f, id, old, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match ops f:
+    case Nil{} f:
+      {==}
+    case Con{o, os} Hs.Flags{h, e, i}:
+      {==}
+
+def unc_omit(none: Bool, +h: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.update_omit(none, Hs.Cfg{h, False{}}, o, f, id, old, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match none:
+    case True{}:
+      {==}
+    case False{}:
+      unc_write(Hs.ops_data(P.diff(Hs.strip(Hs.omit_keys(o), old), Hs.strip(Hs.omit_keys(o), doc))), h, f, id, old, doc, store, hist, evs)
+
+def unc_update_hook(skip: Bool, +h: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.update_hook(skip, Hs.Cfg{h, False{}}, o, f, id, old, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match skip:
+    case True{}:
+      {==}
+    case False{}:
+      unc_omit(Hs.blank(o, old, doc), h, o, f, id, old, doc, store, hist, evs)
+
+def unc_update(found: Maybe<+List<P.Entry>>, +h: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.update_pick(found, Hs.Cfg{h, False{}}, o, f, id, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      unc_update_hook(Hs.skipped(f), h, o, f, id, old, doc, store, hist, evs)
+
+def unc_delete_hook(skip: Bool, +h: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.delete_hook(skip, Hs.Cfg{h, False{}}, o, f, id, old, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match skip f:
+    case True{} f:
+      {==}
+    case False{} Hs.Flags{h, e, i}:
+      {==}
+
+def unc_delete(found: Maybe<+List<P.Entry>>, +h: Bool, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.delete_pick(found, Hs.Cfg{h, False{}}, o, f, id, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      unc_delete_hook(Hs.skipped(f), h, o, f, id, old, store, hist, evs)
+
+def unc_create(found: Maybe<+List<P.Entry>>, +h: Bool, +o: Hs.Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.create_pick(found, Hs.Cfg{h, False{}}, o, id, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{old}:
+      {==}
+
+# LEMMA: with no event configured, one command emits none.
+law unconfigured_step:
+  for +h: Bool
+  for +o: Hs.Omit
+  for st: Hs.State
+  for cmd: Hs.Cmd
+  {Hs.evs_of(Hs.step_with(Hs.Cfg{h, False{}}, o, st, cmd)) == Hs.evs_of(st) : +List<Hs.Ev>}
+def unconfigured_step(h, o, st, cmd):
+  match st cmd:
+    case Hs.S{+store, +hist, +evs} Hs.Create{+id, +doc}:
+      unc_create(Hs.find(store, id), h, o, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Update{+id, +doc, +f}:
+      unc_update(Hs.find(store, id), h, o, f, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Delete{+id, +f}:
+      unc_delete(Hs.find(store, id), h, o, f, id, store, hist, evs)
+
+
+def Laws.unconfigured_emits_nothing(cmds, h, st):
+  match cmds st:
+    case Nil{} Hs.S{+store, +hist, +evs}:
+      {==}
+    case Con{+cmd, cs} Hs.S{+store, +hist, +evs}:
+      %Equal.sym(+List<Hs.Ev>, Hs.evs_of(Hs.run(cs, Hs.Cfg{h, False{}}, Hs.step_with(Hs.Cfg{h, False{}}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))), Hs.evs_of(Hs.step_with(Hs.Cfg{h, False{}}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)), Laws.unconfigured_emits_nothing(cs, h, Hs.step_with(Hs.Cfg{h, False{}}, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))) : {_ == evs : +List<Hs.Ev>}
+      unconfigured_step(h, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)
+
+# ---- the store depends on the commands only: one step, then any commands ----
+
+def si_write(ops: +List<P.Op>, +c: Hs.Cfg, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.update_write(ops, c, f, id, old, doc, store, hist, evs)) == Hs.R{id, doc} <> Hs.remove(store, id) : +List<Hs.Rec>}:
+  match ops:
+    case Nil{}:
+      {==}
+    case Con{o, os}:
+      {==}
+
+def si_omit(none: Bool, +c: Hs.Cfg, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.update_omit(none, c, o, f, id, old, doc, store, hist, evs)) == Hs.R{id, doc} <> Hs.remove(store, id) : +List<Hs.Rec>}:
+  match none:
+    case True{}:
+      {==}
+    case False{}:
+      si_write(Hs.ops_data(P.diff(Hs.strip(Hs.omit_keys(o), old), Hs.strip(Hs.omit_keys(o), doc))), c, f, id, old, doc, store, hist, evs)
+
+def si_update_hook(skip: Bool, +c: Hs.Cfg, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.update_hook(skip, c, o, f, id, old, doc, store, hist, evs)) == Hs.R{id, doc} <> Hs.remove(store, id) : +List<Hs.Rec>}:
+  match skip:
+    case True{}:
+      {==}
+    case False{}:
+      si_omit(Hs.blank(o, old, doc), c, o, f, id, old, doc, store, hist, evs)
+
+def si_update(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.update_pick(found, c, o, f, id, doc, store, hist, evs)) == Spec.store_update(found, id, doc, store) : +List<Hs.Rec>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      si_update_hook(Hs.skipped(f), c, o, f, id, old, doc, store, hist, evs)
+
+def si_delete_hook(skip: Bool, +c: Hs.Cfg, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.delete_hook(skip, c, o, f, id, old, store, hist, evs)) == Hs.remove(store, id) : +List<Hs.Rec>}:
+  match skip:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
+
+def si_delete(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +f: Hs.Flags, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.delete_pick(found, c, o, f, id, store, hist, evs)) == Spec.store_delete(found, id, store) : +List<Hs.Rec>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{+old}:
+      si_delete_hook(Hs.skipped(f), c, o, f, id, old, store, hist, evs)
+
+def si_create(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.store_of(Hs.create_pick(found, c, o, id, doc, store, hist, evs)) == Spec.store_create(found, id, doc, store) : +List<Hs.Rec>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{old}:
+      {==}
+
+# LEMMA: one command changes the store as Spec.store_step says, whatever the configuration and omit option.
+law store_step_independent:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for st: Hs.State
+  for cmd: Hs.Cmd
+  {Hs.store_of(Hs.step_with(c, o, st, cmd)) == Spec.store_step(Hs.store_of(st), cmd) : +List<Hs.Rec>}
+def store_step_independent(c, o, st, cmd):
+  match st cmd:
+    case Hs.S{+store, +hist, +evs} Hs.Create{+id, +doc}:
+      si_create(Hs.find(store, id), c, o, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Update{+id, +doc, +f}:
+      si_update(Hs.find(store, id), c, o, f, id, doc, store, hist, evs)
+    case Hs.S{+store, +hist, +evs} Hs.Delete{+id, +f}:
+      si_delete(Hs.find(store, id), c, o, f, id, store, hist, evs)
+
+def Laws.store_independent(cmds, c, st):
+  match cmds st:
+    case Nil{} Hs.S{+store, +hist, +evs}:
+      {==}
+    case Con{+cmd, cs} Hs.S{+store, +hist, +evs}:
+      %Equal.sym(+List<Hs.Rec>, Hs.store_of(Hs.run(cs, c, Hs.step_with(c, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))), Spec.store_run(cs, Hs.store_of(Hs.step_with(c, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))), Laws.store_independent(cs, c, Hs.step_with(c, Hs.no_omit(), Hs.S{store, hist, evs}, cmd))) : {_ == Spec.store_run(Con{cmd, cs}, store) : +List<Hs.Rec>}
+      %Equal.sym(+List<Hs.Rec>, Hs.store_of(Hs.step_with(c, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)), Spec.store_step(store, cmd), store_step_independent(c, Hs.no_omit(), Hs.S{store, hist, evs}, cmd)) : {Spec.store_run(cs, _) == Spec.store_run(Con{cmd, cs}, store) : +List<Hs.Rec>}
+      {==}

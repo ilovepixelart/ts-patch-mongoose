@@ -83,6 +83,28 @@ law create_existing_noop:
   for e: {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
   {Hs.step(c, Hs.S{store, hist, evs}, Hs.Create{id, doc}) == Hs.S{store, hist, evs} : Hs.State}
 
+# LAW: with patch history disabled, no command writes history.
+law disabled_writes_no_history:
+  for cmds: List<Hs.Cmd>
+  for +ev: Bool
+  for st: Hs.State
+  {Hs.hist_of(Hs.run(cmds, Hs.Cfg{False{}, ev}, st)) == Hs.hist_of(st) : +List<Hs.Hist>}
+
+# LAW: with no events configured, no command emits one.
+law unconfigured_emits_nothing:
+  for cmds: List<Hs.Cmd>
+  for +h: Bool
+  for st: Hs.State
+  {Hs.evs_of(Hs.run(cmds, Hs.Cfg{h, False{}}, st)) == Hs.evs_of(st) : +List<Hs.Ev>}
+
+# LAW: the stored documents depend on the commands only: never on the configuration, the switches,
+# the history or the events.
+law store_independent:
+  for cmds: List<Hs.Cmd>
+  for +c: Hs.Cfg
+  for st: Hs.State
+  {Hs.store_of(Hs.run(cmds, c, st)) == Spec.store_run(cmds, Hs.store_of(st)) : +List<Hs.Rec>}
+
 # ---- bulk operations and upserts ----
 
 # LAW: an upsert of an existing document is an update of it.
