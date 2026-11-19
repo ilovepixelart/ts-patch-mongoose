@@ -420,6 +420,59 @@ function $ops_once(_ops_0) {
   }
 }
 
+function $mem(_keys_0, _k_0) {
+  if (_keys_0.$ === "Nil") {
+    return false;
+  } else {
+    const _h_0 = _keys_0["head"];
+    const _t_0 = _keys_0["tail"];
+    const _x_0 = $$Nat_is_eq(_h_0, _k_0);
+    const _x_1 = $$mem(_t_0, _k_0);
+    return (_x_0 || _x_1);
+  }
+}
+
+function $strip_pick(_drop_0, _e_0, _rest_0) {
+  if (_drop_0) {
+    return _rest_0;
+  } else {
+    return {$: "Con", "head": _e_0, "tail": _rest_0};
+  }
+}
+
+function $strip(_keys_0, _d_0) {
+  if (_d_0.$ === "Nil") {
+    return {$: "Nil"};
+  } else {
+    const _t_0 = _d_0["head"];
+    const _k_0 = _t_0["k"];
+    const _v_0 = _t_0["v"];
+    const _t_1 = _d_0["tail"];
+    return $strip_pick($$mem(_keys_0, _k_0), {$: "E", "k": _k_0, "v": _v_0}, $$strip(_keys_0, _t_1));
+  }
+}
+
+function $omit_keys(_o_0) {
+  const _keys_0 = _o_0["keys"];
+  return _keys_0;
+}
+
+function $is_nil(_d_0) {
+  if (_d_0.$ === "Nil") {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+function $blank(_o_0, _old_0, _doc_0) {
+  const _keys_0 = _o_0["keys"];
+  const _id_0 = _o_0["id"];
+  const _x_0 = $$is_nil($$strip(_keys_0, _old_0));
+  const _x_1 = $$is_nil($$strip(_keys_0, _doc_0));
+  return $Bool_and(_id_0, (_x_0 || _x_1));
+}
+
 function $when_hist(_b_0, _hist_0, _h_0) {
   if (_b_0) {
     return $append_hist(_hist_0, _h_0);
@@ -466,11 +519,11 @@ function $cfg_events(_c_0) {
   return _events_0;
 }
 
-function $create_pick(_found_0, _c_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
+function $create_pick(_found_0, _c_0, _o_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
   if (_found_0.$ === "Some") {
     return {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0};
   } else {
-    return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": _store_0}, "hist": $$when_hist($$cfg_history(_c_0), _hist_0, {$: "H", "kind": {$: "KCreate"}, "id": _id_0, "version": 0, "doc": _doc_0, "patch": {$: "Nil"}}), "evs": $$when_ev($$cfg_events(_c_0), _evs_0, {$: "ECreated", "doc": _doc_0})};
+    return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": _store_0}, "hist": $$when_hist($$cfg_history(_c_0), _hist_0, {$: "H", "kind": {$: "KCreate"}, "id": _id_0, "version": 0, "doc": $$strip($$omit_keys(_o_0), _doc_0), "patch": {$: "Nil"}}), "evs": $$when_ev($$cfg_events(_c_0), _evs_0, {$: "ECreated", "doc": $$strip($$omit_keys(_o_0), _doc_0)})};
   }
 }
 
@@ -484,66 +537,75 @@ function $update_write(_ops_0, _c_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _his
   }
 }
 
-function $update_hook(_skip_0, _c_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0) {
+function $update_omit(_none_0, _c_0, _o_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0) {
+  if (_none_0) {
+    return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": $$remove(_store_0, _id_0)}, "hist": _hist_0, "evs": _evs_0};
+  } else {
+    return $update_write($$ops_data($$patch_diff($$strip($$omit_keys(_o_0), _old_0), $$strip($$omit_keys(_o_0), _doc_0))), _c_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
+  }
+}
+
+function $update_hook(_skip_0, _c_0, _o_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0) {
   if (_skip_0) {
     return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": $$remove(_store_0, _id_0)}, "hist": _hist_0, "evs": _evs_0};
   } else {
-    return $update_write($$ops_data($$patch_diff(_old_0, _doc_0)), _c_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
+    return $update_omit($$blank(_o_0, _old_0, _doc_0), _c_0, _o_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
   }
 }
 
-function $update_pick(_found_0, _c_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
+function $update_pick(_found_0, _c_0, _o_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
   if (_found_0.$ === "None") {
     return {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0};
   } else {
     const _old_0 = _found_0["value"];
-    return $update_hook($$skipped(_f_0), _c_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
+    return $update_hook($$skipped(_f_0), _c_0, _o_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
   }
 }
 
-function $delete_hook(_skip_0, _c_0, _f_0, _id_0, _old_0, _store_0, _hist_0, _evs_0) {
+function $delete_hook(_skip_0, _c_0, _o_0, _f_0, _id_0, _old_0, _store_0, _hist_0, _evs_0) {
   if (_skip_0) {
     return {$: "S", "store": $$remove(_store_0, _id_0), "hist": _hist_0, "evs": _evs_0};
   } else {
-    return {$: "S", "store": $$remove(_store_0, _id_0), "hist": $$when_hist($$writes(_c_0, _f_0), _hist_0, {$: "H", "kind": {$: "KDelete"}, "id": _id_0, "version": 0, "doc": _old_0, "patch": {$: "Nil"}}), "evs": $$when_ev($$emits(_c_0, _f_0), _evs_0, {$: "EDeleted", "old": _old_0})};
+    return {$: "S", "store": $$remove(_store_0, _id_0), "hist": $$when_hist($$writes(_c_0, _f_0), _hist_0, {$: "H", "kind": {$: "KDelete"}, "id": _id_0, "version": 0, "doc": $$strip($$omit_keys(_o_0), _old_0), "patch": {$: "Nil"}}), "evs": $$when_ev($$emits(_c_0, _f_0), _evs_0, {$: "EDeleted", "old": $$strip($$omit_keys(_o_0), _old_0)})};
   }
 }
 
-function $delete_pick(_found_0, _c_0, _f_0, _id_0, _store_0, _hist_0, _evs_0) {
+function $delete_pick(_found_0, _c_0, _o_0, _f_0, _id_0, _store_0, _hist_0, _evs_0) {
   if (_found_0.$ === "None") {
     return {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0};
   } else {
     const _old_0 = _found_0["value"];
-    return $delete_hook($$skipped(_f_0), _c_0, _f_0, _id_0, _old_0, _store_0, _hist_0, _evs_0);
+    return $delete_hook($$skipped(_f_0), _c_0, _o_0, _f_0, _id_0, _old_0, _store_0, _hist_0, _evs_0);
   }
 }
 
-function $step(_c_0, _st_0, _cmd_0) {
+function $step_with(_c_0, _o_0, _st_0, _cmd_0) {
   const _store_0 = _st_0["store"];
   const _hist_0 = _st_0["hist"];
   const _evs_0 = _st_0["evs"];
   if (_cmd_0.$ === "Create") {
     const _id_0 = _cmd_0["id"];
     const _doc_0 = _cmd_0["doc"];
-    return $create_pick($$find(_store_0, _id_0), _c_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0);
+    return $create_pick($$find(_store_0, _id_0), _c_0, _o_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0);
   } else if (_cmd_0.$ === "Update") {
     const _id_1 = _cmd_0["id"];
     const _doc_1 = _cmd_0["doc"];
     const _f_0 = _cmd_0["flags"];
-    return $update_pick($$find(_store_0, _id_1), _c_0, _f_0, _id_1, _doc_1, _store_0, _hist_0, _evs_0);
+    return $update_pick($$find(_store_0, _id_1), _c_0, _o_0, _f_0, _id_1, _doc_1, _store_0, _hist_0, _evs_0);
   } else {
     const _id_2 = _cmd_0["id"];
     const _f_1 = _cmd_0["flags"];
-    return $delete_pick($$find(_store_0, _id_2), _c_0, _f_1, _id_2, _store_0, _hist_0, _evs_0);
+    return $delete_pick($$find(_store_0, _id_2), _c_0, _o_0, _f_1, _id_2, _store_0, _hist_0, _evs_0);
   }
 }
 
-function $run($0, $1, $2) {
+function $run_with($0, $1, $2, $3) {
   for (;;) {
     {
       const _cmds_0 = $0;
       const _c_0 = $1;
-      const _st_0 = $2;
+      const _o_0 = $2;
+      const _st_0 = $3;
       if (_cmds_0.$ === "Nil") {
         return _st_0;
       } else {
@@ -551,11 +613,24 @@ function $run($0, $1, $2) {
         const _cs_0 = _cmds_0["tail"];
         $0 = _cs_0;
         $1 = _c_0;
-        $2 = $$step(_c_0, _st_0, _cmd_0);
+        $2 = _o_0;
+        $3 = $$step_with(_c_0, _o_0, _st_0, _cmd_0);
         continue;
       }
     }
   }
+}
+
+function $no_omit() {
+  return {$: "Omit", "keys": {$: "Nil"}, "id": false};
+}
+
+function $step(_c_0, _st_0, _cmd_0) {
+  return $step_with(_c_0, $$no_omit(), _st_0, _cmd_0);
+}
+
+function $run(_cmds_0, _c_0, _st_0) {
+  return $run_with(_cmds_0, _c_0, $$no_omit(), _st_0);
 }
 
 function $empty() {
@@ -638,17 +713,23 @@ const $$max = $max;
 const $$top_version = $top_version;
 const $$ops_data = $ops_data;
 const $$ops_once = $ops_once;
+const $$mem = $mem;
+const $$strip = $strip;
+const $$is_nil = $is_nil;
 const $$Bool_and = $Bool_and;
 const $$Bool_not = $Bool_not;
 const $$cfg_history = $cfg_history;
+const $$omit_keys = $omit_keys;
 const $$when_hist = $when_hist;
 const $$cfg_events = $cfg_events;
 const $$when_ev = $when_ev;
 const $$writes = $writes;
 const $$next_version = $next_version;
 const $$emits = $emits;
+const $$blank = $blank;
 const $$skipped = $skipped;
-const $$step = $step;
+const $$step_with = $step_with;
+const $$no_omit = $no_omit;
 const $$none = $none;
 const $$empty = $empty;
 const $$List_append = $List_append;export default {
@@ -676,6 +757,12 @@ const $$List_append = $List_append;export default {
   "append_hist": run_lib((a0,a1) => run_loop($append_hist(a0,a1)), 2),
   "ops_data": run_lib((a0) => run_loop($ops_data(a0)), 1),
   "ops_once": run_lib((a0) => run_loop($ops_once(a0)), 1),
+  "mem": run_lib((a0,a1) => run_loop($mem(a0,nat_in(a1))), 2),
+  "strip_pick": run_lib((a0,a1,a2) => run_loop($strip_pick(a0,a1,a2)), 3),
+  "strip": run_lib((a0,a1) => run_loop($strip(a0,a1)), 2),
+  "omit_keys": run_lib((a0) => run_loop($omit_keys(a0)), 1),
+  "is_nil": run_lib((a0) => run_loop($is_nil(a0)), 1),
+  "blank": run_lib((a0,a1,a2) => run_loop($blank(a0,a1,a2)), 3),
   "when_hist": run_lib((a0,a1,a2) => run_loop($when_hist(a0,a1,a2)), 3),
   "when_ev": run_lib((a0,a1,a2) => run_loop($when_ev(a0,a1,a2)), 3),
   "skipped": run_lib((a0) => run_loop($skipped(a0)), 1),
@@ -683,12 +770,16 @@ const $$List_append = $List_append;export default {
   "emits": run_lib((a0,a1) => run_loop($emits(a0,a1)), 2),
   "cfg_history": run_lib((a0) => run_loop($cfg_history(a0)), 1),
   "cfg_events": run_lib((a0) => run_loop($cfg_events(a0)), 1),
-  "create_pick": run_lib((a0,a1,a2,a3,a4,a5,a6) => run_loop($create_pick(a0,a1,nat_in(a2),a3,a4,a5,a6)), 7),
+  "create_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7) => run_loop($create_pick(a0,a1,a2,nat_in(a3),a4,a5,a6,a7)), 8),
   "update_write": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($update_write(a0,a1,a2,nat_in(a3),a4,a5,a6,a7,a8)), 9),
-  "update_hook": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($update_hook(a0,a1,a2,nat_in(a3),a4,a5,a6,a7,a8)), 9),
-  "update_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7) => run_loop($update_pick(a0,a1,a2,nat_in(a3),a4,a5,a6,a7)), 8),
-  "delete_hook": run_lib((a0,a1,a2,a3,a4,a5,a6,a7) => run_loop($delete_hook(a0,a1,a2,nat_in(a3),a4,a5,a6,a7)), 8),
-  "delete_pick": run_lib((a0,a1,a2,a3,a4,a5,a6) => run_loop($delete_pick(a0,a1,a2,nat_in(a3),a4,a5,a6)), 7),
+  "update_omit": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8,a9) => run_loop($update_omit(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8,a9)), 10),
+  "update_hook": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8,a9) => run_loop($update_hook(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8,a9)), 10),
+  "update_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($update_pick(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
+  "delete_hook": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($delete_hook(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
+  "delete_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7) => run_loop($delete_pick(a0,a1,a2,a3,nat_in(a4),a5,a6,a7)), 8),
+  "step_with": run_lib((a0,a1,a2,a3) => run_loop($step_with(a0,a1,a2,a3)), 4),
+  "run_with": run_lib((a0,a1,a2,a3) => run_loop($run_with(a0,a1,a2,a3)), 4),
+  "no_omit": run_lib(() => run_loop($no_omit()), 0),
   "step": run_lib((a0,a1,a2) => run_loop($step(a0,a1,a2)), 3),
   "run": run_lib((a0,a1,a2) => run_loop($run(a0,a1,a2)), 3),
   "empty": run_lib(() => run_loop($empty()), 0),

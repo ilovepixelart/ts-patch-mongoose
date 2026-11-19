@@ -8,10 +8,11 @@ import server from '../mongo/server'
 import { type BendList, fromList, toList } from './bend'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
-// events each command writes, under every configuration and query switch. These tests run random
-// command sequences on the plugin and the model alike: the history entries, the events and the
-// stored documents must be the model's, and replaying a document's history must give the stored
-// document wherever the law applies (history on, no switches; CLAIMS.bend: replay_matches_store).
+// events each command writes, under every configuration, omit option and query switch. These tests
+// run random command sequences on the plugin and the model alike: the history entries, the events and
+// the stored documents must be the model's, and replaying a document's history must give the stored
+// document without its omitted fields wherever the law applies (history on, no switches, _id kept;
+// CLAIMS.bend: replay_matches_store, replay_matches_omitted_store).
 
 const FIELDS = ['f0', 'f1', 'f2', 'f3']
 type Doc = Record<string, number>
@@ -19,13 +20,15 @@ type LawDoc = { _id: mongoose.Types.ObjectId; f0?: number; f1?: number; f2?: num
 type Flags = { hook: boolean; event: boolean; history: boolean }
 type Cmd = { kind: 'Create'; id: number; doc: Doc } | { kind: 'Update'; id: number; doc: Doc; flags: Flags } | { kind: 'Delete'; id: number; flags: Flags }
 type Cfg = { history: boolean; events: boolean }
+// The omit option: fields left out, and whether _id is too.
+type Omit = { keys: string[]; id: boolean }
 
 type Entry = { k: number; v: number }
 type ModelOp = { $: 'Put' | 'Del'; k: number; v?: number }
 type ModelHist = { kind: { $: string }; id: number; version: number; doc: BendList<Entry>; patch: BendList<ModelOp> }
 type ModelEv = { $: string; doc?: BendList<Entry>; old?: BendList<Entry>; patch?: BendList<ModelOp> }
 type ModelState = { store: BendList<{ id: number; doc: BendList<Entry> }>; hist: BendList<ModelHist>; evs: BendList<ModelEv> }
-const run = model.run as (cmds: BendList<unknown>, cfg: unknown, st: unknown) => ModelState
+const runWith = model.run_with as (cmds: BendList<unknown>, cfg: unknown, omit: unknown, st: unknown) => ModelState
 const empty = model.empty as () => unknown
 
 const oid = (id: number) => new mongoose.Types.ObjectId(id.toString(16).padStart(24, '0'))
@@ -124,15 +127,25 @@ const CONFIGS: Cfg[] = [
   { history: false, events: true },
   { history: false, events: false },
 ]
+// Omitting three of four fields with _id leaves documents with no fields often enough to reach the
+// rule that an update whose omitted document is empty records nothing.
+const OMITS: Omit[] = [
+  { keys: [], id: false },
+  { keys: ['f1'], id: false },
+  { keys: ['f1', 'f3'], id: false },
+  { keys: ['f0', 'f1', 'f2'], id: true },
+]
+const strip = (doc: Doc, omit: Omit): Doc => Object.fromEntries(Object.entries(doc).filter(([k]) => !omit.keys.includes(k)))
+const toModelOmit = (omit: Omit) => ({ $: 'Omit', keys: toList(omit.keys.map((k) => FIELDS.indexOf(k))), id: omit.id })
 
 describe('the plugin keeps the laws of laws/history.bend', () => {
   const instance = server('laws-history')
   const seen: RealEv[] = []
-  const models = CONFIGS.map((cfg, i) => {
+  const models = CONFIGS.flatMap((cfg) => OMITS.map((omit) => ({ cfg, omit }))).map(({ cfg, omit }, i) => {
     const name = `LawDoc${i}`
     const schema = new mongoose.Schema<LawDoc>({ f0: Number, f1: Number, f2: Number, f3: Number })
     const events = cfg.events ? { eventCreated: `${name}:created`, eventUpdated: `${name}:updated`, eventDeleted: `${name}:deleted` } : {}
-    schema.plugin(patchHistoryPlugin, { omit: ['__v'], patchHistoryDisabled: !cfg.history, ...events })
+    schema.plugin(patchHistoryPlugin, { omit: ['__v', ...omit.keys, ...(omit.id ? ['_id'] : [])], patchHistoryDisabled: !cfg.history, ...events })
     for (const [suffix, kind] of [
       ['created', 'ECreated'],
       ['updated', 'EUpdated'],
@@ -140,7 +153,8 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     ]) {
       patchEventEmitter.on(`${name}:${suffix}`, (payload) => seen.push({ kind, payload }))
     }
-    return { cfg, name, M: mongoose.model<LawDoc>(name, schema) }
+    const label = `history ${cfg.history ? 'on' : 'off'}, events ${cfg.events ? 'on' : 'off'}, omit [${[...omit.keys, ...(omit.id ? ['_id'] : [])].join(', ')}]`
+    return { cfg, omit, name, label, M: mongoose.model<LawDoc>(name, schema) }
   })
   const history = () => mongoose.connection.collection('history')
 
@@ -152,51 +166,60 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     await instance.destroy()
   })
 
-  it('writes the history and events the model writes, stores what it stores, and replays to the store', async () => {
-    let sequences = 0
-    await fc.assert(
-      fc.asyncProperty(fc.constantFrom(...models), fc.array(cmdArb, { maxLength: 8 }).map(contractCommands), async ({ cfg, name, M }, cmds) => {
-        sequences++
-        await M.collection.deleteMany({})
-        await history().deleteMany({})
-        seen.length = 0
-        for (const cmd of cmds) {
-          if (cmd.kind === 'Create') await M.create({ _id: oid(cmd.id), ...cmd.doc })
-          else if (cmd.kind === 'Update')
-            await M.updateOne({ _id: oid(cmd.id) }, replaceWith(cmd.doc))
-              .setOptions(switchesOf(cmd.flags))
-              .exec()
-          else
-            await M.deleteOne({ _id: oid(cmd.id) })
-              .setOptions(switchesOf(cmd.flags))
-              .exec()
-        }
-        const state = run(toList(cmds.map(toModelCmd)), { $: 'Cfg', ...cfg }, empty())
-
-        const raw = (await history().find({ modelName: name }).sort({ _id: 1 }).toArray()) as unknown as RealHist[]
-        expect(raw.map(fromRealHist)).toEqual(fromList(state.hist).map(fromModelHist))
-        expect(seen.map(fromRealEv)).toEqual(fromList(state.evs).map(fromModelEv))
-
-        const realDocs = await M.collection.find({}).toArray()
-        const realStore = realDocs.map((d) => [idOf(d._id), docKey(fieldsOf(d))]).sort()
-        const modelStore = fromList(state.store)
-          .map(({ id, doc }) => [id, entriesKey(doc)])
-          .sort()
-        expect(realStore).toEqual(modelStore)
-
-        const noSwitches = cmds.every((cmd) => cmd.kind === 'Create' || (!cmd.flags.hook && !cmd.flags.event && !cmd.flags.history))
-        if (cfg.history && noSwitches) {
-          for (const id of [1, 2, 3]) {
-            const stored = realDocs.find((d) => idOf(d._id) === id)
-            const replayed = replayReal(raw, id)
-            expect(replayed && docKey(replayed)).toEqual(stored && docKey(fieldsOf(stored)))
+  // Every configuration gets its own run budget, so a rule that only one of them reaches is not left to the draw.
+  it.each(models)(
+    '$label: writes the history and events the model writes, stores what it stores, and replays to the store without omitted fields',
+    async ({ cfg, omit, name, M }) => {
+      let sequences = 0
+      await fc.assert(
+        fc.asyncProperty(fc.array(cmdArb, { maxLength: 8 }).map(contractCommands), async (cmds) => {
+          sequences++
+          await M.collection.deleteMany({})
+          await history().deleteMany({})
+          seen.length = 0
+          for (const cmd of cmds) {
+            if (cmd.kind === 'Create') await M.create({ _id: oid(cmd.id), ...cmd.doc })
+            else if (cmd.kind === 'Update')
+              await M.updateOne({ _id: oid(cmd.id) }, replaceWith(cmd.doc))
+                .setOptions(switchesOf(cmd.flags))
+                .exec()
+            else
+              await M.deleteOne({ _id: oid(cmd.id) })
+                .setOptions(switchesOf(cmd.flags))
+                .exec()
           }
-        }
-      }),
-      { numRuns: 300 },
-    )
-    expect(sequences).toBe(300)
-  }, 600_000)
+          const state = runWith(toList(cmds.map(toModelCmd)), { $: 'Cfg', ...cfg }, toModelOmit(omit), empty())
+
+          const raw = (await history().find({ modelName: name }).sort({ _id: 1 }).toArray()) as unknown as RealHist[]
+          expect(raw.map(fromRealHist)).toEqual(fromList(state.hist).map(fromModelHist))
+          // Independent of the model (CLAIMS.bend: omitted_never_recorded): no entry holds an omitted key.
+          const omitted = [...omit.keys, ...(omit.id ? ['_id'] : [])]
+          expect(raw.flatMap((h) => Object.keys(h.doc ?? {}).filter((k) => omitted.includes(k)))).toEqual([])
+          expect(raw.flatMap((h) => (h.patch ?? []).filter((op) => omitted.includes(op.path.slice(1))))).toEqual([])
+          expect(seen.map(fromRealEv)).toEqual(fromList(state.evs).map(fromModelEv))
+
+          const realDocs = await M.collection.find({}).toArray()
+          const realStore = realDocs.map((d) => [idOf(d._id), docKey(fieldsOf(d))]).sort()
+          const modelStore = fromList(state.store)
+            .map(({ id, doc }) => [id, entriesKey(doc)])
+            .sort()
+          expect(realStore).toEqual(modelStore)
+
+          const noSwitches = cmds.every((cmd) => cmd.kind === 'Create' || (!cmd.flags.hook && !cmd.flags.event && !cmd.flags.history))
+          if (cfg.history && noSwitches && !omit.id) {
+            for (const id of [1, 2, 3]) {
+              const stored = realDocs.find((d) => idOf(d._id) === id)
+              const replayed = replayReal(raw, id)
+              expect(replayed && docKey(replayed)).toEqual(stored && docKey(strip(fieldsOf(stored), omit)))
+            }
+          }
+        }),
+        { numRuns: 60 },
+      )
+      expect(sequences).toBe(60)
+    },
+    120_000,
+  )
 
   // Characterization: the updated event's doc keeps each $unset field as a key whose value is undefined.
   it('characterization: the updated event lists unset fields as undefined keys', async () => {
@@ -224,5 +247,24 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
       { op: 'test', path: '/f1', value: 1 },
       { op: 'replace', path: '/f1', value: 2 },
     ])
+  })
+
+  // Characterization: with _id omitted, an update from a document whose fields are all omitted records
+  // nothing, so the field it adds is in no history entry and replaying the history misses it.
+  it('characterization: with _id omitted, an update from a document with only omitted fields records nothing', async () => {
+    const found = models.find(({ cfg, omit }) => cfg.history && cfg.events && omit.id)
+    if (!found) throw new Error('no configuration omits _id with history and events on')
+    const { M, name } = found
+    await M.collection.deleteMany({})
+    await history().deleteMany({})
+    seen.length = 0
+    await M.create({ _id: oid(1), f0: 0 })
+    await M.updateOne({ _id: oid(1) }, { $set: { f3: 3 } })
+    const stored = await M.collection.findOne({ _id: oid(1) })
+    const entries = await history().find({ modelName: name }).toArray()
+    expect([stored?.f0, stored?.f3]).toEqual([0, 3])
+    // The create entry's document is empty, so none is stored.
+    expect(entries.map((h) => [h.op, h.doc])).toEqual([['create', undefined]])
+    expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
   })
 })

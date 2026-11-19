@@ -304,26 +304,26 @@ def Laws.omit_unsafe_path_ignored(fuel, n, u, un, x, xs, keys):
 # ---- history contract ----
 
 def Laws.update_missing_noop(c, store, hist, evs, id, doc, f, e):
-  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.update_pick(_, c, f, id, doc, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
+  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.update_pick(_, c, Hs.no_omit(), f, id, doc, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
   {==}
 
 def Laws.delete_missing_noop(c, store, hist, evs, id, f, e):
-  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.delete_pick(_, c, f, id, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
+  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.delete_pick(_, c, Hs.no_omit(), f, id, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
   {==}
 
 def Laws.create_existing_noop(c, store, hist, evs, id, doc, old, e):
-  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {Some{old} : Maybe<+List<P.Entry>>}, e) : {Hs.create_pick(_, c, id, doc, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
+  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {Some{old} : Maybe<+List<P.Entry>>}, e) : {Hs.create_pick(_, c, Hs.no_omit(), id, doc, store, hist, evs) == Hs.S{store, hist, evs} : Hs.State}
   {==}
 
-# ignore_hook_silent: for an existing or missing document alike, the hook writes nothing.
-def ihs_update(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +e: Bool, +h: Bool, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_pick(found, c, Hs.Flags{True{}, e, h}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+# ignore_hook_silent: for an existing or missing document alike, and whatever is omitted, the hook writes nothing.
+def ihs_update(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +e: Bool, +h: Bool, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.update_pick(found, c, o, Hs.Flags{True{}, e, h}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
   match found:
     case None{}:
       {==}
     case Some{old}:
       {==}
 
-def ihs_delete(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +e: Bool, +h: Bool, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.delete_pick(found, c, Hs.Flags{True{}, e, h}, id, store, hist, evs)) == hist : +List<Hs.Hist>}:
+def ihs_delete(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +e: Bool, +h: Bool, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.delete_pick(found, c, o, Hs.Flags{True{}, e, h}, id, store, hist, evs)) == hist : +List<Hs.Hist>}:
   match found:
     case None{}:
       {==}
@@ -335,10 +335,10 @@ def Laws.ignore_hook_silent(c, store, hist, evs, cmd, q):
     case Hs.Create{id, doc}:
       Empty.absurd({Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Create{id, doc})) == hist : +List<Hs.Hist>}, q)
     case Hs.Update{+id, +doc, Hs.Flags{True{}, +e, +h}}:
-      ihs_update(Hs.find(store, id), c, e, h, id, doc, store, hist, evs)
+      ihs_update(Hs.find(store, id), c, Hs.no_omit(), e, h, id, doc, store, hist, evs)
     case Hs.Update{id, doc, Hs.Flags{False{}, e, h}}:
       Empty.absurd({Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Update{id, doc, Hs.Flags{False{}, e, h}})) == hist : +List<Hs.Hist>}, q)
     case Hs.Delete{+id, Hs.Flags{True{}, +e, +h}}:
-      ihs_delete(Hs.find(store, id), c, e, h, id, store, hist, evs)
+      ihs_delete(Hs.find(store, id), c, Hs.no_omit(), e, h, id, store, hist, evs)
     case Hs.Delete{id, Hs.Flags{False{}, e, h}}:
       Empty.absurd({Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Delete{id, Hs.Flags{False{}, e, h}})) == hist : +List<Hs.Hist>}, q)

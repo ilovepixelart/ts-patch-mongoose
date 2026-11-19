@@ -133,3 +133,47 @@ def doc_lookup(m: Maybe<+List<P.Entry>>, +j: Nat) -> Maybe<Maybe<Nat>>:
       None{}
     case Some{d}:
       Some{P.lookup(d, j)}
+
+# ---- omit ----
+
+def has_key(d: +List<P.Entry>, +k: Nat) -> Bool:
+  match d:
+    case Nil{}:
+      False{}
+    case Con{P.E{+j, v}, t}:
+      Bool.or(Nat.is_eq(j, k), has_key(t, k))
+
+def op_key(op: P.Op) -> Nat:
+  match op:
+    case P.Put{j, v}:
+      j
+    case P.Del{j}:
+      j
+
+def ops_mention(ops: +List<P.Op>, +k: Nat) -> Bool:
+  match ops:
+    case Nil{}:
+      False{}
+    case Con{+op, t}:
+      Bool.or(Nat.is_eq(op_key(op), k), ops_mention(t, k))
+
+# Whether any history entry holds key k, in its document or in its patch.
+def hist_mentions(hist: +List<Hs.Hist>, +k: Nat) -> Bool:
+  match hist:
+    case Nil{}:
+      False{}
+    case Con{Hs.H{kind, id, v, +d, +p}, rest}:
+      Bool.or(has_key(d, k), Bool.or(ops_mention(p, k), hist_mentions(rest, k)))
+
+# What a state recorded: its history and events, without the store.
+def records(st: Hs.State) -> Hs.State:
+  match st:
+    case Hs.S{store, hist, evs}:
+      Hs.S{[], hist, evs}
+
+def doc_strip(+keys: +List<Nat>, m: Maybe<+List<P.Entry>>) -> Maybe<+List<P.Entry>>:
+  match m:
+    case None{}:
+      None{}
+    case Some{d}:
+      Some{Hs.strip(keys, d)}

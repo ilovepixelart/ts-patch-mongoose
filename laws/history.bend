@@ -12,12 +12,19 @@ import ./patch.bend as P
 # Configuration: history off (patchHistoryDisabled), events configured or not. Updates and deletes
 # carry the query switches (true = ignore); a hook with ignoreHook, or with both ignoreEvent and
 # ignorePatchHistory, does nothing. Creates (save, insertMany) carry none.
+# Omit (the plugin's omit option): the listed keys are left out of every history entry, of the
+# created and deleted events' documents and of the patch, which is the diff of the omitted
+# documents. The updated event keeps the documents whole. When _id is omitted too (id), an update
+# whose omitted old or new document has no keys left records nothing.
 
 type Flags is Data:
   Flags{hook: Bool, event: Bool, history: Bool}
 
 type Cfg is Data:
   Cfg{history: Bool, events: Bool}
+
+type Omit is Data:
+  Omit{keys: +List<Nat>, id: Bool}
 
 type Cmd is Data:
   Create{id: Nat, doc: +List<P.Entry>}
@@ -126,6 +133,48 @@ def ops_once(ops: +List<P.Op>) -> List<P.Op>:
     case Con{o, os}:
       o <> ops_once(os)
 
+# ---- omit ----
+
+def mem(keys: +List<Nat>, +k: Nat) -> Bool:
+  match keys:
+    case Nil{}:
+      False{}
+    case Con{+h, t}:
+      Bool.or(Nat.is_eq(h, k), mem(t, k))
+
+def strip_pick(drop: Bool, e: P.Entry, rest: +List<P.Entry>) -> +List<P.Entry>:
+  match drop:
+    case True{}:
+      rest
+    case False{}:
+      e <> rest
+
+# A document without the omitted keys.
+def strip(+keys: +List<Nat>, d: +List<P.Entry>) -> +List<P.Entry>:
+  match d:
+    case Nil{}:
+      []
+    case Con{P.E{+k, +v}, t}:
+      strip_pick(mem(keys, k), P.E{k, v}, strip(keys, t))
+
+def omit_keys(o: Omit) -> +List<Nat>:
+  match o:
+    case Omit{keys, id}:
+      keys
+
+def is_nil(d: +List<P.Entry>) -> Bool:
+  match d:
+    case Nil{}:
+      True{}
+    case Con{e, t}:
+      False{}
+
+# An update records nothing when _id is omitted and the omitted old or new document is empty.
+def blank(o: Omit, +old: +List<P.Entry>, +doc: +List<P.Entry>) -> Bool:
+  match o:
+    case Omit{+keys, id}:
+      Bool.and(id, Bool.or(is_nil(strip(keys, old)), is_nil(strip(keys, doc))))
+
 # ---- commands ----
 
 def when_hist(b: Bool, +hist: +List<Hist>, h: Hist) -> +List<Hist>:
@@ -168,12 +217,12 @@ def cfg_events(c: Cfg) -> Bool:
     case Cfg{history, events}:
       events
 
-def create_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+def create_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +o: Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match found:
     case Some{old}:
       S{store, hist, evs}
     case None{}:
-      S{R{id, doc} <> store, when_hist(cfg_history(c), hist, H{KCreate{}, id, 0n, doc, []}), when_ev(cfg_events(c), evs, ECreated{doc})}
+      S{R{id, doc} <> store, when_hist(cfg_history(c), hist, H{KCreate{}, id, 0n, strip(omit_keys(o), doc), []}), when_ev(cfg_events(c), evs, ECreated{strip(omit_keys(o), doc)})}
 
 def update_write(ops: +List<P.Op>, +c: Cfg, +f: Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match ops:
@@ -182,49 +231,66 @@ def update_write(ops: +List<P.Op>, +c: Cfg, +f: Flags, +id: Nat, +old: +List<P.E
     case Con{+o, +os}:
       S{R{id, doc} <> remove(store, id), when_hist(writes(c, f), hist, H{KUpdate{}, id, next_version(top_version(hist, id)), [], o <> os}), when_ev(emits(c, f), evs, EUpdated{old, doc, o <> os})}
 
-def update_hook(skip: Bool, +c: Cfg, +f: Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+def update_omit(none: Bool, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+  match none:
+    case True{}:
+      S{R{id, doc} <> remove(store, id), hist, evs}
+    case False{}:
+      update_write(ops_data(P.diff(strip(omit_keys(o), old), strip(omit_keys(o), doc))), c, f, id, old, doc, store, hist, evs)
+
+def update_hook(skip: Bool, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match skip:
     case True{}:
       S{R{id, doc} <> remove(store, id), hist, evs}
     case False{}:
-      update_write(ops_data(P.diff(old, doc)), c, f, id, old, doc, store, hist, evs)
+      update_omit(blank(o, old, doc), c, o, f, id, old, doc, store, hist, evs)
 
-def update_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +f: Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+def update_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match found:
     case None{}:
       S{store, hist, evs}
     case Some{+old}:
-      update_hook(skipped(f), c, f, id, old, doc, store, hist, evs)
+      update_hook(skipped(f), c, o, f, id, old, doc, store, hist, evs)
 
-def delete_hook(skip: Bool, +c: Cfg, +f: Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+def delete_hook(skip: Bool, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match skip:
     case True{}:
       S{remove(store, id), hist, evs}
     case False{}:
-      S{remove(store, id), when_hist(writes(c, f), hist, H{KDelete{}, id, 0n, old, []}), when_ev(emits(c, f), evs, EDeleted{old})}
+      S{remove(store, id), when_hist(writes(c, f), hist, H{KDelete{}, id, 0n, strip(omit_keys(o), old), []}), when_ev(emits(c, f), evs, EDeleted{strip(omit_keys(o), old)})}
 
-def delete_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +f: Flags, +id: Nat, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+def delete_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match found:
     case None{}:
       S{store, hist, evs}
     case Some{+old}:
-      delete_hook(skipped(f), c, f, id, old, store, hist, evs)
+      delete_hook(skipped(f), c, o, f, id, old, store, hist, evs)
 
-def step(+c: Cfg, st: State, cmd: Cmd) -> State:
+def step_with(+c: Cfg, +o: Omit, st: State, cmd: Cmd) -> State:
   match st cmd:
     case S{+store, +hist, +evs} Create{+id, +doc}:
-      create_pick(find(store, id), c, id, doc, store, hist, evs)
+      create_pick(find(store, id), c, o, id, doc, store, hist, evs)
     case S{+store, +hist, +evs} Update{+id, +doc, +f}:
-      update_pick(find(store, id), c, f, id, doc, store, hist, evs)
+      update_pick(find(store, id), c, o, f, id, doc, store, hist, evs)
     case S{+store, +hist, +evs} Delete{+id, +f}:
-      delete_pick(find(store, id), c, f, id, store, hist, evs)
+      delete_pick(find(store, id), c, o, f, id, store, hist, evs)
 
-def run(cmds: List<Cmd>, +c: Cfg, st: State) -> State:
+def run_with(cmds: List<Cmd>, +c: Cfg, +o: Omit, st: State) -> State:
   match cmds:
     case Nil{}:
       st
     case Con{cmd, cs}:
-      run(cs, c, step(c, st, cmd))
+      run_with(cs, c, o, step_with(c, o, st, cmd))
+
+# Nothing omitted.
+def no_omit() -> Omit:
+  Omit{[], False{}}
+
+def step(+c: Cfg, st: State, cmd: Cmd) -> State:
+  step_with(c, no_omit(), st, cmd)
+
+def run(cmds: List<Cmd>, +c: Cfg, st: State) -> State:
+  run_with(cmds, c, no_omit(), st)
 
 def empty() -> State:
   S{[], [], []}
