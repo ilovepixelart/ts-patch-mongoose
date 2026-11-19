@@ -6,6 +6,7 @@ import Base
 import ./patch.bend as P
 import ./chunk.bend as C
 import ./entry.bend as E
+import ./ttl.bend as Tt
 import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
@@ -148,3 +149,24 @@ law name_option_wins:
   for +n: Nat
   for +m: Nat
   {E.name(Some{n}, m) == n : Nat}
+
+# ---- history TTL ----
+
+# LAW: a TTL of one second or more in whole seconds leaves exactly that index, without an error, whatever was there.
+law ttl_whole_seconds_set:
+  for i: Tt.Index
+  for +p: Nat
+  {Tt.ttl(i, Tt.Millis{False{}, 1n+p, False{}}) == Tt.R{Tt.Ttl{1n+p}, False{}} : Tt.Outcome}
+
+# LAW: setting the same whole-second TTL again changes nothing.
+law ttl_whole_seconds_idempotent:
+  for i: Tt.Index
+  for +p: Nat
+  {Tt.ttl(Tt.index_of(Tt.ttl(i, Tt.Millis{False{}, 1n+p, False{}})), Tt.Millis{False{}, 1n+p, False{}}) == Tt.ttl(i, Tt.Millis{False{}, 1n+p, False{}}) : Tt.Outcome}
+
+# LAW: a TTL below one second, of either sign, drops an existing index without an error.
+law ttl_below_second_drops:
+  for +e: Nat
+  for neg: Bool
+  for frac: Bool
+  {Tt.ttl(Tt.Ttl{e}, Tt.Millis{neg, 0n, frac}) == Tt.R{Tt.NoIndex{}, False{}} : Tt.Outcome}

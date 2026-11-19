@@ -2,6 +2,7 @@ import Base
 import ./patch.bend as P
 import ./chunk.bend as C
 import ./entry.bend as E
+import ./ttl.bend as Tt
 import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
@@ -411,3 +412,32 @@ def Laws.null_getter_is_stored(e):
 
 def Laws.name_option_wins(n, m):
   {==}
+
+# ---- history TTL ----
+
+# ttl_whole_seconds_set on an existing index: kept when its seconds are the input's, replaced otherwise.
+def tws_kept(b: Bool, +s: Nat, +e: Nat, q: {Nat.is_eq(s, e) == b : Bool}) -> {Tt.kept(b, s, e) == Tt.R{Tt.Ttl{s}, False{}} : Tt.Outcome}:
+  match b:
+    case True{}:
+      %is_eq_true_eq(s, e, q) : {Tt.R{Tt.Ttl{_}, False{}} == Tt.R{Tt.Ttl{s}, False{}} : Tt.Outcome}
+      {==}
+    case False{}:
+      {==}
+
+def Laws.ttl_whole_seconds_set(i, p):
+  match i:
+    case Tt.NoIndex{}:
+      {==}
+    case Tt.Ttl{+e}:
+      tws_kept(Nat.is_eq(1n+p, e), 1n+p, e, {==})
+
+def Laws.ttl_whole_seconds_idempotent(i, p):
+  %Equal.sym(Tt.Outcome, Tt.ttl(i, Tt.Millis{False{}, 1n+p, False{}}), Tt.R{Tt.Ttl{1n+p}, False{}}, Laws.ttl_whole_seconds_set(i, p)) : {Tt.ttl(Tt.index_of(_), Tt.Millis{False{}, 1n+p, False{}}) == _ : Tt.Outcome}
+  Laws.ttl_whole_seconds_set(Tt.Ttl{1n+p}, p)
+
+def Laws.ttl_below_second_drops(e, neg, frac):
+  match neg:
+    case True{}:
+      {==}
+    case False{}:
+      {==}
