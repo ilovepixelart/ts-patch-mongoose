@@ -80,3 +80,44 @@ law create_existing_noop:
   for +old: +List<P.Entry>
   for e: {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
   {Hs.step(c, Hs.S{store, hist, evs}, Hs.Create{id, doc}) == Hs.S{store, hist, evs} : Hs.State}
+
+# ---- bulk operations and upserts ----
+
+# LAW: an upsert of an existing document is an update of it.
+law upsert_existing_is_update:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for +id: Nat
+  for +doc: +List<P.Entry>
+  for +old: +List<P.Entry>
+  for +f: Hs.Flags
+  for e: {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
+  {Hs.call(c, o, Hs.S{store, hist, evs}, Hs.Upsert{id, doc, f}) == Hs.step_with(c, o, Hs.S{store, hist, evs}, Hs.Update{id, doc, f}) : Hs.State}
+
+# LAW: an upsert of a missing document, with no switch set, is a create of it.
+law upsert_missing_is_create:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for +id: Nat
+  for +doc: +List<P.Entry>
+  for e: {Hs.find(store, id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
+  {Hs.call(c, o, Hs.S{store, hist, evs}, Hs.Upsert{id, doc, Hs.Flags{False{}, False{}, False{}}}) == Hs.step_with(c, o, Hs.S{store, hist, evs}, Hs.Create{id, doc}) : Hs.State}
+
+# LAW: unlike a create, an upsert of a missing document honours ignorePatchHistory: it writes no history.
+law upsert_missing_honours_ignore_history:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for +id: Nat
+  for +doc: +List<P.Entry>
+  for +ev: Bool
+  for e: {Hs.find(store, id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
+  {Hs.hist_of(Hs.call(c, o, Hs.S{store, hist, evs}, Hs.Upsert{id, doc, Hs.Flags{False{}, ev, True{}}})) == hist : +List<Hs.Hist>}

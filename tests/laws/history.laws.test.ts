@@ -8,17 +8,28 @@ import server from '../mongo/server'
 import { type BendList, fromList, toList } from './bend'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
-// events each command writes, under every configuration, omit option and query switch. These tests
-// run random command sequences on the plugin and the model alike: the history entries, the events and
-// the stored documents must be the model's, and replaying a document's history must give the stored
-// document without its omitted fields wherever the law applies (history on, no switches, _id kept;
-// CLAIMS.bend: replay_matches_store, replay_matches_omitted_store).
+// events each mongoose call writes (save, updateOne, deleteOne, insertMany, updateMany, deleteMany and
+// upserts), under every configuration, omit option and query switch. These tests run random call
+// sequences on the plugin and the model alike: each call's history entries and events must be the
+// model's, the stored documents must be the model's, and replaying a document's history must give the
+// stored document without its omitted fields wherever the law applies (history on, no switches, _id
+// kept; CLAIMS.bend: replay_matches_store, replay_matches_omitted_store).
 
 const FIELDS = ['f0', 'f1', 'f2', 'f3']
 type Doc = Record<string, number>
 type LawDoc = { _id: mongoose.Types.ObjectId; f0?: number; f1?: number; f2?: number; f3?: number }
 type Flags = { hook: boolean; event: boolean; history: boolean }
-type Cmd = { kind: 'Create'; id: number; doc: Doc } | { kind: 'Update'; id: number; doc: Doc; flags: Flags } | { kind: 'Delete'; id: number; flags: Flags }
+type Item = { id: number; doc: Doc }
+// One mongoose call each: save of a new document, updateOne, deleteOne, insertMany, updateMany,
+// deleteMany, and updateOne with upsert.
+type Call =
+  | { kind: 'Create'; id: number; doc: Doc }
+  | { kind: 'Update'; id: number; doc: Doc; flags: Flags }
+  | { kind: 'Delete'; id: number; flags: Flags }
+  | { kind: 'InsertMany'; items: Item[] }
+  | { kind: 'UpdateMany'; ids: number[]; doc: Doc; flags: Flags }
+  | { kind: 'DeleteMany'; ids: number[]; flags: Flags }
+  | { kind: 'Upsert'; id: number; doc: Doc; flags: Flags }
 type Cfg = { history: boolean; events: boolean }
 // The omit option: fields left out, and whether _id is too.
 type Omit = { keys: string[]; id: boolean }
@@ -28,8 +39,8 @@ type ModelOp = { $: 'Put' | 'Del'; k: number; v?: number }
 type ModelHist = { kind: { $: string }; id: number; version: number; doc: BendList<Entry>; patch: BendList<ModelOp> }
 type ModelEv = { $: string; doc?: BendList<Entry>; old?: BendList<Entry>; patch?: BendList<ModelOp> }
 type ModelState = { store: BendList<{ id: number; doc: BendList<Entry> }>; hist: BendList<ModelHist>; evs: BendList<ModelEv> }
-const runWith = model.run_with as (cmds: BendList<unknown>, cfg: unknown, omit: unknown, st: unknown) => ModelState
-const empty = model.empty as () => unknown
+const modelCall = model.call as (cfg: unknown, omit: unknown, st: ModelState, call: unknown) => ModelState
+const empty = model.empty as () => ModelState
 
 const oid = (id: number) => new mongoose.Types.ObjectId(id.toString(16).padStart(24, '0'))
 const idOf = (value: unknown) => Number.parseInt((value as mongoose.Types.ObjectId).toHexString(), 16)
@@ -49,23 +60,35 @@ const realOps = (ops: JsonOp[] = []) =>
     .filter((op) => op.op !== 'test')
     .map((op) => (op.op === 'remove' ? `Del ${op.path.slice(1)}` : `Put ${op.path.slice(1)} ${op.value}`))
     .sort()
+// A call's records as a multiset: the order among the documents one bulk call matches is the cursor's.
+const bag = (records: unknown[]) => records.map((r) => JSON.stringify(r)).sort()
 
-// History entries and events in one comparable form, from the model and from the plugin.
+// History entries and events in one comparable form, from the model and from the plugin. A real
+// entry's kind is what its call did to the document, known before the call runs.
+type Kind = 'KCreate' | 'KUpdate' | 'KDelete'
 const fromModelHist = (h: ModelHist) => ({ kind: h.kind.$, id: h.id, version: h.version, doc: h.kind.$ === 'KUpdate' ? '[]' : entriesKey(h.doc), patch: modelOps(h.patch) })
-const KINDS: Record<string, string> = { create: 'KCreate', updateOne: 'KUpdate', deleteOne: 'KDelete' }
 type RealHist = { op: string; collectionId: unknown; version: number; doc?: Record<string, unknown>; patch?: JsonOp[] }
-const fromRealHist = (h: RealHist) => ({ kind: KINDS[h.op] ?? h.op, id: idOf(h.collectionId), version: h.version, doc: docKey(fieldsOf(h.doc)), patch: realOps(h.patch) })
+const fromRealHist = (h: RealHist, kind: Kind) => ({ kind, id: idOf(h.collectionId), version: h.version, doc: kind === 'KUpdate' ? '[]' : docKey(fieldsOf(h.doc)), patch: realOps(h.patch) })
 const fromModelEv = (e: ModelEv) => ({ kind: e.$, doc: e.doc && entriesKey(e.doc), old: e.old && entriesKey(e.old), patch: e.patch && modelOps(e.patch) })
 type RealEv = { kind: string; payload: { doc?: Record<string, unknown>; oldDoc?: Record<string, unknown>; patch?: JsonOp[] } }
 const fromRealEv = ({ kind, payload }: RealEv) => ({ kind, doc: payload.doc && docKey(fieldsOf(payload.doc)), old: payload.oldDoc && docKey(fieldsOf(payload.oldDoc)), patch: payload.patch && realOps(payload.patch) })
 
-// Replays a document's real history: the create entry's document, then each patch (flat paths).
-const replayReal = (raw: RealHist[], id: number): Doc | undefined => {
+// The op each call's history entries carry, and the kind of what it does to a document.
+const OP_NAMES: Record<Call['kind'], string> = { Create: 'create', InsertMany: 'create', Update: 'updateOne', UpdateMany: 'updateMany', Delete: 'deleteOne', DeleteMany: 'deleteMany', Upsert: 'updateOne' }
+const kindOf = (call: Call, live: boolean): Kind => {
+  if (call.kind === 'Create' || call.kind === 'InsertMany') return 'KCreate'
+  if (call.kind === 'Delete' || call.kind === 'DeleteMany') return 'KDelete'
+  if (call.kind === 'Upsert' && !live) return 'KCreate'
+  return 'KUpdate'
+}
+
+// Replays a document's real history: a creation's document, then each patch (flat paths).
+const replayReal = (recorded: { kind: Kind; h: RealHist }[], id: number): Doc | undefined => {
   let doc: Doc | undefined
-  for (const h of raw) {
+  for (const { kind, h } of recorded) {
     if (idOf(h.collectionId) !== id) continue
-    if (h.op === 'create') doc = fieldsOf(h.doc)
-    else if (h.op === 'deleteOne') doc = undefined
+    if (kind === 'KCreate') doc = fieldsOf(h.doc)
+    else if (kind === 'KDelete') doc = undefined
     else if (doc) {
       for (const op of h.patch ?? []) {
         if (op.op === 'remove') delete doc[op.path.slice(1)]
@@ -78,48 +101,110 @@ const replayReal = (raw: RealHist[], id: number): Doc | undefined => {
 
 const docArb = fc.dictionary(fc.constantFrom(...FIELDS), fc.integer({ min: 0, max: 3 }), { maxKeys: 4 })
 const idArb = fc.integer({ min: 1, max: 3 })
+const idsArb = fc.uniqueArray(idArb, { minLength: 1, maxLength: 3 })
 // Switches are mostly off, so the plain path stays common.
 const switchArb = fc.oneof({ weight: 3, arbitrary: fc.constant(false) }, { weight: 1, arbitrary: fc.constant(true) })
 const flagsArb = fc.record({ hook: switchArb, event: switchArb, history: switchArb })
 // Repeat updates an id with the document it already has: random documents almost never do that.
-type Generated = Cmd | { kind: 'Repeat'; id: number; flags: Flags }
-const cmdArb: fc.Arbitrary<Generated> = fc.oneof(
+type Generated = Call | { kind: 'Repeat'; id: number; flags: Flags }
+const callArb: fc.Arbitrary<Generated> = fc.oneof(
   fc.record({ kind: fc.constant('Create' as const), id: idArb, doc: docArb }),
   fc.record({ kind: fc.constant('Update' as const), id: idArb, doc: docArb, flags: flagsArb }),
   fc.record({ kind: fc.constant('Repeat' as const), id: idArb, flags: flagsArb }),
   fc.record({ kind: fc.constant('Delete' as const), id: idArb, flags: flagsArb }),
+  fc.record({ kind: fc.constant('InsertMany' as const), items: fc.uniqueArray(fc.record({ id: idArb, doc: docArb }), { selector: (item) => item.id, minLength: 1, maxLength: 3 }) }),
+  fc.record({ kind: fc.constant('UpdateMany' as const), ids: idsArb, doc: docArb, flags: flagsArb }),
+  fc.record({ kind: fc.constant('DeleteMany' as const), ids: idsArb, flags: flagsArb }),
+  fc.record({ kind: fc.constant('Upsert' as const), id: idArb, doc: docArb, flags: flagsArb }),
 )
 
-// Leaves out creates of an id that is live (the contract covers inserts that can succeed), and turns
-// a Repeat into an update with the id's current document, or drops it when the id is not live.
-const contractCommands = (generated: Generated[]): Cmd[] => {
+// A known defect (pinned below): an upsert that inserts records the live document with the highest _id
+// whose fields hold every value it sets, when there is one, instead of the inserted document.
+const misattributed = (call: Call, live: Map<number, Doc>) => call.kind === 'Upsert' && !live.has(call.id) && Object.keys(call.doc).length > 0 && [...live].some(([id, doc]) => id > call.id && Object.entries(call.doc).every(([k, v]) => doc[k] === v))
+
+// Leaves out creates of a live id (the contract covers inserts that can succeed) and the upserts the
+// defect above misattributes, and turns a Repeat into an update with the id's current document, or
+// drops it when the id is not live.
+const contractCalls = (generated: Generated[]): Call[] => {
   const live = new Map<number, Doc>()
-  const cmds: Cmd[] = []
-  for (const cmd of generated) {
-    if (cmd.kind === 'Create' && live.has(cmd.id)) continue
-    if (cmd.kind === 'Repeat') {
-      const doc = live.get(cmd.id)
-      if (doc) cmds.push({ kind: 'Update', id: cmd.id, doc: { ...doc }, flags: cmd.flags })
+  const calls: Call[] = []
+  for (const call of generated) {
+    if (call.kind === 'Repeat') {
+      const doc = live.get(call.id)
+      if (doc) calls.push({ kind: 'Update', id: call.id, doc: { ...doc }, flags: call.flags })
       continue
     }
-    if (cmd.kind === 'Delete') live.delete(cmd.id)
-    else if (live.has(cmd.id) || cmd.kind === 'Create') live.set(cmd.id, cmd.doc)
-    cmds.push(cmd)
+    if ((call.kind === 'Create' && live.has(call.id)) || misattributed(call, live)) continue
+    if (call.kind === 'InsertMany') {
+      const items = call.items.filter((item) => !live.has(item.id))
+      if (items.length === 0) continue
+      for (const item of items) live.set(item.id, item.doc)
+      calls.push({ kind: 'InsertMany', items })
+      continue
+    }
+    if (call.kind === 'Delete') live.delete(call.id)
+    else if (call.kind === 'DeleteMany') for (const id of call.ids) live.delete(id)
+    else if (call.kind === 'UpdateMany') for (const id of call.ids.filter((id) => live.has(id))) live.set(id, call.doc)
+    else if (call.kind === 'Upsert' || call.kind === 'Create' || live.has(call.id)) live.set(call.id, call.doc)
+    calls.push(call)
   }
-  return cmds
+  return calls
 }
 
-const toModelCmd = (cmd: Cmd) => {
-  if (cmd.kind === 'Create') return { $: 'Create', id: cmd.id, doc: toEntries(cmd.doc) }
-  const flags = { $: 'Flags', ...cmd.flags }
-  if (cmd.kind === 'Update') return { $: 'Update', id: cmd.id, doc: toEntries(cmd.doc), flags }
-  return { $: 'Delete', id: cmd.id, flags }
+const modelFlags = (flags: Flags) => ({ $: 'Flags', ...flags })
+const toModelCall = (call: Call) => {
+  switch (call.kind) {
+    case 'Create':
+      return { $: 'Single', cmd: { $: 'Create', id: call.id, doc: toEntries(call.doc) } }
+    case 'Update':
+      return { $: 'Single', cmd: { $: 'Update', id: call.id, doc: toEntries(call.doc), flags: modelFlags(call.flags) } }
+    case 'Delete':
+      return { $: 'Single', cmd: { $: 'Delete', id: call.id, flags: modelFlags(call.flags) } }
+    case 'InsertMany':
+      return { $: 'InsertMany', items: toList(call.items.map((item) => ({ $: 'I', id: item.id, doc: toEntries(item.doc) }))) }
+    case 'UpdateMany':
+      return { $: 'UpdateMany', ids: toList(call.ids), doc: toEntries(call.doc), flags: modelFlags(call.flags) }
+    case 'DeleteMany':
+      return { $: 'DeleteMany', ids: toList(call.ids), flags: modelFlags(call.flags) }
+    case 'Upsert':
+      return { $: 'Upsert', id: call.id, doc: toEntries(call.doc), flags: modelFlags(call.flags) }
+  }
 }
 const switchesOf = (flags: Flags) => ({ ignoreHook: flags.hook, ignoreEvent: flags.event, ignorePatchHistory: flags.history })
 
 // A whole-document update as $set and $unset: the update path whose history the plugin builds from
 // the operators. A replaceOne that drops fields does not record the removal (pinned below).
 const replaceWith = (doc: Doc) => ({ $set: { ...doc }, $unset: Object.fromEntries(FIELDS.filter((f) => !(f in doc)).map((f) => [f, 1])) })
+
+const execute = async (M: mongoose.Model<LawDoc>, call: Call) => {
+  switch (call.kind) {
+    case 'Create':
+      return M.create({ _id: oid(call.id), ...call.doc })
+    case 'Update':
+      return M.updateOne({ _id: oid(call.id) }, replaceWith(call.doc))
+        .setOptions(switchesOf(call.flags))
+        .exec()
+    case 'Delete':
+      return M.deleteOne({ _id: oid(call.id) })
+        .setOptions(switchesOf(call.flags))
+        .exec()
+    case 'InsertMany':
+      return M.insertMany(call.items.map((item) => ({ _id: oid(item.id), ...item.doc })))
+    case 'UpdateMany':
+      return M.updateMany({ _id: { $in: call.ids.map(oid) } }, replaceWith(call.doc))
+        .setOptions(switchesOf(call.flags))
+        .exec()
+    case 'DeleteMany':
+      return M.deleteMany({ _id: { $in: call.ids.map(oid) } })
+        .setOptions(switchesOf(call.flags))
+        .exec()
+    case 'Upsert':
+      return M.updateOne({ _id: oid(call.id) }, replaceWith(call.doc))
+        .setOptions({ ...switchesOf(call.flags), upsert: true })
+        .exec()
+  }
+}
+const noSwitch = (call: Call) => !('flags' in call) || (!call.flags.hook && !call.flags.event && !call.flags.history)
 
 const CONFIGS: Cfg[] = [
   { history: true, events: true },
@@ -168,35 +253,38 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
 
   // Every configuration gets its own run budget, so a rule that only one of them reaches is not left to the draw.
   it.each(models)(
-    '$label: writes the history and events the model writes, stores what it stores, and replays to the store without omitted fields',
+    '$label: each call writes the history and events the model writes, the store is the model store, and history replays to it',
     async ({ cfg, omit, name, M }) => {
+      const modelCfg = { $: 'Cfg', ...cfg }
+      const modelOmit = toModelOmit(omit)
+      const omitted = [...omit.keys, ...(omit.id ? ['_id'] : [])]
       let sequences = 0
       await fc.assert(
-        fc.asyncProperty(fc.array(cmdArb, { maxLength: 8 }).map(contractCommands), async (cmds) => {
+        fc.asyncProperty(fc.array(callArb, { maxLength: 8 }).map(contractCalls), async (calls) => {
           sequences++
           await M.collection.deleteMany({})
           await history().deleteMany({})
           seen.length = 0
-          for (const cmd of cmds) {
-            if (cmd.kind === 'Create') await M.create({ _id: oid(cmd.id), ...cmd.doc })
-            else if (cmd.kind === 'Update')
-              await M.updateOne({ _id: oid(cmd.id) }, replaceWith(cmd.doc))
-                .setOptions(switchesOf(cmd.flags))
-                .exec()
-            else
-              await M.deleteOne({ _id: oid(cmd.id) })
-                .setOptions(switchesOf(cmd.flags))
-                .exec()
-          }
-          const state = runWith(toList(cmds.map(toModelCmd)), { $: 'Cfg', ...cfg }, toModelOmit(omit), empty())
+          let state = empty()
+          const recorded: { kind: Kind; h: RealHist }[] = []
+          for (const call of calls) {
+            const live = call.kind === 'Upsert' && (await M.exists({ _id: oid(call.id) })) !== null
+            const histBefore = recorded.length
+            const evsBefore = seen.length
+            await execute(M, call)
+            const next = modelCall(modelCfg, modelOmit, state, toModelCall(call))
 
-          const raw = (await history().find({ modelName: name }).sort({ _id: 1 }).toArray()) as unknown as RealHist[]
-          expect(raw.map(fromRealHist)).toEqual(fromList(state.hist).map(fromModelHist))
-          // Independent of the model (CLAIMS.bend: omitted_never_recorded): no entry holds an omitted key.
-          const omitted = [...omit.keys, ...(omit.id ? ['_id'] : [])]
-          expect(raw.flatMap((h) => Object.keys(h.doc ?? {}).filter((k) => omitted.includes(k)))).toEqual([])
-          expect(raw.flatMap((h) => (h.patch ?? []).filter((op) => omitted.includes(op.path.slice(1))))).toEqual([])
-          expect(seen.map(fromRealEv)).toEqual(fromList(state.evs).map(fromModelEv))
+            const written = (await history().find({ modelName: name }).sort({ _id: 1 }).skip(histBefore).toArray()) as unknown as RealHist[]
+            const kind = kindOf(call, live)
+            expect(written.map((h) => h.op).filter((op) => op !== OP_NAMES[call.kind])).toEqual([])
+            expect(bag(written.map((h) => fromRealHist(h, kind)))).toEqual(bag(fromList(next.hist).slice(fromList(state.hist).length).map(fromModelHist)))
+            expect(bag(seen.slice(evsBefore).map(fromRealEv))).toEqual(bag(fromList(next.evs).slice(fromList(state.evs).length).map(fromModelEv)))
+            // Independent of the model (CLAIMS.bend: omitted_never_recorded): no entry holds an omitted key.
+            expect(written.flatMap((h) => Object.keys(h.doc ?? {}).filter((k) => omitted.includes(k)))).toEqual([])
+            expect(written.flatMap((h) => (h.patch ?? []).filter((op) => omitted.includes(op.path.slice(1))))).toEqual([])
+            recorded.push(...written.map((h) => ({ kind, h })))
+            state = next
+          }
 
           const realDocs = await M.collection.find({}).toArray()
           const realStore = realDocs.map((d) => [idOf(d._id), docKey(fieldsOf(d))]).sort()
@@ -205,11 +293,10 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
             .sort()
           expect(realStore).toEqual(modelStore)
 
-          const noSwitches = cmds.every((cmd) => cmd.kind === 'Create' || (!cmd.flags.hook && !cmd.flags.event && !cmd.flags.history))
-          if (cfg.history && noSwitches && !omit.id) {
+          if (cfg.history && calls.every(noSwitch) && !omit.id) {
             for (const id of [1, 2, 3]) {
               const stored = realDocs.find((d) => idOf(d._id) === id)
-              const replayed = replayReal(raw, id)
+              const replayed = replayReal(recorded, id)
               expect(replayed && docKey(replayed)).toEqual(stored && docKey(strip(fieldsOf(stored), omit)))
             }
           }
@@ -266,5 +353,28 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     // The create entry's document is empty, so none is stored.
     expect(entries.map((h) => [h.op, h.doc])).toEqual([['create', undefined]])
     expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
+  })
+
+  // Characterization: an upsert that inserts finds the inserted document again by the values it sets,
+  // newest _id first, so an existing document with those values and a higher _id is recorded instead.
+  // The law test leaves these upserts out (misattributed); with the defect fixed, drop both.
+  it('characterization: an inserting upsert records an existing document that has the same values and a higher _id', async () => {
+    const { M, name } = models[0]
+    await M.collection.deleteMany({})
+    await history().deleteMany({})
+    seen.length = 0
+    await M.create({ _id: oid(2), f0: 0, f3: 1 })
+    await M.updateOne({ _id: oid(1) }, { $set: { f3: 1 } }, { upsert: true })
+    const inserted = await M.collection.findOne({ _id: oid(1) })
+    const entries = await history().find({ modelName: name }).sort({ _id: 1 }).toArray()
+    expect(fieldsOf(inserted)).toEqual({ f3: 1 })
+    expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([
+      ['create', 2, { f0: 0, f3: 1 }],
+      ['updateOne', 2, { f0: 0, f3: 1 }],
+    ])
+    expect(seen.map((e) => [e.kind, fieldsOf(e.payload.doc)])).toEqual([
+      ['ECreated', { f0: 0, f3: 1 }],
+      ['ECreated', { f0: 0, f3: 1 }],
+    ])
   })
 })

@@ -637,6 +637,146 @@ function $empty() {
   return {$: "S", "store": {$: "Nil"}, "hist": {$: "Nil"}, "evs": {$: "Nil"}};
 }
 
+function $creates($0, $1, $2, $3) {
+  for (;;) {
+    {
+      const _items_0 = $0;
+      const _c_0 = $1;
+      const _o_0 = $2;
+      const _st_0 = $3;
+      if (_items_0.$ === "Nil") {
+        return _st_0;
+      } else {
+        const _t_0 = _items_0["head"];
+        const _id_0 = _t_0["id"];
+        const _doc_0 = _t_0["doc"];
+        const _t_1 = _items_0["tail"];
+        $0 = _t_1;
+        $1 = _c_0;
+        $2 = _o_0;
+        $3 = $$step_with(_c_0, _o_0, _st_0, {$: "Create", "id": _id_0, "doc": _doc_0});
+        continue;
+      }
+    }
+  }
+}
+
+function $updates($0, $1, $2, $3, $4, $5) {
+  for (;;) {
+    {
+      const _ids_0 = $0;
+      const _doc_0 = $1;
+      const _f_0 = $2;
+      const _c_0 = $3;
+      const _o_0 = $4;
+      const _st_0 = $5;
+      if (_ids_0.$ === "Nil") {
+        return _st_0;
+      } else {
+        const _id_0 = _ids_0["head"];
+        const _t_0 = _ids_0["tail"];
+        $0 = _t_0;
+        $1 = _doc_0;
+        $2 = _f_0;
+        $3 = _c_0;
+        $4 = _o_0;
+        $5 = $$step_with(_c_0, _o_0, _st_0, {$: "Update", "id": _id_0, "doc": _doc_0, "flags": _f_0});
+        continue;
+      }
+    }
+  }
+}
+
+function $deletes($0, $1, $2, $3, $4) {
+  for (;;) {
+    {
+      const _ids_0 = $0;
+      const _f_0 = $1;
+      const _c_0 = $2;
+      const _o_0 = $3;
+      const _st_0 = $4;
+      if (_ids_0.$ === "Nil") {
+        return _st_0;
+      } else {
+        const _id_0 = _ids_0["head"];
+        const _t_0 = _ids_0["tail"];
+        $0 = _t_0;
+        $1 = _f_0;
+        $2 = _c_0;
+        $3 = _o_0;
+        $4 = $$step_with(_c_0, _o_0, _st_0, {$: "Delete", "id": _id_0, "flags": _f_0});
+        continue;
+      }
+    }
+  }
+}
+
+function $upsert_new(_skip_0, _c_0, _o_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
+  if (_skip_0) {
+    return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": _store_0}, "hist": _hist_0, "evs": _evs_0};
+  } else {
+    return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": _store_0}, "hist": $$when_hist($$writes(_c_0, _f_0), _hist_0, {$: "H", "kind": {$: "KCreate"}, "id": _id_0, "version": 0, "doc": $$strip($$omit_keys(_o_0), _doc_0), "patch": {$: "Nil"}}), "evs": $$when_ev($$emits(_c_0, _f_0), _evs_0, {$: "ECreated", "doc": $$strip($$omit_keys(_o_0), _doc_0)})};
+  }
+}
+
+function $upsert_pick(_found_0, _c_0, _o_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
+  if (_found_0.$ === "Some") {
+    const _old_0 = _found_0["value"];
+    return $update_hook($$skipped(_f_0), _c_0, _o_0, _f_0, _id_0, _old_0, _doc_0, _store_0, _hist_0, _evs_0);
+  } else {
+    return $upsert_new($$skipped(_f_0), _c_0, _o_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0);
+  }
+}
+
+function $call(_c_0, _o_0, _st_0, _k_0) {
+  const _store_0 = _st_0["store"];
+  const _hist_0 = _st_0["hist"];
+  const _evs_0 = _st_0["evs"];
+  if (_k_0.$ === "Single") {
+    const _cmd_0 = _k_0["cmd"];
+    return $step_with(_c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0}, _cmd_0);
+  } else if (_k_0.$ === "InsertMany") {
+    const _items_0 = _k_0["items"];
+    return $creates(_items_0, _c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0});
+  } else if (_k_0.$ === "UpdateMany") {
+    const _ids_0 = _k_0["ids"];
+    const _doc_0 = _k_0["doc"];
+    const _f_0 = _k_0["flags"];
+    return $updates(_ids_0, _doc_0, _f_0, _c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0});
+  } else if (_k_0.$ === "DeleteMany") {
+    const _ids_1 = _k_0["ids"];
+    const _f_1 = _k_0["flags"];
+    return $deletes(_ids_1, _f_1, _c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0});
+  } else {
+    const _id_0 = _k_0["id"];
+    const _doc_1 = _k_0["doc"];
+    const _f_2 = _k_0["flags"];
+    return $upsert_pick($$find(_store_0, _id_0), _c_0, _o_0, _f_2, _id_0, _doc_1, _store_0, _hist_0, _evs_0);
+  }
+}
+
+function $calls($0, $1, $2, $3) {
+  for (;;) {
+    {
+      const _ks_0 = $0;
+      const _c_0 = $1;
+      const _o_0 = $2;
+      const _st_0 = $3;
+      if (_ks_0.$ === "Nil") {
+        return _st_0;
+      } else {
+        const _k_0 = _ks_0["head"];
+        const _t_0 = _ks_0["tail"];
+        $0 = _t_0;
+        $1 = _c_0;
+        $2 = _o_0;
+        $3 = $$call(_c_0, _o_0, _st_0, _k_0);
+        continue;
+      }
+    }
+  }
+}
+
 function $store_of(_st_0) {
   const _store_0 = _st_0["store"];
   return _store_0;
@@ -730,6 +870,7 @@ const $$blank = $blank;
 const $$skipped = $skipped;
 const $$step_with = $step_with;
 const $$no_omit = $no_omit;
+const $$call = $call;
 const $$none = $none;
 const $$empty = $empty;
 const $$List_append = $List_append;export default {
@@ -783,6 +924,13 @@ const $$List_append = $List_append;export default {
   "step": run_lib((a0,a1,a2) => run_loop($step(a0,a1,a2)), 3),
   "run": run_lib((a0,a1,a2) => run_loop($run(a0,a1,a2)), 3),
   "empty": run_lib(() => run_loop($empty()), 0),
+  "creates": run_lib((a0,a1,a2,a3) => run_loop($creates(a0,a1,a2,a3)), 4),
+  "updates": run_lib((a0,a1,a2,a3,a4,a5) => run_loop($updates(a0,a1,a2,a3,a4,a5)), 6),
+  "deletes": run_lib((a0,a1,a2,a3,a4) => run_loop($deletes(a0,a1,a2,a3,a4)), 5),
+  "upsert_new": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($upsert_new(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
+  "upsert_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($upsert_pick(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
+  "call": run_lib((a0,a1,a2,a3) => run_loop($call(a0,a1,a2,a3)), 4),
+  "calls": run_lib((a0,a1,a2,a3) => run_loop($calls(a0,a1,a2,a3)), 4),
   "store_of": run_lib((a0) => run_loop($store_of(a0)), 1),
   "hist_of": run_lib((a0) => run_loop($hist_of(a0)), 1),
   "evs_of": run_lib((a0) => run_loop($evs_of(a0)), 1),

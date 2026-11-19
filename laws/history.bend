@@ -295,6 +295,77 @@ def run(cmds: List<Cmd>, +c: Cfg, st: State) -> State:
 def empty() -> State:
   S{[], [], []}
 
+# ---- mongoose calls: bulk operations and upserts ----
+# insertMany, updateMany and deleteMany act as the single command on each document they match (the
+# order among those documents is the cursor's and not part of the contract). An upsert of an existing
+# id is an update; of a missing id it stores the document and records a creation, which, unlike a
+# save, honours the query switches.
+
+type Item is Data:
+  I{id: Nat, doc: +List<P.Entry>}
+
+type Call is Data:
+  Single{cmd: Cmd}
+  InsertMany{items: +List<Item>}
+  UpdateMany{ids: +List<Nat>, doc: +List<P.Entry>, flags: Flags}
+  DeleteMany{ids: +List<Nat>, flags: Flags}
+  Upsert{id: Nat, doc: +List<P.Entry>, flags: Flags}
+
+def creates(items: +List<Item>, +c: Cfg, +o: Omit, st: State) -> State:
+  match items:
+    case Nil{}:
+      st
+    case Con{I{+id, +doc}, t}:
+      creates(t, c, o, step_with(c, o, st, Create{id, doc}))
+
+def updates(ids: +List<Nat>, +doc: +List<P.Entry>, +f: Flags, +c: Cfg, +o: Omit, st: State) -> State:
+  match ids:
+    case Nil{}:
+      st
+    case Con{+id, t}:
+      updates(t, doc, f, c, o, step_with(c, o, st, Update{id, doc, f}))
+
+def deletes(ids: +List<Nat>, +f: Flags, +c: Cfg, +o: Omit, st: State) -> State:
+  match ids:
+    case Nil{}:
+      st
+    case Con{+id, t}:
+      deletes(t, f, c, o, step_with(c, o, st, Delete{id, f}))
+
+def upsert_new(skip: Bool, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+  match skip:
+    case True{}:
+      S{R{id, doc} <> store, hist, evs}
+    case False{}:
+      S{R{id, doc} <> store, when_hist(writes(c, f), hist, H{KCreate{}, id, 0n, strip(omit_keys(o), doc), []}), when_ev(emits(c, f), evs, ECreated{strip(omit_keys(o), doc)})}
+
+def upsert_pick(found: Maybe<+List<P.Entry>>, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
+  match found:
+    case Some{+old}:
+      update_hook(skipped(f), c, o, f, id, old, doc, store, hist, evs)
+    case None{}:
+      upsert_new(skipped(f), c, o, f, id, doc, store, hist, evs)
+
+def call(+c: Cfg, +o: Omit, st: State, k: Call) -> State:
+  match st k:
+    case st Single{cmd}:
+      step_with(c, o, st, cmd)
+    case st InsertMany{items}:
+      creates(items, c, o, st)
+    case st UpdateMany{+ids, +doc, +f}:
+      updates(ids, doc, f, c, o, st)
+    case st DeleteMany{+ids, +f}:
+      deletes(ids, f, c, o, st)
+    case S{+store, +hist, +evs} Upsert{+id, +doc, +f}:
+      upsert_pick(find(store, id), c, o, f, id, doc, store, hist, evs)
+
+def calls(ks: List<Call>, +c: Cfg, +o: Omit, st: State) -> State:
+  match ks:
+    case Nil{}:
+      st
+    case Con{k, t}:
+      calls(t, c, o, call(c, o, st, k))
+
 # ---- replay: what the history says a document is ----
 
 def store_of(st: State) -> +List<Rec>:

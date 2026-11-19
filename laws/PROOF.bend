@@ -342,3 +342,45 @@ def Laws.ignore_hook_silent(c, store, hist, evs, cmd, q):
       ihs_delete(Hs.find(store, id), c, Hs.no_omit(), e, h, id, store, hist, evs)
     case Hs.Delete{id, Hs.Flags{False{}, e, h}}:
       Empty.absurd({Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Delete{id, Hs.Flags{False{}, e, h}})) == hist : +List<Hs.Hist>}, q)
+
+# ---- bulk operations and upserts ----
+
+def Laws.upsert_existing_is_update(c, o, store, hist, evs, id, doc, old, f, e):
+  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {Some{old} : Maybe<+List<P.Entry>>}, e) : {Hs.upsert_pick(_, c, o, f, id, doc, store, hist, evs) == Hs.update_pick(_, c, o, f, id, doc, store, hist, evs) : Hs.State}
+  {==}
+
+# upsert_missing_is_create, per configuration: with no switch, writes and emits are the configuration's.
+def umc(+h: Bool, +v: Bool, +o: Hs.Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.upsert_pick(None{}, Hs.Cfg{h, v}, o, Hs.Flags{False{}, False{}, False{}}, id, doc, store, hist, evs) == Hs.create_pick(None{}, Hs.Cfg{h, v}, o, id, doc, store, hist, evs) : Hs.State}:
+  match h v:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+def Laws.upsert_missing_is_create(c, o, store, hist, evs, id, doc, e):
+  match c:
+    case Hs.Cfg{+h, +v}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.upsert_pick(_, Hs.Cfg{h, v}, o, Hs.Flags{False{}, False{}, False{}}, id, doc, store, hist, evs) == Hs.create_pick(_, Hs.Cfg{h, v}, o, id, doc, store, hist, evs) : Hs.State}
+      umc(h, v, o, id, doc, store, hist, evs)
+
+# upsert_missing_honours_ignore_history, per configuration and ignoreEvent.
+def umh(+h: Bool, +v: Bool, +ev: Bool, +o: Hs.Omit, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.hist_of(Hs.upsert_pick(None{}, Hs.Cfg{h, v}, o, Hs.Flags{False{}, ev, True{}}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}:
+  match h ev:
+    case True{} True{}:
+      {==}
+    case True{} False{}:
+      {==}
+    case False{} True{}:
+      {==}
+    case False{} False{}:
+      {==}
+
+def Laws.upsert_missing_honours_ignore_history(c, o, store, hist, evs, id, doc, ev, e):
+  match c:
+    case Hs.Cfg{+h, +v}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.hist_of(Hs.upsert_pick(_, Hs.Cfg{h, v}, o, Hs.Flags{False{}, ev, True{}}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}
+      umh(h, v, ev, o, id, doc, store, hist, evs)
