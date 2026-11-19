@@ -17,6 +17,11 @@ npm-debug.log
 # In-memory mongo config
 /globalConfig.json
 
+# Mutation testing
+.stryker-tmp
+.stryker-e2e
+reports
+
 # Claude Code
 .claude/
 CLAUDE.md
