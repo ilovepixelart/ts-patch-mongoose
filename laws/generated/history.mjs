@@ -711,6 +711,14 @@ function $deletes($0, $1, $2, $3, $4) {
   }
 }
 
+function $vetoed(_skip_0, _ids_0, _f_0, _c_0, _o_0, _st_0) {
+  if (_skip_0) {
+    return $deletes(_ids_0, _f_0, _c_0, _o_0, _st_0);
+  } else {
+    return _st_0;
+  }
+}
+
 function $upsert_new(_skip_0, _c_0, _o_0, _f_0, _id_0, _doc_0, _store_0, _hist_0, _evs_0) {
   if (_skip_0) {
     return {$: "S", "store": {$: "Con", "head": {$: "R", "id": _id_0, "doc": _doc_0}, "tail": _store_0}, "hist": _hist_0, "evs": _evs_0};
@@ -747,11 +755,15 @@ function $call(_c_0, _o_0, _st_0, _k_0) {
     const _ids_1 = _k_0["ids"];
     const _f_1 = _k_0["flags"];
     return $deletes(_ids_1, _f_1, _c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0});
+  } else if (_k_0.$ === "DeleteVetoed") {
+    const _ids_2 = _k_0["ids"];
+    const _f_2 = _k_0["flags"];
+    return $vetoed($$skipped(_f_2), _ids_2, _f_2, _c_0, _o_0, {$: "S", "store": _store_0, "hist": _hist_0, "evs": _evs_0});
   } else {
     const _id_0 = _k_0["id"];
     const _doc_1 = _k_0["doc"];
-    const _f_2 = _k_0["flags"];
-    return $upsert_pick($$find(_store_0, _id_0), _c_0, _o_0, _f_2, _id_0, _doc_1, _store_0, _hist_0, _evs_0);
+    const _f_3 = _k_0["flags"];
+    return $upsert_pick($$find(_store_0, _id_0), _c_0, _o_0, _f_3, _id_0, _doc_1, _store_0, _hist_0, _evs_0);
   }
 }
 
@@ -927,6 +939,7 @@ const $$List_append = $List_append;export default {
   "creates": run_lib((a0,a1,a2,a3) => run_loop($creates(a0,a1,a2,a3)), 4),
   "updates": run_lib((a0,a1,a2,a3,a4,a5) => run_loop($updates(a0,a1,a2,a3,a4,a5)), 6),
   "deletes": run_lib((a0,a1,a2,a3,a4) => run_loop($deletes(a0,a1,a2,a3,a4)), 5),
+  "vetoed": run_lib((a0,a1,a2,a3,a4,a5) => run_loop($vetoed(a0,a1,a2,a3,a4,a5)), 6),
   "upsert_new": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($upsert_new(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
   "upsert_pick": run_lib((a0,a1,a2,a3,a4,a5,a6,a7,a8) => run_loop($upsert_pick(a0,a1,a2,a3,nat_in(a4),a5,a6,a7,a8)), 9),
   "call": run_lib((a0,a1,a2,a3) => run_loop($call(a0,a1,a2,a3)), 4),

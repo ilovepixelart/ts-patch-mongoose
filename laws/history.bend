@@ -299,7 +299,8 @@ def empty() -> State:
 # insertMany, updateMany and deleteMany act as the single command on each document they match (the
 # order among those documents is the cursor's and not part of the contract). An upsert of an existing
 # id is an update; of a missing id it stores the document and records a creation, which, unlike a
-# save, honours the query switches.
+# save, honours the query switches. A preDelete that rejects (DeleteVetoed) fails the delete: nothing
+# is deleted, recorded or emitted, unless the hook is skipped, which skips preDelete too.
 
 type Item is Data:
   I{id: Nat, doc: +List<P.Entry>}
@@ -309,6 +310,7 @@ type Call is Data:
   InsertMany{items: +List<Item>}
   UpdateMany{ids: +List<Nat>, doc: +List<P.Entry>, flags: Flags}
   DeleteMany{ids: +List<Nat>, flags: Flags}
+  DeleteVetoed{ids: +List<Nat>, flags: Flags}
   Upsert{id: Nat, doc: +List<P.Entry>, flags: Flags}
 
 def creates(items: +List<Item>, +c: Cfg, +o: Omit, st: State) -> State:
@@ -331,6 +333,13 @@ def deletes(ids: +List<Nat>, +f: Flags, +c: Cfg, +o: Omit, st: State) -> State:
       st
     case Con{+id, t}:
       deletes(t, f, c, o, step_with(c, o, st, Delete{id, f}))
+
+def vetoed(skip: Bool, +ids: +List<Nat>, +f: Flags, +c: Cfg, +o: Omit, st: State) -> State:
+  match skip:
+    case True{}:
+      deletes(ids, f, c, o, st)
+    case False{}:
+      st
 
 def upsert_new(skip: Bool, +c: Cfg, +o: Omit, +f: Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Rec>, +hist: +List<Hist>, +evs: +List<Ev>) -> State:
   match skip:
@@ -356,6 +365,8 @@ def call(+c: Cfg, +o: Omit, st: State, k: Call) -> State:
       updates(ids, doc, f, c, o, st)
     case st DeleteMany{+ids, +f}:
       deletes(ids, f, c, o, st)
+    case st DeleteVetoed{+ids, +f}:
+      vetoed(skipped(f), ids, f, c, o, st)
     case S{+store, +hist, +evs} Upsert{+id, +doc, +f}:
       upsert_pick(find(store, id), c, o, f, id, doc, store, hist, evs)
 

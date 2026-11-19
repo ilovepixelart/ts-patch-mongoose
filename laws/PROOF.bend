@@ -386,6 +386,12 @@ def Laws.upsert_missing_honours_ignore_history(c, o, store, hist, evs, id, doc, 
       %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {None{} : Maybe<+List<P.Entry>>}, e) : {Hs.hist_of(Hs.upsert_pick(_, Hs.Cfg{h, v}, o, Hs.Flags{False{}, ev, True{}}, id, doc, store, hist, evs)) == hist : +List<Hs.Hist>}
       umh(h, v, ev, o, id, doc, store, hist, evs)
 
+def Laws.vetoed_delete_changes_nothing(c, o, st, ids, f, n):
+  match st:
+    case Hs.S{+store, +hist, +evs}:
+      %Equal.sym(Bool, Hs.skipped(f), False{}, n) : {Hs.vetoed(_, ids, f, c, o, Hs.S{store, hist, evs}) == Hs.S{store, hist, evs} : Hs.State}
+      {==}
+
 # ---- entry metadata ----
 
 def Laws.failed_getter_is_undefined():

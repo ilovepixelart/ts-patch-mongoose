@@ -123,6 +123,16 @@ law upsert_missing_honours_ignore_history:
   for e: {Hs.find(store, id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
   {Hs.hist_of(Hs.call(c, o, Hs.S{store, hist, evs}, Hs.Upsert{id, doc, Hs.Flags{False{}, ev, True{}}})) == hist : +List<Hs.Hist>}
 
+# LAW: a delete whose preDelete rejects changes nothing (store, history, events) unless the hook is skipped.
+law vetoed_delete_changes_nothing:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for st: Hs.State
+  for +ids: +List<Nat>
+  for +f: Hs.Flags
+  for n: {Hs.skipped(f) == False{} : Bool}
+  {Hs.call(c, o, st, Hs.DeleteVetoed{ids, f}) == st : Hs.State}
+
 # ---- entry metadata ----
 
 # LAW: a getter that throws or rejects stores nothing, as one that returns undefined does.
