@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { model, Schema } from 'mongoose'
 import { patchHistoryPlugin } from '../src/index'
@@ -109,10 +109,6 @@ describe('plugin — e2e creative coverage', () => {
     await mongoose.connection.collection(ARTICLE_COLLECTION).deleteMany({})
     await mongoose.connection.collection(AUDITED_USER_COLLECTION).deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('$min with Date replaces the field when candidate is earlier', async () => {

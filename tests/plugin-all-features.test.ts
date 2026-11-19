@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { model, Schema } from 'mongoose'
 import em from '../src/em'
@@ -89,10 +89,6 @@ describe('plugin — all features', () => {
     await mongoose.connection.collection('orders').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
     preDeleteDocs.length = 0
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('should use custom modelName and collectionName in history', async () => {

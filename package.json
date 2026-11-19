@@ -35,6 +35,11 @@
   "engines": {
     "node": ">=20"
   },
+  "config": {
+    "mongodbMemoryServer": {
+      "version": "8.2.6"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -62,6 +67,7 @@
     "lint:package": "publint --strict && attw --pack .",
     "test": "vitest run --coverage",
     "test:open": "vitest run --coverage && open-cli coverage/lcov-report/index.html",
+    "test:shuffle": "vitest run --sequence.shuffle.tests",
     "test:e2e": "npm run build && node e2e/e2e.mjs",
     "test:e2e:tools": "node --test e2e/compare.test.mjs",
     "clean": "rm -rf ./dist",
