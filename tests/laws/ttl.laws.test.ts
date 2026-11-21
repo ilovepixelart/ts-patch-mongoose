@@ -6,7 +6,7 @@ import { HistoryModel } from '../../src/model'
 import server from '../mongo/server'
 
 // laws/ttl.bend models what setPatchHistoryTTL leaves of the history TTL index, as MongoDB answers it
-// (LAWS.bend: ttl_whole_seconds_set, ttl_whole_seconds_idempotent, ttl_below_second_drops). These tests
+// (LAWS.bend: ttl_whole_seconds_set, ttl_whole_seconds_idempotent, ttl_below_second_drops, ttl_negative_drops). These tests
 // run random sequences of TTL inputs on the plugin and the model alike: the index and whether onError
 // was called must be the model's after every call.
 

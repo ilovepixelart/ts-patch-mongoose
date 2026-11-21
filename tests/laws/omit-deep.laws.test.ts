@@ -6,10 +6,11 @@ import { omitDeep } from '../../src/omit-deep'
 import { type BendList, fromList, toList } from './bend'
 
 // laws/omit.bend models omitDeep on trees with Nat keys, and proves that a dotted path whose head is
-// unsafe changes nothing (LAWS.bend: omit_unsafe_path_ignored). Keys 1, 2 and 3 are constructor,
-// prototype and __proto__; the rest are k4..k7. __proto__ appears in paths only: as an own key of a
-// tree, omitDeep sets the result's prototype instead (pinned in omit-deep.test.ts). This test holds
-// omitDeep to that model.
+// unsafe changes nothing and that a key omitted at the top level is not in the result (LAWS.bend:
+// omit_unsafe_path_ignored, omit_drops_top_key). Keys 1, 2 and 3 are constructor, prototype and
+// __proto__; the rest are k4..k7. __proto__ appears in paths only: as an own key of a tree, omitDeep
+// sets the result's prototype instead (pinned in omit-deep.test.ts). This test holds omitDeep to that
+// model.
 
 type Json = number | Json[] | { [key: string]: Json }
 type Field = { $: 'F'; k: number; t: Tree }
