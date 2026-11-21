@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { Schema } from 'mongoose'
 import em from '../src/em'
@@ -172,9 +172,27 @@ describe('characterization: recording defects', () => {
     expect((await recorded()).map((r) => r.sku)).toEqual(['a'])
   })
 
+  // Each update reads the last version, then writes its entry; holding each write until both updates
+  // reach it puts both reads before either write, as two writers can.
   it('characterization: two concurrent updates of one document record the same version', async () => {
     await seed()
-    await Promise.all([1, 2].map((n) => Item.updateOne({ sku: 'a' }, { $inc: { count: n } })))
+    const create = HistoryModel.create.bind(HistoryModel)
+    let release = () => {}
+    const bothRead = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let waiting = 0
+    const held = vi.spyOn(HistoryModel, 'create').mockImplementation((async (...args: Parameters<typeof create>) => {
+      waiting += 1
+      if (waiting === 2) release()
+      await bothRead
+      return create(...args)
+    }) as never)
+    try {
+      await Promise.all([1, 2].map((n) => Item.updateOne({ sku: 'a' }, { $inc: { count: n } })))
+    } finally {
+      held.mockRestore()
+    }
     const versions = (await HistoryModel.find({ modelName: 'DefectItem', version: { $gt: 0 } }).lean()).map((h) => h.version)
     expect(versions).toEqual([1, 1])
   })
