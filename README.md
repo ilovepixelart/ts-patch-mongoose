@@ -28,11 +28,11 @@ I need to track changes of mongoose models and save them as patch history (audit
 ```json
 {
   "node": ">=20",
-  "mongoose": ">=6.6.0 <10"
+  "mongoose": ">=6.12.0 <10"
 }
 ```
 
-CI tests on Node.js `22.x` and `24.x` against mongoose `6.13.13`, `7.8.14`, `8.24.10`, and `9.12.2`, and on `26.x` with the mongoose version the lockfile pins.
+CI tests on Node.js `22.x` and `24.x` against mongoose `6.12.0` (the lowest supported), `6.13.13`, `7.8.14`, `8.24.10`, and `9.12.2`, and on `26.x` with the mongoose version the lockfile pins.
 
 ## Features
 
