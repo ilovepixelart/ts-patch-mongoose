@@ -985,6 +985,17 @@ describe('plugin — populated documents', () => {
     expect(String(doc.author)).toBe(author._id.toString())
   })
 
+  it('should record only the changed field when saving a document with a populated ref', async () => {
+    const author = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
+    const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author._id })
+    const loaded = await ArticleModel.findById(article._id).populate('author').orFail()
+    loaded.title = 'Changed'
+    await loaded.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: article._id })
+    expect(updates.map((entry) => entry.patch?.map((op) => op.path))).toEqual([['/title', '/title']])
+  })
+
   it('should track author ref change as ObjectId diff', async () => {
     const author1 = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
     const author2 = await AuthorModel.create({ name: 'John', bio: 'Biography writer' })

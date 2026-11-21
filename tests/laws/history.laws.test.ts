@@ -128,6 +128,20 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     ])
   })
 
+  // Characterization: with no defaults, an empty filter and an empty update, the lookup has no value
+  // to find the inserted document by, so the insert is in no history entry and emits no event.
+  it('characterization: an inserting upsert with an empty filter and update records nothing', async () => {
+    const { M, name } = models[0]
+    await M.collection.deleteMany({})
+    await history().deleteMany({})
+    seen.length = 0
+    await M.updateOne({}, {}, { upsert: true })
+    const stored = await M.collection.find({}).toArray()
+    expect(stored.map(fieldsOf)).toEqual([{}])
+    expect(await history().countDocuments({ modelName: name })).toBe(0)
+    expect(seen).toEqual([])
+  })
+
   // Characterization: the lookup above includes the schema's defaults, so with an array path (default [])
   // even an upsert that sets no value finds the newest document whose array is empty.
   it('characterization: with an array path, an inserting upsert that sets nothing records the newest document', async () => {

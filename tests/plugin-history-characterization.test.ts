@@ -249,6 +249,14 @@ describe('history characterization (no session)', () => {
       expect(events).toEqual([{ name: CREATED, data: { doc: { _id: id, name: 'up', count: 7 } } }])
     })
 
+    it('an inserting upsert whose values match an older document records the inserted document', async () => {
+      await ItemModel.create({ name: 'same', count: 7 })
+      events.length = 0
+      const id = new mongoose.Types.ObjectId()
+      await ItemModel.updateOne({ _id: id }, { $set: { name: 'same', count: 7 } }, { upsert: true })
+      expect(events).toEqual([{ name: CREATED, data: { doc: { _id: String(id), name: 'same', count: 7 } } }])
+    })
+
     it('deleteOne stores a deleteOne entry with the deleted doc and emits deleted', async () => {
       const doc = await ItemModel.create({ name: 'a' })
       events.length = 0
