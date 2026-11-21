@@ -6,8 +6,8 @@ import { compare, type Operation } from '../../src/json-patch'
 import { type BendList, type BendMaybe, fromList, fromMaybe, toList } from './bend'
 
 // laws/patch.bend models compare on flat documents (Nat keys and values) and proves the laws of a
-// patch operation (LAWS.bend). These tests hold compare to that model, and check the claims not yet
-// proven (CLAIMS.bend) on the model itself.
+// patch operation and the diff round trip (LAWS.bend). These tests hold compare to that model, and
+// check the round trip laws on the compiled model too.
 
 type Entry = { $: 'E'; k: number; v: number }
 type ModelOp = { $: 'Put'; k: number; v: number } | { $: 'Del'; k: number }
@@ -39,7 +39,7 @@ describe('compare keeps the laws of laws/patch.bend', () => {
     )
   })
 
-  it('claim apply_diff_roundtrip: applying the diff of a and b to a agrees with b on every key', () => {
+  it('law apply_diff_roundtrip: applying the diff of a and b to a agrees with b on every key', () => {
     fc.assert(
       fc.property(docArb, docArb, keyArb, (a, b, j) => {
         const roundtrip = apply(diff(toEntries(a), toEntries(b)), toEntries(a))
@@ -49,7 +49,7 @@ describe('compare keeps the laws of laws/patch.bend', () => {
     )
   })
 
-  it('claim diff_self_empty: a document diffed against itself gives no operations', () => {
+  it('law diff_self_empty: a document diffed against itself gives no operations', () => {
     fc.assert(
       fc.property(docArb, (a) => {
         expect(fromList(diff(toEntries(a), toEntries(a)))).toEqual([])

@@ -188,6 +188,345 @@ def Laws.roundtrip_needs_distinct(e):
   %e : maybe_disc(_)
   Unit{}
 
+# ---- diff of a document with itself ----
+
+# Every entry of a is in b: its key looks up its value.
+def Sub(a: +List<P.Entry>, b: +List<P.Entry>) -> Type:
+  match a:
+    case Nil{}:
+      Unit
+    case Con{P.E{+k, +v}, +t}:
+      {P.lookup(b, k) == {Some{v} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, b)
+
+# A key the lookup finds is not missing.
+def some_disc(m: Maybe<Nat>) -> Type:
+  match m:
+    case None{}:
+      Empty
+    case Some{x}:
+      Unit
+
+def some_ne_none(+v: Nat, e: {{Some{v} : Maybe<Nat>} == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> Empty:
+  %e : some_disc(_)
+  Unit{}
+
+# sub_cons, one entry of t: split on whether its key is the new key k, which t lacks.
+def sub_cons_entry(
+  bb: Bool,
+  +k2: Nat,
+  +v2: Nat,
+  +t: +List<P.Entry>,
+  +b: +List<P.Entry>,
+  +k: Nat,
+  +v: Nat,
+  e: {P.lookup(b, k2) == {Some{v2} : Maybe<Nat>} : Maybe<Nat>},
+  n: {P.lookup_pick(bb, v2, P.lookup(t, k)) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  q: {Nat.is_eq(k2, k) == bb : Bool},
+  ih: @n2: {P.lookup(t, k) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> Sub(t, P.E{k, v} <> b)
+) -> {P.lookup(P.E{k, v} <> b, k2) == {Some{v2} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, P.E{k, v} <> b):
+  match bb:
+    case True{}:
+      Empty.absurd({P.lookup(P.E{k, v} <> b, k2) == {Some{v2} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, P.E{k, v} <> b), some_ne_none(v2, n))
+    case False{}:
+      %is_eq_sym(k2, k) : {P.lookup_pick(_, v, P.lookup(b, k2)) == {Some{v2} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, P.E{k, v} <> b)
+      %Equal.sym(Bool, Nat.is_eq(k2, k), False{}, q) : {P.lookup_pick(_, v, P.lookup(b, k2)) == {Some{v2} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, P.E{k, v} <> b)
+      (e, ih(n))
+
+# LEMMA: an entry whose key a lacks can go in front of b, and every entry of a is still in it.
+def sub_cons(a: +List<P.Entry>, +b: +List<P.Entry>, +k: Nat, +v: Nat, s: Sub(a, b), n: {P.lookup(a, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> Sub(a, P.E{k, v} <> b):
+  match a:
+    case Nil{}:
+      Unit{}
+    case Con{P.E{+k2, +v2}, +t}:
+      (e, st) = s
+      sub_cons_entry(Nat.is_eq(k2, k), k2, v2, t, b, k, v, e, n, {==}, n2 => sub_cons(t, b, k, v, st, n2))
+
+# LEMMA: with distinct keys, every entry of a document is in it.
+def sub_self(a: +List<P.Entry>, d: Spec.Distinct(a)) -> Sub(a, a):
+  match a:
+    case Nil{}:
+      Unit{}
+    case Con{P.E{+k, +v}, +t}:
+      (n, dt) = d
+      %Equal.sym(Bool, Nat.is_eq(k, k), True{}, is_eq_refl(k)) : {P.lookup_pick(_, v, P.lookup(t, k)) == {Some{v} : Maybe<Nat>} : Maybe<Nat>} & Sub(t, P.E{k, v} <> t)
+      ({==}, sub_cons(t, t, k, v, sub_self(t, dt), n))
+
+# LEMMA: diffing a against a document that holds all its entries gives no operations: no entry is
+# removed or replaced, and none is added.
+def diff_sub_empty(a: +List<P.Entry>, +b: +List<P.Entry>, s: Sub(a, b)) -> {List.append(&1, P.Op, P.diff_source(a, b), P.diff_added(a, b)) == {[] : List<P.Op>} : List<P.Op>}:
+  match a:
+    case Nil{}:
+      {==}
+    case Con{P.E{+k, +v}, +t}:
+      (e, st) = s
+      %Equal.sym(Maybe<Nat>, P.lookup(b, k), Some{v}, e) : {List.append(&1, P.Op, List.append(&1, P.Op, P.diff_one_pick(_, k, v), P.diff_source(t, b)), List.append(&1, P.Op, P.diff_added_pick(_, k, v), P.diff_added(t, b))) == {[] : List<P.Op>} : List<P.Op>}
+      %Equal.sym(Bool, Nat.is_eq(v, v), True{}, is_eq_refl(v)) : {List.append(&1, P.Op, List.append(&1, P.Op, P.diff_same(_, k, v), P.diff_source(t, b)), P.diff_added(t, b)) == {[] : List<P.Op>} : List<P.Op>}
+      diff_sub_empty(t, b, st)
+
+def Laws.diff_self_empty(a, da):
+  diff_sub_empty(a, a, sub_self(a, da))
+
+# ---- the round trip ----
+
+# The operations diff emits for the source entry E{k, v}, when the target looks k up as m.
+# One entry's operations touch only its own key.
+def same_other(bb: Bool, +k: Nat, +w: Nat, +j: Nat, +d: +List<P.Entry>, +ne: {Nat.is_eq(k, j) == False{} : Bool}) -> {P.lookup(P.apply(P.diff_same(bb, k, w), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      lookup_put_other(d, k, w, j, ne)
+
+def one_other(m: Maybe<Nat>, +k: Nat, +v: Nat, +j: Nat, +d: +List<P.Entry>, +ne: {Nat.is_eq(k, j) == False{} : Bool}) -> {P.lookup(P.apply(P.diff_one_pick(m, k, v), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match m:
+    case None{}:
+      lookup_del_other(d, k, j, ne)
+    case Some{+w}:
+      same_other(Nat.is_eq(v, w), k, w, j, d, ne)
+
+# One entry's operations on its own key leave the target's value, when the document holds it already.
+def same_keep(bb: Bool, +k: Nat, +w: Nat, +d: +List<P.Entry>, h: {P.lookup(d, k) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_same(bb, k, w), d), k) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}:
+  match bb:
+    case True{}:
+      h
+    case False{}:
+      lookup_put_same(d, k, w)
+
+def one_keep(m: Maybe<Nat>, +k: Nat, +v: Nat, +d: +List<P.Entry>, h: {P.lookup(d, k) == m : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_one_pick(m, k, v), d), k) == m : Maybe<Nat>}:
+  match m:
+    case None{}:
+      lookup_del_same(d, k)
+    case Some{+w}:
+      same_keep(Nat.is_eq(v, w), k, w, d, h)
+
+# One entry's operations on its own key give the target's value, when the document holds the entry's.
+def same_set(bb: Bool, +k: Nat, +v: Nat, +w: Nat, +d: +List<P.Entry>, h: {P.lookup(d, k) == {Some{v} : Maybe<Nat>} : Maybe<Nat>}, q: {Nat.is_eq(v, w) == bb : Bool}) -> {P.lookup(P.apply(P.diff_same(bb, k, w), d), k) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}:
+  match bb:
+    case True{}:
+      %is_eq_true_eq(v, w, q) : {P.lookup(d, k) == {Some{_} : Maybe<Nat>} : Maybe<Nat>}
+      h
+    case False{}:
+      lookup_put_same(d, k, w)
+
+def one_set(m: Maybe<Nat>, +k: Nat, +v: Nat, +d: +List<P.Entry>, h: {P.lookup(d, k) == {Some{v} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_one_pick(m, k, v), d), k) == m : Maybe<Nat>}:
+  match m:
+    case None{}:
+      lookup_del_same(d, k)
+    case Some{+w}:
+      same_set(Nat.is_eq(v, w), k, v, w, d, h, {==})
+
+def none_ne_some(+x: Nat, e: {{None{} : Maybe<Nat>} == {Some{x} : Maybe<Nat>} : Maybe<Nat>}) -> Empty:
+  some_ne_none(x, Equal.sym(Maybe<Nat>, None{}, Some{x}, e))
+
+# source_keep, one entry: split on whether its key is j.
+def source_keep_entry(bk: Bool, +k: Nat, +v: Nat, +j: Nat, +b: +List<P.Entry>, +d: +List<P.Entry>, h: {P.lookup(d, j) == P.lookup(b, j) : Maybe<Nat>}, +q: {Nat.is_eq(k, j) == bk : Bool}) -> {P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      +kj = is_eq_true_eq(k, j, q)
+      hk = {(%Equal.sym(Nat, k, j, kj) : {P.lookup(d, _) == P.lookup(b, _) : Maybe<Nat>}; h) : {P.lookup(d, k) == P.lookup(b, k) : Maybe<Nat>}}
+      %kj : {P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), _) == P.lookup(b, _) : Maybe<Nat>}
+      one_keep(P.lookup(b, k), k, v, d, hk)
+    case False{}:
+      %Equal.sym(Maybe<Nat>, P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j), P.lookup(d, j), one_other(P.lookup(b, k), k, v, j, d, q)) : {_ == P.lookup(b, j) : Maybe<Nat>}
+      h
+
+# LEMMA: once the document holds the target's value at j, the rest of the source pass keeps it.
+def source_keep(a: +List<P.Entry>, +b: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, h: {P.lookup(d, j) == P.lookup(b, j) : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_source(a, b), d), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match a:
+    case Nil{}:
+      h
+    case Con{P.E{+k, +v}, +t}:
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(t, b)), d), P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), apply_append(P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(t, b), d)) : {P.lookup(_, j) == P.lookup(b, j) : Maybe<Nat>}
+      source_keep(t, b, P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j, source_keep_entry(Nat.is_eq(k, j), k, v, j, b, d, h, {==}))
+
+# source_reach, one entry: an entry on j sets the target's value, any other leaves j as it is.
+def source_reach_entry(
+  bk: Bool,
+  +k: Nat,
+  +v: Nat,
+  +t: +List<P.Entry>,
+  +b: +List<P.Entry>,
+  +d: +List<P.Entry>,
+  +j: Nat,
+  +x: Nat,
+  h1: {P.lookup_pick(bk, v, P.lookup(t, j)) == {Some{x} : Maybe<Nat>} : Maybe<Nat>},
+  h2: {P.lookup(d, j) == P.lookup_pick(bk, v, P.lookup(t, j)) : Maybe<Nat>},
+  +q: {Nat.is_eq(k, j) == bk : Bool},
+  ih: @d2: +List<P.Entry> -> @h1b: {P.lookup(t, j) == {Some{x} : Maybe<Nat>} : Maybe<Nat>} -> @h2b: {P.lookup(d2, j) == P.lookup(t, j) : Maybe<Nat>} -> {P.lookup(P.apply(P.diff_source(t, b), d2), j) == P.lookup(b, j) : Maybe<Nat>}
+) -> {P.lookup(P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      +kj = is_eq_true_eq(k, j, q)
+      hk = {(%Equal.sym(Nat, k, j, kj) : {P.lookup(d, _) == {Some{v} : Maybe<Nat>} : Maybe<Nat>}; h2) : {P.lookup(d, k) == {Some{v} : Maybe<Nat>} : Maybe<Nat>}}
+      hj = {(%kj : {P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), _) == P.lookup(b, _) : Maybe<Nat>}; one_set(P.lookup(b, k), k, v, d, hk)) : {P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j) == P.lookup(b, j) : Maybe<Nat>}}
+      source_keep(t, b, P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j, hj)
+    case False{}:
+      h2b = {(%Equal.sym(Maybe<Nat>, P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j), P.lookup(d, j), one_other(P.lookup(b, k), k, v, j, d, q)) : {_ == P.lookup(t, j) : Maybe<Nat>}; h2) : {P.lookup(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), j) == P.lookup(t, j) : Maybe<Nat>}}
+      ih(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), h1, h2b)
+
+# LEMMA: while j is still ahead in the source (the rest t holds it) and the document agrees with t at
+# j, the source pass ends with the target's value at j.
+def source_reach(t: +List<P.Entry>, +b: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, +x: Nat, h1: {P.lookup(t, j) == {Some{x} : Maybe<Nat>} : Maybe<Nat>}, h2: {P.lookup(d, j) == P.lookup(t, j) : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_source(t, b), d), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match t:
+    case Nil{}:
+      Empty.absurd({P.lookup(P.apply(P.diff_source([], b), d), j) == P.lookup(b, j) : Maybe<Nat>}, none_ne_some(x, h1))
+    case Con{P.E{+k, +v}, +r}:
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(r, b)), d), P.apply(P.diff_source(r, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), apply_append(P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(r, b), d)) : {P.lookup(_, j) == P.lookup(b, j) : Maybe<Nat>}
+      source_reach_entry(Nat.is_eq(k, j), k, v, r, b, d, j, x, h1, h2, {==}, d2 => h1b => h2b => source_reach(r, b, d2, j, x, h1b, h2b))
+
+# source_skip, one entry: its key is not j, as the source lacks j.
+def source_skip_entry(
+  bk: Bool,
+  +k: Nat,
+  +v: Nat,
+  +t: +List<P.Entry>,
+  +b: +List<P.Entry>,
+  +d: +List<P.Entry>,
+  +j: Nat,
+  n: {P.lookup_pick(bk, v, P.lookup(t, j)) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  +q: {Nat.is_eq(k, j) == bk : Bool},
+  ih: @d2: +List<P.Entry> -> @nb: {P.lookup(t, j) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> {P.lookup(P.apply(P.diff_source(t, b), d2), j) == P.lookup(d2, j) : Maybe<Nat>}
+) -> {P.lookup(P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      Empty.absurd({P.lookup(P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), j) == P.lookup(d, j) : Maybe<Nat>}, some_ne_none(v, n))
+    case False{}:
+      %one_other(P.lookup(b, k), k, v, j, d, q) : {P.lookup(P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), j) == _ : Maybe<Nat>}
+      ih(P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d), n)
+
+# LEMMA: when the source lacks j, the source pass leaves j as it is.
+def source_skip(a: +List<P.Entry>, +b: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, n: {P.lookup(a, j) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_source(a, b), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match a:
+    case Nil{}:
+      {==}
+    case Con{P.E{+k, +v}, +t}:
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(t, b)), d), P.apply(P.diff_source(t, b), P.apply(P.diff_one_pick(P.lookup(b, k), k, v), d)), apply_append(P.diff_one_pick(P.lookup(b, k), k, v), P.diff_source(t, b), d)) : {P.lookup(_, j) == P.lookup(d, j) : Maybe<Nat>}
+      source_skip_entry(Nat.is_eq(k, j), k, v, t, b, d, j, n, {==}, d2 => nb => source_skip(t, b, d2, j, nb))
+
+# The operations diff adds for the target entry E{k, w}, when the source looks k up as m, touch only k.
+def added_other(m: Maybe<Nat>, +k: Nat, +w: Nat, +j: Nat, +d: +List<P.Entry>, +ne: {Nat.is_eq(k, j) == False{} : Bool}) -> {P.lookup(P.apply(P.diff_added_pick(m, k, w), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match m:
+    case None{}:
+      lookup_put_other(d, k, w, j, ne)
+    case Some{y}:
+      {==}
+
+# added_untouched, one entry: its key is not j, as the target's rest lacks j.
+def added_untouched_entry(
+  bk: Bool,
+  +k: Nat,
+  +w: Nat,
+  +t: +List<P.Entry>,
+  +a: +List<P.Entry>,
+  +d: +List<P.Entry>,
+  +j: Nat,
+  n: {P.lookup_pick(bk, w, P.lookup(t, j)) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  +q: {Nat.is_eq(k, j) == bk : Bool},
+  ih: @d2: +List<P.Entry> -> @nb: {P.lookup(t, j) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> {P.lookup(P.apply(P.diff_added(t, a), d2), j) == P.lookup(d2, j) : Maybe<Nat>}
+) -> {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      Empty.absurd({P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == P.lookup(d, j) : Maybe<Nat>}, some_ne_none(w, n))
+    case False{}:
+      %added_other(P.lookup(a, k), k, w, j, d, q) : {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == _ : Maybe<Nat>}
+      ih(P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d), n)
+
+# LEMMA: when the target lacks j, the added pass leaves j as it is.
+def added_untouched(b: +List<P.Entry>, +a: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, n: {P.lookup(b, j) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(b, a), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match b:
+    case Nil{}:
+      {==}
+    case Con{P.E{+k, +w}, +t}:
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a)), d), P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), apply_append(P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a), d)) : {P.lookup(_, j) == P.lookup(d, j) : Maybe<Nat>}
+      added_untouched_entry(Nat.is_eq(k, j), k, w, t, a, d, j, n, {==}, d2 => nb => added_untouched(t, a, d2, j, nb))
+
+# added_held, one entry: when the source holds j, an entry on j adds nothing.
+def added_held_entry(
+  bk: Bool,
+  +k: Nat,
+  +w: Nat,
+  +t: +List<P.Entry>,
+  +a: +List<P.Entry>,
+  +d: +List<P.Entry>,
+  +j: Nat,
+  +y: Nat,
+  +ha: {P.lookup(a, j) == {Some{y} : Maybe<Nat>} : Maybe<Nat>},
+  +q: {Nat.is_eq(k, j) == bk : Bool},
+  ih: @d2: +List<P.Entry> -> {P.lookup(P.apply(P.diff_added(t, a), d2), j) == P.lookup(d2, j) : Maybe<Nat>}
+) -> {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      hk = {(%Equal.sym(Nat, k, j, is_eq_true_eq(k, j, q)) : {P.lookup(a, _) == {Some{y} : Maybe<Nat>} : Maybe<Nat>}; ha) : {P.lookup(a, k) == {Some{y} : Maybe<Nat>} : Maybe<Nat>}}
+      %Equal.sym(Maybe<Nat>, P.lookup(a, k), Some{y}, hk) : {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(_, k, w), d)), j) == P.lookup(d, j) : Maybe<Nat>}
+      ih(d)
+    case False{}:
+      %added_other(P.lookup(a, k), k, w, j, d, q) : {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == _ : Maybe<Nat>}
+      ih(P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d))
+
+# LEMMA: when the source holds j, the added pass leaves j as it is.
+def added_held(b: +List<P.Entry>, +a: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, +y: Nat, +ha: {P.lookup(a, j) == {Some{y} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(b, a), d), j) == P.lookup(d, j) : Maybe<Nat>}:
+  match b:
+    case Nil{}:
+      {==}
+    case Con{P.E{+k, +w}, +t}:
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a)), d), P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), apply_append(P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a), d)) : {P.lookup(_, j) == P.lookup(d, j) : Maybe<Nat>}
+      added_held_entry(Nat.is_eq(k, j), k, w, t, a, d, j, y, ha, {==}, d2 => added_held(t, a, d2, j, y, ha))
+
+# added_fill on j itself: the source lacks k, so the entry puts w, and the rest of the target lacks k.
+def added_fill_put(+k: Nat, +w: Nat, +t: +List<P.Entry>, +a: +List<P.Entry>, +d: +List<P.Entry>, +hak: {P.lookup(a, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}, nk: {P.lookup(t, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), k) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}:
+  %Equal.sym(Maybe<Nat>, P.lookup(a, k), None{}, hak) : {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(_, k, w), d)), k) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}
+  %Equal.sym(Maybe<Nat>, P.lookup(P.apply(P.diff_added(t, a), P.step(d, P.Put{k, w})), k), P.lookup(P.step(d, P.Put{k, w}), k), added_untouched(t, a, P.step(d, P.Put{k, w}), k, nk)) : {_ == {Some{w} : Maybe<Nat>} : Maybe<Nat>}
+  lookup_put_same(d, k, w)
+
+# added_fill, one entry: on j it adds the target's value, which the rest of the target lacks.
+def added_fill_entry(
+  bk: Bool,
+  +k: Nat,
+  +w: Nat,
+  +t: +List<P.Entry>,
+  +a: +List<P.Entry>,
+  +d: +List<P.Entry>,
+  +j: Nat,
+  +ha: {P.lookup(a, j) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  hd: {P.lookup(d, j) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  nk: {P.lookup(t, k) == {None{} : Maybe<Nat>} : Maybe<Nat>},
+  +q: {Nat.is_eq(k, j) == bk : Bool},
+  ih: @d2: +List<P.Entry> -> @hd2: {P.lookup(d2, j) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> {P.lookup(P.apply(P.diff_added(t, a), d2), j) == P.lookup(t, j) : Maybe<Nat>}
+) -> {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), j) == P.lookup_pick(bk, w, P.lookup(t, j)) : Maybe<Nat>}:
+  match bk:
+    case True{}:
+      +kj = is_eq_true_eq(k, j, q)
+      hak = {(%Equal.sym(Nat, k, j, kj) : {P.lookup(a, _) == {None{} : Maybe<Nat>} : Maybe<Nat>}; ha) : {P.lookup(a, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}}
+      %kj : {P.lookup(P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), _) == {Some{w} : Maybe<Nat>} : Maybe<Nat>}
+      added_fill_put(k, w, t, a, d, hak, nk)
+    case False{}:
+      hd2 = {(%Equal.sym(Maybe<Nat>, P.lookup(P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d), j), P.lookup(d, j), added_other(P.lookup(a, k), k, w, j, d, q)) : {_ == {None{} : Maybe<Nat>} : Maybe<Nat>}; hd) : {P.lookup(P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d), j) == {None{} : Maybe<Nat>} : Maybe<Nat>}}
+      ih(P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d), hd2)
+
+# LEMMA: with distinct target keys, when neither the source nor the document holds j, the added pass
+# gives j the target's value.
+def added_fill(b: +List<P.Entry>, +a: +List<P.Entry>, +d: +List<P.Entry>, +j: Nat, +ha: {P.lookup(a, j) == {None{} : Maybe<Nat>} : Maybe<Nat>}, hd: {P.lookup(d, j) == {None{} : Maybe<Nat>} : Maybe<Nat>}, db: Spec.Distinct(b)) -> {P.lookup(P.apply(P.diff_added(b, a), d), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match b:
+    case Nil{}:
+      hd
+    case Con{P.E{+k, +w}, +t}:
+      (nk, dt) = db
+      %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a)), d), P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), apply_append(P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a), d)) : {P.lookup(_, j) == P.lookup_pick(Nat.is_eq(k, j), w, P.lookup(t, j)) : Maybe<Nat>}
+      added_fill_entry(Nat.is_eq(k, j), k, w, t, a, d, j, ha, hd, nk, {==}, d2 => hd2 => added_fill(t, a, d2, j, ha, hd2, dt))
+
+# The round trip, split on whether the source holds j.
+def roundtrip_at(m: Maybe<Nat>, +a: +List<P.Entry>, +b: +List<P.Entry>, db: Spec.Distinct(b), +j: Nat, +e: {P.lookup(a, j) == m : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), j) == P.lookup(b, j) : Maybe<Nat>}:
+  match m:
+    case None{}:
+      hd = Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_source(a, b), a), j), P.lookup(a, j), None{}, source_skip(a, b, a, j, e), e)
+      added_fill(b, a, P.apply(P.diff_source(a, b), a), j, e, hd, db)
+    case Some{+y}:
+      Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), j), P.lookup(P.apply(P.diff_source(a, b), a), j), P.lookup(b, j), added_held(b, a, P.apply(P.diff_source(a, b), a), j, y, e), source_reach(a, b, a, j, y, e, {==}))
+
+def Laws.apply_diff_roundtrip(a, b, db, j):
+  %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_source(a, b), P.diff_added(b, a)), a), P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), apply_append(P.diff_source(a, b), P.diff_added(b, a), a)) : {P.lookup(_, j) == P.lookup(b, j) : Maybe<Nat>}
+  roundtrip_at(P.lookup(a, j), a, b, db, j, {==})
+
 # ---- chunk ----
 
 # LEMMA: appending is associative.

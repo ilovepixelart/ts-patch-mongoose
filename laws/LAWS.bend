@@ -11,9 +11,23 @@ import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
 
+# LAW (the contract): applying the diff of a and b to a gives a document that agrees with b on every key.
+law apply_diff_roundtrip:
+  for +a: +List<P.Entry>
+  for +b: +List<P.Entry>
+  for db: Spec.Distinct(b)
+  for +j: Nat
+  {P.lookup(P.apply(P.diff(a, b), a), j) == P.lookup(b, j) : Maybe<Nat>}
+
 # LAW: the round trip needs distinct keys: with key 1 twice in the target, it reads the last value, not the first.
 law roundtrip_needs_distinct:
   {P.lookup(P.apply(P.diff({[] : +List<P.Entry>}, {[P.E{1n, 0n}, P.E{1n, 1n}] : +List<P.Entry>}), {[] : +List<P.Entry>}), 1n) != P.lookup({[P.E{1n, 0n}, P.E{1n, 1n}] : +List<P.Entry>}, 1n) : Maybe<Nat>}
+
+# LAW: a document diffed against itself gives no operations.
+law diff_self_empty:
+  for +a: +List<P.Entry>
+  for da: Spec.Distinct(a)
+  {P.diff(a, a) == {[] : List<P.Op>} : List<P.Op>}
 
 # ---- chunk ----
 

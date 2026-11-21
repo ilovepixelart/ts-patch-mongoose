@@ -9,20 +9,6 @@ import ./omit.bend as O
 import ./history.bend as Hs
 import ./SPEC.bend as Spec
 
-# CLAIM (the contract): applying the diff of a and b to a gives a document that agrees with b on every key.
-law apply_diff_roundtrip:
-  for +a: +List<P.Entry>
-  for +b: +List<P.Entry>
-  for -db: Spec.Distinct(b)
-  for +j: Nat
-  {P.lookup(P.apply(P.diff(a, b), a), j) == P.lookup(b, j) : Maybe<Nat>}
-
-# CLAIM: a document diffed against itself gives no operations.
-law diff_self_empty:
-  for +a: +List<P.Entry>
-  for -da: Spec.Distinct(a)
-  {P.diff(a, a) == {[] : List<P.Op>} : List<P.Op>}
-
 # CLAIM (the plugin's contract): after any commands whose documents have distinct keys, replaying a
 # document's history gives the stored document, key by key; for a deleted or missing document both say
 # there is none. History is on and no switch is set.
