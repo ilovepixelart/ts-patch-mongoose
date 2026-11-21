@@ -154,9 +154,8 @@ const callArbWith = (flagsArb: fc.Arbitrary<Flags>, fieldArb: fc.Arbitrary<strin
 // whose fields hold every value it sets, when there is one, instead of the inserted document.
 const misattributed = (call: Call, live: Map<number, Doc>) => call.kind === 'Upsert' && !live.has(call.id) && Object.keys(call.doc).length > 0 && [...live].some(([id, doc]) => id > call.id && Object.entries(call.doc).every(([k, v]) => doc[k] === v))
 
-// Leaves out creates and inserts of a live id (the contract covers inserts that can succeed; what the
-// plugin records for one that fails is pinned in history.laws.test.ts) and the upserts the defect above
-// misattributes, and turns a Repeat or Touch into an update of the id's current document, or
+// Leaves out inserts of a live id (what the plugin records for an insertMany that fails is pinned in
+// history.laws.test.ts) and the upserts the defect above misattributes, and turns a Repeat or Touch into an update of the id's current document, or
 // drops it when the id is not live.
 const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
   if (call.kind === 'Repeat' || call.kind === 'Touch') {
@@ -176,7 +175,7 @@ const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
     const items = call.items.filter((item) => !live.has(item.id))
     return items.length > 0 ? [{ kind: 'InsertMany', items }] : []
   }
-  if ((call.kind === 'Create' && live.has(call.id)) || misattributed(call, live)) return []
+  if (misattributed(call, live)) return []
   if ((call.kind === 'Update' && call.via === 'save') || (call.kind === 'Delete' && call.via === 'document')) return [{ ...call, flags: NO_SWITCH }]
   return [call]
 }
@@ -185,6 +184,9 @@ const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
 const track = (call: Call, live: Map<number, Doc>) => {
   switch (call.kind) {
     case 'Create':
+      // a create of a live id fails and leaves the document as it was
+      if (!live.has(call.id)) live.set(call.id, call.doc)
+      return
     case 'Upsert':
       live.set(call.id, call.doc)
       return
@@ -310,6 +312,7 @@ const deleteFilter = (call: Call) => {
 // The rules a call reaches, beyond its kind, that the sequences must not leave to the draw.
 const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: boolean, omit: Omit, deleted: Set<number>): string[] => {
   const reached: string[] = [call.kind]
+  if (call.kind === 'Create' && before) reached.push('Create of a live id')
   if (call.kind === 'Update' && call.via !== 'updateOne') reached.push(`Update by ${call.via}`)
   if (call.kind === 'Delete' && call.via !== 'deleteOne') reached.push(`Delete by ${call.via}`)
   if (call.kind === 'Upsert') reached.push(before ? 'Upsert matching' : 'Upsert inserting')
@@ -321,7 +324,24 @@ const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: b
   if (deleted.has(call.id)) reached.push('Update after a delete and a new create')
   return reached
 }
-const ALWAYS_REACHED = ['Create', 'Update', 'Delete', 'Update by save', 'Update by findOneAndUpdate', 'Delete by findOneAndDelete', 'InsertMany', 'UpdateMany', 'DeleteMany', 'DeleteVetoed', 'Upsert', 'Upsert matching', 'Upsert inserting', 'DeleteVetoed vetoed', 'Update after a delete and a new create']
+const ALWAYS_REACHED = [
+  'Create',
+  'Create of a live id',
+  'Update',
+  'Delete',
+  'Update by save',
+  'Update by findOneAndUpdate',
+  'Delete by findOneAndDelete',
+  'InsertMany',
+  'UpdateMany',
+  'DeleteMany',
+  'DeleteVetoed',
+  'Upsert',
+  'Upsert matching',
+  'Upsert inserting',
+  'DeleteVetoed vetoed',
+  'Update after a delete and a new create',
+]
 const mustReach = ({ cfg, omit, rejected }: Target) => [
   ...ALWAYS_REACHED,
   ...(isMongooseLessThan8 ? [] : ['Delete by document']),
@@ -377,6 +397,7 @@ export const createHarness = () => {
     const filter = deleteFilter(call)
     const matched = filter ? (await M.find(filter).lean().exec()).slice(0, call.kind === 'Delete' ? 1 : undefined).map(fieldsOf) : []
     const calls = predeleted.length
+    const duplicate = call.kind === 'Create' && (await M.exists({ _id: oid(call.id) })) !== null
     veto = call.kind === 'DeleteVetoed'
     const failure = await execute(M, call, extra).then(
       () => undefined,
@@ -385,7 +406,8 @@ export const createHarness = () => {
     veto = false
     const hooked = filter !== undefined && 'flags' in call && !skipped(call.flags) && matched.length > 0
     expect(predeleted.slice(calls).map((docs) => bag(docs))).toEqual(hooked ? [bag(matched)] : [])
-    expect(failure).toBe(hooked && call.kind === 'DeleteVetoed' ? VETO : undefined)
+    if (duplicate) expect(String(failure)).toMatch(/E11000/)
+    else expect(failure).toBe(hooked && call.kind === 'DeleteVetoed' ? VETO : undefined)
     return hooked
   }
 
