@@ -2,7 +2,9 @@ import Base
 
 # chunk(xs, size): consecutive pieces of at most `size` elements, in order (helpers.ts chunk, which
 # splits history bulk writes). The current piece is built in order; `rem` counts the slots left in
-# it, and the piece is emitted when the last slot is filled, or at the end when not empty.
+# it, and the piece is emitted when the last slot is filled, or at the end when not empty. A size of 0
+# gives pieces of one here, while src's loop never ends on a non-empty list (patch.ts only calls chunk
+# with 1000), so the law that bounds the pieces starts at size 1.
 
 def flush(cur: +List<Nat>) -> +List<+List<Nat>>:
   match cur:

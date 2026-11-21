@@ -1,6 +1,7 @@
 import Base
 import ./patch.bend as P
 import ./history.bend as Hs
+import ./omit.bend as O
 
 # Specification helpers for LAWS.bend, not part of the models. The models (listed in
 # MODELS in laws/check.mjs) mirror src/ and may change with it; keep this file and LAWS.bend unchanged
@@ -19,10 +20,20 @@ def switches_off(f: Hs.Flags) -> Bool:
     case Hs.Flags{hook, event, history}:
       Bool.not(Bool.or(hook, Bool.or(event, history)))
 
-def ignores_hook(f: Hs.Flags) -> Bool:
-  match f:
-    case Hs.Flags{hook, event, history}:
+# A query switch: ignoreHook, ignoreEvent or ignorePatchHistory.
+type Switch is Data:
+  Hook{}
+  Event{}
+  History{}
+
+def sets(s: Switch, f: Hs.Flags) -> Bool:
+  match s f:
+    case Hook{} Hs.Flags{hook, event, history}:
       hook
+    case Event{} Hs.Flags{hook, event, history}:
+      event
+    case History{} Hs.Flags{hook, event, history}:
+      history
 
 # A document whose keys are all different: each key is absent from the entries after it.
 def Distinct(d: +List<P.Entry>) -> Type:
@@ -56,15 +67,26 @@ def NoSwitches(cmds: List<Hs.Cmd>) -> Type:
     case Con{Hs.Delete{id, f}, cs}:
       T(switches_off(f)) & NoSwitches(cs)
 
-# The command is an update or delete with ignoreHook set.
-def IgnoresHook(cmd: Hs.Cmd) -> Type:
-  match cmd:
-    case Hs.Create{id, doc}:
+# The call sets switch s: an update, delete, bulk update or delete, or upsert with it set. Creates
+# and insertMany carry no switches.
+def Sets(s: Switch, k: Hs.Call) -> Type:
+  match k:
+    case Hs.Single{Hs.Create{id, doc}}:
       Empty
-    case Hs.Update{id, doc, f}:
-      T(ignores_hook(f))
-    case Hs.Delete{id, f}:
-      T(ignores_hook(f))
+    case Hs.Single{Hs.Update{id, doc, f}}:
+      T(sets(s, f))
+    case Hs.Single{Hs.Delete{id, f}}:
+      T(sets(s, f))
+    case Hs.InsertMany{items}:
+      Empty
+    case Hs.UpdateMany{ids, doc, f}:
+      T(sets(s, f))
+    case Hs.DeleteMany{ids, f}:
+      T(sets(s, f))
+    case Hs.DeleteVetoed{ids, f}:
+      T(sets(s, f))
+    case Hs.Upsert{id, doc, f}:
+      T(sets(s, f))
 
 def store_create(found: Maybe<+List<P.Entry>>, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>) -> +List<Hs.Rec>:
   match found:
@@ -177,3 +199,65 @@ def doc_strip(+keys: +List<Nat>, m: Maybe<+List<P.Entry>>) -> Maybe<+List<P.Entr
       None{}
     case Some{d}:
       Some{Hs.strip(keys, d)}
+
+# ---- versions ----
+
+# Whether every entry of id in hist has a version below v.
+def below(hist: +List<Hs.Hist>, +id: Nat, +v: Nat) -> Bool:
+  match hist:
+    case Nil{}:
+      True{}
+    case Con{Hs.H{k, +hid, +w, d, p}, rest}:
+      Bool.and(Bool.or(Bool.not(Nat.is_eq(hid, id)), Nat.is_lt(w, v)), below(rest, id, v))
+
+def rise_entry(h: Hs.Hist, +before: +List<Hs.Hist>) -> Bool:
+  match h:
+    case Hs.H{Hs.KUpdate{}, +id, +v, d, p}:
+      below(before, id, v)
+    case Hs.H{Hs.KCreate{}, id, v, d, p}:
+      True{}
+    case Hs.H{Hs.KDelete{}, id, v, d, p}:
+      True{}
+
+def rise_go(hist: +List<Hs.Hist>, +before: +List<Hs.Hist>) -> Bool:
+  match hist:
+    case Nil{}:
+      True{}
+    case Con{+h, rest}:
+      Bool.and(rise_entry(h, before), rise_go(rest, List.append(&2, Hs.Hist, before, [h])))
+
+# Whether each update entry's version is above every version recorded before it for the same id.
+def versions_rise(+hist: +List<Hs.Hist>) -> Bool:
+  rise_go(hist, [])
+
+# ---- chunk ----
+
+# Whether a list has at most n elements.
+def fits(xs: +List<Nat>, n: Nat) -> Bool:
+  match xs n:
+    case Nil{} n:
+      True{}
+    case Con{h, t} 0n:
+      False{}
+    case Con{h, t} 1n+m:
+      fits(t, m)
+
+# Whether every piece is non-empty and has at most n elements.
+def pieces_fit(ps: +List<+List<Nat>>, +n: Nat) -> Bool:
+  match ps:
+    case Nil{}:
+      True{}
+    case Con{Nil{}, t}:
+      False{}
+    case Con{Con{+h, +r}, t}:
+      Bool.and(fits(h <> r, n), pieces_fit(t, n))
+
+# ---- omitDeep ----
+
+# Whether a field list has a field with key k.
+def has_field(fs: +List<O.Field>, +k: Nat) -> Bool:
+  match fs:
+    case Nil{}:
+      False{}
+    case Con{O.F{+j, t}, rest}:
+      Bool.or(Nat.is_eq(j, k), has_field(rest, k))

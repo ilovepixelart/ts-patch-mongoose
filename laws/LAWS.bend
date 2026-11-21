@@ -37,6 +37,12 @@ law chunk_concat:
   for +size: Nat
   {List.concat(&2, Nat, C.chunk(xs, size)) == xs : +List<Nat>}
 
+# LAW: with a size of one or more, every chunk is non-empty and holds at most size elements.
+law chunk_pieces_fit:
+  for +xs: +List<Nat>
+  for +s: Nat
+  {Spec.pieces_fit(C.chunk(xs, 1n+s), 1n+s) == True{} : Bool}
+
 # ---- omitDeep ----
 
 # LAW: a dotted omit path whose head is unsafe (constructor, prototype) changes nothing, at any depth.
@@ -50,27 +56,54 @@ law omit_unsafe_path_ignored:
   for +keys: +List<+List<Nat>>
   {O.go(fuel, n, O.with_path(u, x, xs, keys)) == O.go(fuel, n, keys) : O.Node}
 
+# LAW: a key the key list omits at the top level ([k]) is not among the fields of the result, given
+# the walk enough fuel for the fields.
+law omit_drops_top_key:
+  for +fs: +List<O.Field>
+  for +f: Nat
+  for +keys: +List<+List<Nat>>
+  for +k: Nat
+  for t: {O.is_top(keys, k) == True{} : Bool}
+  {Spec.has_field(O.unwrap_fs(O.go(Nat.add(List.length(&2, O.Field, fs), 1n+f), O.Fs{fs}, keys)), k) == False{} : Bool}
+
 # ---- history contract ----
 
-# LAW: an update or delete with ignoreHook writes no history.
+# LAW: a call with ignoreHook (an update, delete, bulk update or delete, or upsert) writes no history,
+# whatever is omitted.
 law ignore_hook_silent:
   for +c: Hs.Cfg
-  for +store: +List<Hs.Rec>
-  for +hist: +List<Hs.Hist>
-  for +evs: +List<Hs.Ev>
-  for cmd: Hs.Cmd
-  for q: Spec.IgnoresHook(cmd)
-  {Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, cmd)) == hist : +List<Hs.Hist>}
+  for +o: Hs.Omit
+  for st: Hs.State
+  for k: Hs.Call
+  for q: Spec.Sets(Spec.Hook{}, k)
+  {Hs.hist_of(Hs.call(c, o, st, k)) == Hs.hist_of(st) : +List<Hs.Hist>}
 
-# LAW: an update or delete with ignoreHook emits no event.
+# LAW: a call with ignoreHook emits no event, whatever is omitted.
 law ignore_hook_quiet:
   for +c: Hs.Cfg
-  for +store: +List<Hs.Rec>
-  for +hist: +List<Hs.Hist>
-  for +evs: +List<Hs.Ev>
-  for cmd: Hs.Cmd
-  for q: Spec.IgnoresHook(cmd)
-  {Hs.evs_of(Hs.step(c, Hs.S{store, hist, evs}, cmd)) == evs : +List<Hs.Ev>}
+  for +o: Hs.Omit
+  for st: Hs.State
+  for k: Hs.Call
+  for q: Spec.Sets(Spec.Hook{}, k)
+  {Hs.evs_of(Hs.call(c, o, st, k)) == Hs.evs_of(st) : +List<Hs.Ev>}
+
+# LAW: a call with ignorePatchHistory writes no history, whatever its other switches.
+law ignore_history_silent:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for st: Hs.State
+  for k: Hs.Call
+  for q: Spec.Sets(Spec.History{}, k)
+  {Hs.hist_of(Hs.call(c, o, st, k)) == Hs.hist_of(st) : +List<Hs.Hist>}
+
+# LAW: a call with ignoreEvent emits no event, whatever its other switches.
+law ignore_event_quiet:
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  for st: Hs.State
+  for k: Hs.Call
+  for q: Spec.Sets(Spec.Event{}, k)
+  {Hs.evs_of(Hs.call(c, o, st, k)) == Hs.evs_of(st) : +List<Hs.Ev>}
 
 # LAW: an update of a missing document changes nothing.
 law update_missing_noop:
@@ -107,19 +140,29 @@ law create_existing_noop:
   for e: {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
   {Hs.step(c, Hs.S{store, hist, evs}, Hs.Create{id, doc}) == Hs.S{store, hist, evs} : Hs.State}
 
-# LAW: with patch history disabled, no command writes history.
+# LAW: with patch history disabled, no call writes history, bulk calls and upserts included.
 law disabled_writes_no_history:
-  for cmds: List<Hs.Cmd>
+  for ks: List<Hs.Call>
   for +ev: Bool
+  for +o: Hs.Omit
   for st: Hs.State
-  {Hs.hist_of(Hs.run(cmds, Hs.Cfg{False{}, ev}, st)) == Hs.hist_of(st) : +List<Hs.Hist>}
+  {Hs.hist_of(Hs.calls(ks, Hs.Cfg{False{}, ev}, o, st)) == Hs.hist_of(st) : +List<Hs.Hist>}
 
-# LAW: with no events configured, no command emits one.
+# LAW: with no events configured, no call emits one, bulk calls and upserts included.
 law unconfigured_emits_nothing:
-  for cmds: List<Hs.Cmd>
+  for ks: List<Hs.Call>
   for +h: Bool
+  for +o: Hs.Omit
   for st: Hs.State
-  {Hs.evs_of(Hs.run(cmds, Hs.Cfg{h, False{}}, st)) == Hs.evs_of(st) : +List<Hs.Ev>}
+  {Hs.evs_of(Hs.calls(ks, Hs.Cfg{h, False{}}, o, st)) == Hs.evs_of(st) : +List<Hs.Ev>}
+
+# LAW: whatever the calls, each update entry's version is above every version recorded before it for
+# the same document, across deletes and new creates of its id.
+law versions_rise:
+  for ks: List<Hs.Call>
+  for +c: Hs.Cfg
+  for +o: Hs.Omit
+  {Spec.versions_rise(Hs.hist_of(Hs.calls(ks, c, o, Hs.empty()))) == True{} : Bool}
 
 # LAW: the stored documents depend on the commands only: never on the configuration, the switches,
 # the history or the events.
@@ -257,6 +300,7 @@ law name_option_wins:
 # ---- history TTL ----
 
 # LAW: a TTL of one second or more in whole seconds leaves exactly that index, without an error, whatever was there.
+# Millis holds at most MongoDB's limit of seconds; a longer TTL is TooLong.
 law ttl_whole_seconds_set:
   for i: Tt.Index
   for +p: Nat
@@ -274,3 +318,10 @@ law ttl_below_second_drops:
   for neg: Bool
   for frac: Bool
   {Tt.ttl(Tt.Ttl{e}, Tt.Millis{neg, 0n, frac}) == Tt.R{Tt.NoIndex{}, False{}} : Tt.Outcome}
+
+# LAW: a negative TTL of any length drops an existing index without an error.
+law ttl_negative_drops:
+  for +e: Nat
+  for +secs: Nat
+  for frac: Bool
+  {Tt.ttl(Tt.Ttl{e}, Tt.Millis{True{}, secs, frac}) == Tt.R{Tt.NoIndex{}, False{}} : Tt.Outcome}

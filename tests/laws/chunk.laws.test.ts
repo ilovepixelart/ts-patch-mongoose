@@ -5,8 +5,9 @@ import model from '../../laws/generated/chunk.mjs'
 import { chunk } from '../../src/helpers'
 import { type BendList, fromList, toList } from './bend'
 
-// laws/chunk.bend models chunk and proves that the pieces concatenate to the input (LAWS.bend:
-// chunk_concat). This test holds chunk to that model.
+// laws/chunk.bend models chunk and proves that the pieces concatenate to the input and that, for a size
+// of one or more, each is non-empty and at most size long (LAWS.bend: chunk_concat, chunk_pieces_fit).
+// This test holds chunk to that model.
 
 const modelChunk = model.chunk as (xs: BendList<number>, size: number) => BendList<BendList<number>>
 
