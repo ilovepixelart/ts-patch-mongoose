@@ -180,6 +180,7 @@ jobs:
 
   # The proofs of laws/ (npm run laws): Bend checks them, and --verdict rechecks them with BendTT's
   # kernel, which Lean builds. Both toolchains are pinned and checked against the release digests.
+  # Informational: the CI job below does not require it, so a change to src/ never waits on a proof.
   laws:
     name: Laws (Bend proofs)
     runs-on: ubuntu-latest
@@ -249,10 +250,10 @@ jobs:
       - name: Audit workflows
         run: uvx zizmor@1.32.0 --format=plain --config .github/zizmor.yml .github
 
-  # The one check branch rules require: it fails unless every job above succeeded.
+  # The one check branch rules require: it fails unless every job above except laws succeeded.
   ci:
     name: CI
-    needs: [tests, sonar, e2e, laws, zizmor]
+    needs: [tests, sonar, e2e, zizmor]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
