@@ -2,7 +2,7 @@ import Base
 
 # omitDeep (src/omit-deep.ts) over JSON-like trees with Nat keys. A key list holds paths: [k] omits
 # key k at any depth; [h, ...tail] omits tail under key h only, and replaces the key list below h.
-# A path whose head is unsafe (1 and 2 stand for constructor and prototype) is ignored.
+# A path whose head is unsafe (1, 2 and 3 stand for constructor, prototype and __proto__) is ignored.
 
 type Tree is Data:
   Leaf{v: Nat}
@@ -26,7 +26,9 @@ def unsafe(k: Nat) -> Bool:
       True{}
     case 2n+0n:
       True{}
-    case 3n+n:
+    case 3n+0n:
+      True{}
+    case 4n+n:
       False{}
 
 def or_pick(a: Bool, b: Bool) -> Bool:

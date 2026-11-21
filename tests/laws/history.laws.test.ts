@@ -6,8 +6,8 @@ import server from '../mongo/server'
 import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
-// events each mongoose call writes (save, updateOne, deleteOne, insertMany, updateMany, deleteMany and
-// upserts), under every configuration, omit option and query switch. These tests run random call
+// events each mongoose call writes (save, updateOne, findOneAndUpdate, deleteOne, findOneAndDelete, a
+// document's deleteOne, insertMany, updateMany, deleteMany and upserts), under every configuration, omit option and query switch. These tests run random call
 // sequences on the plugin and the model alike: each call's history entries and events must be the
 // model's, the stored documents must be the model's, and replaying a document's history must give the
 // stored document without its omitted fields wherever the law applies (history on, no switches, _id
@@ -139,6 +139,52 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(stored.map(fieldsOf)).toEqual([{}])
     expect(await history().countDocuments({ modelName: name })).toBe(0)
     expect(seen).toEqual([])
+  })
+
+  // Characterization: save records in pre('save'), so a create whose insert fails on a duplicate _id still
+  // writes a create entry and emits created, and replaying the history gives the rejected document.
+  // The law tests leave out creates of a live id; with the defect fixed, drop both.
+  it('characterization: a create that fails on a duplicate _id records the rejected document', async () => {
+    const { M, name } = models[0]
+    await M.collection.deleteMany({})
+    await history().deleteMany({})
+    seen.length = 0
+    await M.create({ _id: oid(1), f0: 0 })
+    await expect(M.create({ _id: oid(1), f0: 3 })).rejects.toThrow(/E11000/)
+    const stored = await M.collection.find({}).toArray()
+    const entries = await history().find({ modelName: name }).sort({ _id: 1 }).toArray()
+    expect(stored.map((d) => [idOf(d._id), fieldsOf(d)])).toEqual([[1, { f0: 0 }]])
+    expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([
+      ['create', 1, { f0: 0 }],
+      ['create', 1, { f0: 3 }],
+    ])
+    expect(seen.map((e) => [e.kind, fieldsOf(e.payload.doc)])).toEqual([
+      ['ECreated', { f0: 0 }],
+      ['ECreated', { f0: 3 }],
+    ])
+  })
+
+  // Characterization: an ordered insertMany that stops at a duplicate _id stores the documents before
+  // it, but the error skips post('insertMany'), so none of them is in history or in an event. The law
+  // tests leave out inserts of a live id; with the defect fixed, drop both.
+  it('characterization: an ordered insertMany that stops at a duplicate _id records none of the documents it stored', async () => {
+    const { M, name } = models[0]
+    await M.collection.deleteMany({})
+    await history().deleteMany({})
+    seen.length = 0
+    await M.create({ _id: oid(2), f0: 2 })
+    await expect(
+      M.insertMany([
+        { _id: oid(1), f0: 1 },
+        { _id: oid(2), f0: 9 },
+        { _id: oid(3), f0: 3 },
+      ]),
+    ).rejects.toThrow(/E11000/)
+    const stored = await M.collection.find({}).toArray()
+    const entries = await history().find({ modelName: name }).toArray()
+    expect(stored.map((d) => idOf(d._id)).sort()).toEqual([1, 2])
+    expect(entries.map((h) => [h.op, idOf(h.collectionId)])).toEqual([['create', 2]])
+    expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
   })
 
   // Characterization: the lookup above includes the schema's defaults, so with an array path (default [])

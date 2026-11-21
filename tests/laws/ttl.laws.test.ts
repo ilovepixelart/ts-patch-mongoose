@@ -75,6 +75,17 @@ const caseArb: fc.Arbitrary<Case> = fc.oneof(
   fc.constant<Case>({ ttl: '', input: { $: 'Empty' } }),
   fc.constantFrom('abc', 'NaN', '1e3', ' 1s', '1s ', '1 s s', '1x', `${'1'.repeat(99)}s`).map((ttl): Case => ({ ttl, input: { $: 'Invalid' } })),
 )
+// Repeat gives the previous input again: two equal whole-second inputs in a row, which leave the index
+// as it is (LAWS.bend: ttl_whole_seconds_idempotent), are otherwise a rare draw.
+const sequenceArb = fc.array(fc.oneof({ weight: 4, arbitrary: caseArb }, { weight: 1, arbitrary: fc.constant('repeat' as const) }), { minLength: 1, maxLength: 6 }).map((drawn) =>
+  drawn.reduce<Case[]>((cases, item) => {
+    const previous = cases.at(-1)
+    if (item !== 'repeat') cases.push(item)
+    else if (previous) cases.push(previous)
+    return cases
+  }, []),
+)
+const sameTtl = (before: Index, after: Index) => before.$ === 'Ttl' && after.$ === 'Ttl' && before.secs === after.secs
 
 describe('setPatchHistoryTTL keeps the laws of laws/ttl.bend', () => {
   const instance = server('laws-ttl')
@@ -94,8 +105,9 @@ describe('setPatchHistoryTTL keeps the laws of laws/ttl.bend', () => {
 
   it('leaves the index the model leaves, and reports to onError when the model errs, after every call', async () => {
     let sequences = 0
+    let kept = 0
     await fc.assert(
-      fc.asyncProperty(fc.array(caseArb, { minLength: 1, maxLength: 6 }), async (cases) => {
+      fc.asyncProperty(sequenceArb, async (cases) => {
         sequences++
         if ((await indexNow()).$ === 'Ttl') await HistoryModel.collection.dropIndex('createdAt_1_TTL')
         let index: Index = { $: 'NoIndex' }
@@ -105,12 +117,14 @@ describe('setPatchHistoryTTL keeps the laws of laws/ttl.bend', () => {
           const { index: expectedIndex, error } = ttl(index, modelInput)
           expect({ index: await indexNow(), error: errors.length > 0 }).toEqual({ index: expectedIndex, error })
           expect(errors.length).toBeLessThanOrEqual(1)
+          if (modelInput.$ === 'Millis' && sameTtl(index, expectedIndex)) kept++
           index = expectedIndex
         }
       }),
       { numRuns: 300 },
     )
     expect(sequences).toBe(300)
+    expect(kept).toBeGreaterThan(0)
   }, 120_000)
 
   // Characterization: 0 drops an existing index, but with none it creates one of 0 seconds, under which

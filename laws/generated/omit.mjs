@@ -187,6 +187,8 @@ function $unsafe(_k_0) {
     return true;
   } else if (_k_0 == 2) {
     return true;
+  } else if (_k_0 == 3) {
+    return true;
   } else {
     return false;
   }
