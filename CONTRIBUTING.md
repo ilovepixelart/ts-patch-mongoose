@@ -21,7 +21,7 @@ npm run build          # build with pkgroll
 
 ## Before Submitting a PR
 
-1. Run the full check: `npm run type:check && npm run type:check:tests && npm run biome && npm test && npm run build`
+1. Run the full check: `npm run type:check && npm run type:check:tests && npm run biome && npm run laws && npm test && npm run test:e2e:tools && npm run build`
 2. Ensure no test regressions
 3. Follow the existing code style (Biome handles formatting)
 4. Keep changes focused: one feature or fix per PR
@@ -40,6 +40,8 @@ npm run build          # build with pkgroll
 - Database: mongodb-memory-server
 - Write tests for new features and bug fixes
 - Test behavior, not implementation details
+- `npm run test:shuffle` runs the tests in random order: run it on a new test to check it does not depend on another
+- Property tests (fast-check) use a fixed seed (`tests/setup/fast-check.ts`). A failure prints the seed and path to replay; `FC_SEED=<seed>` picks another seed and `FC_SEED=random` draws fresh inputs
 
 ## End-to-end check of the packed package
 
@@ -60,7 +62,8 @@ An intended behaviour change goes into `e2e/allowlist.json` with the scenarios i
 
 ## Mutation testing
 
-Mutation testing changes `src/` one small edit at a time and checks that a test fails for each.
+Mutation testing changes `src/` one small edit at a time and checks that a test fails for each. It runs
+locally, not in CI: a full run of either suite takes hours.
 
 - `npm run test:mutation` runs it against the unit and integration suite (`stryker.config.mjs`).
 - `npm run test:mutation:e2e` runs it against the end-to-end suite on the packed package
@@ -81,6 +84,6 @@ npm run laws:fast    # the same without --verdict, when Lean is not installed
 npm run laws:write   # regenerate laws/generated/ after changing a model
 ```
 
-`laws/` states the library's contract in [Bend](https://bend-lang.com) and proves it. The models (`patch.bend` for json-patch `compare`, `chunk.bend`, `omit.bend` for `omitDeep`, `entry.bend` for the names, user, reason and metadata an entry carries, `ttl.bend` for what `setPatchHistoryTTL` leaves of the TTL index, `history.bend` for what each create, update and delete, and each bulk call and upsert, writes to history and emits as events, under every configuration, omit option and query switch, and when preDelete vetoes a delete) mirror `src/`. `SPEC.bend` holds the predicates the laws use, `LAWS.bend` the proven laws, `PROOF.bend` their proofs and lemmas, and `CLAIMS.bend` any law stated but not yet proven, which the tests below check until it is. The tests in `tests/laws/` import the models as compiled ES modules (`laws/generated/`) and hold the TypeScript to them: `compare`, `chunk` and `omitDeep` on random inputs, the history entries the plugin writes on random getter outcomes, the TTL index after random sequences of `setPatchHistoryTTL` inputs, and the plugin on random sequences of mongoose calls against MongoDB, comparing each call's history entries and events and the stored documents with the model's (with every history write rejected, the model's with history off, and one onError call per failed write), checking what preDelete is given, and the same with the plugin applied globally to a schema with subdocuments, and checking that replaying a document's history gives the stored document. A known defect the model does not share is left out of those sequences and pinned by a characterization test next to them.
+`laws/` states the library's contract in [Bend](https://bend-lang.com) and proves it. Each model (`laws/*.bend`, listed in `MODELS` in `laws/check.mjs`) mirrors a part of `src/`. `SPEC.bend` holds the predicates the laws use, `LAWS.bend` the proven laws, `PROOF.bend` their proofs and lemmas, and `CLAIMS.bend` any law stated but not yet proven. The tests in `tests/laws/` import the models as compiled ES modules (`laws/generated/`) and hold the TypeScript to them on random inputs; each model and each `tests/laws/*.laws.test.ts` says what it covers in its header. A known defect the model does not share is left out of the random sequences and pinned by a characterization test next to them.
 
 When a change to `src/` changes behaviour, change the model to match, run `npm run laws:write` and `npm run laws`; a proof that fails means the change breaks a law. A claim moves from `CLAIMS.bend` to `LAWS.bend` with its proof. `--verdict` rechecks the proofs with BendTT's kernel, which has a proof in Lean; it needs Bend 2.0.40 and Lean v4.34.0 (`leanprover/lean4:v4.34.0` through elan), the versions CI pins in the `laws` job. Bend's guide (`bend guide`) and the demos in its repository show the conventions followed here: a `LAWS.bend` that states only the contract, a `SPEC.bend` kept apart from the models, constructor arms rather than fallback arms in anything a proof splits on, and no `@unsafe`.

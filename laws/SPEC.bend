@@ -2,8 +2,8 @@ import Base
 import ./patch.bend as P
 import ./history.bend as Hs
 
-# Specification helpers for LAWS.bend, not part of the models. The models (patch.bend, chunk.bend,
-# omit.bend, history.bend) mirror src/ and may change with it; keep this file and LAWS.bend unchanged
+# Specification helpers for LAWS.bend, not part of the models. The models (listed in
+# MODELS in laws/check.mjs) mirror src/ and may change with it; keep this file and LAWS.bend unchanged
 # when they do, so a law that stops holding fails instead of moving.
 
 # T(b): the truth of a Bool as a type, Unit when it holds and Empty when it fails.

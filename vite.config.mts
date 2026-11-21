@@ -10,6 +10,7 @@ export default defineConfig({
     dir: 'tests',
     environment: 'node',
     globalSetup: ['tests/mongo/global-setup.ts'],
+    setupFiles: ['tests/setup/fast-check.ts'],
     // Before every test: mocks lose their recorded calls and per-test implementations, and spies are restored.
     mockReset: true,
     restoreMocks: true,

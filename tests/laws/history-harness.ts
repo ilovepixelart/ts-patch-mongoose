@@ -63,7 +63,7 @@ const bag = (records: unknown[]) => records.map((r) => JSON.stringify(r)).sort()
 // entry's kind is what its call did to the document, known before the call runs.
 type Kind = 'KCreate' | 'KUpdate' | 'KDelete'
 const fromModelHist = (h: ModelHist) => ({ kind: h.kind.$, id: h.id, version: h.version, doc: h.kind.$ === 'KUpdate' ? '[]' : entriesKey(h.doc), patch: modelOps(h.patch) })
-type RealHist = { op: string; collectionId: unknown; version: number; doc?: Record<string, unknown>; patch?: JsonOp[] }
+type RealHist = { _id: unknown; op: string; collectionId: unknown; version: number; doc?: Record<string, unknown>; patch?: JsonOp[] }
 const fromRealHist = (h: RealHist, kind: Kind) => ({ kind, id: idOf(h.collectionId), version: h.version, doc: kind === 'KUpdate' ? '[]' : docKey(fieldsOf(h.doc)), patch: realOps(h.patch) })
 const fromModelEv = (e: ModelEv) => ({ kind: e.$, doc: e.doc && entriesKey(e.doc), old: e.old && entriesKey(e.old), patch: e.patch && modelOps(e.patch) })
 type RealEv = { kind: string; payload: { doc?: Record<string, unknown>; oldDoc?: Record<string, unknown>; patch?: JsonOp[] } }
@@ -122,29 +122,54 @@ const misattributed = (call: Call, live: Map<number, Doc>) => call.kind === 'Ups
 // Leaves out creates of a live id (the contract covers inserts that can succeed) and the upserts the
 // defect above misattributes, and turns a Repeat into an update with the id's current document, or
 // drops it when the id is not live.
+const keep = (call: Generated, live: Map<number, Doc>): Call | undefined => {
+  if (call.kind === 'Repeat') {
+    const doc = live.get(call.id)
+    return doc && { kind: 'Update', id: call.id, doc: { ...doc }, flags: call.flags }
+  }
+  if (call.kind === 'InsertMany') {
+    const items = call.items.filter((item) => !live.has(item.id))
+    return items.length > 0 ? { kind: 'InsertMany', items } : undefined
+  }
+  if ((call.kind === 'Create' && live.has(call.id)) || misattributed(call, live)) return undefined
+  return call
+}
+
+// What a kept call does to the live documents.
+const track = (call: Call, live: Map<number, Doc>) => {
+  switch (call.kind) {
+    case 'Create':
+    case 'Upsert':
+      live.set(call.id, call.doc)
+      return
+    case 'Update':
+      if (live.has(call.id)) live.set(call.id, call.doc)
+      return
+    case 'InsertMany':
+      for (const item of call.items) live.set(item.id, item.doc)
+      return
+    case 'UpdateMany':
+      for (const id of call.ids.filter((id) => live.has(id))) live.set(id, call.doc)
+      return
+    case 'Delete':
+      live.delete(call.id)
+      return
+    case 'DeleteMany':
+      for (const id of call.ids) live.delete(id)
+      return
+    case 'DeleteVetoed':
+      // the veto keeps every document, unless the hook that vetoes is skipped
+      if (skipped(call.flags)) for (const id of call.ids) live.delete(id)
+  }
+}
+
 const contractCalls = (generated: Generated[]): Call[] => {
   const live = new Map<number, Doc>()
   const calls: Call[] = []
-  for (const call of generated) {
-    if (call.kind === 'Repeat') {
-      const doc = live.get(call.id)
-      if (doc) calls.push({ kind: 'Update', id: call.id, doc: { ...doc }, flags: call.flags })
-      continue
-    }
-    if ((call.kind === 'Create' && live.has(call.id)) || misattributed(call, live)) continue
-    if (call.kind === 'InsertMany') {
-      const items = call.items.filter((item) => !live.has(item.id))
-      if (items.length === 0) continue
-      for (const item of items) live.set(item.id, item.doc)
-      calls.push({ kind: 'InsertMany', items })
-      continue
-    }
-    if (call.kind === 'Delete') live.delete(call.id)
-    else if (call.kind === 'DeleteMany' || (call.kind === 'DeleteVetoed' && skipped(call.flags))) for (const id of call.ids) live.delete(id)
-    else if (call.kind === 'DeleteVetoed') {
-      // the veto keeps every document
-    } else if (call.kind === 'UpdateMany') for (const id of call.ids.filter((id) => live.has(id))) live.set(id, call.doc)
-    else if (call.kind === 'Upsert' || call.kind === 'Create' || live.has(call.id)) live.set(call.id, call.doc)
+  for (const generatedCall of generated) {
+    const call = keep(generatedCall, live)
+    if (!call) continue
+    track(call, live)
     calls.push(call)
   }
   return calls
@@ -214,6 +239,16 @@ const deleteFilter = (call: Call) => {
   if (call.kind === 'DeleteMany' || call.kind === 'DeleteVetoed') return { _id: { $in: call.ids.map(oid) } }
   return undefined
 }
+// The rules a call reaches, beyond its kind, that the sequences must not leave to the draw.
+const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: boolean, omit: Omit): string[] => {
+  const reached: string[] = [call.kind]
+  if (call.kind === 'Upsert') reached.push(before ? 'Upsert matching' : 'Upsert inserting')
+  if (call.kind === 'DeleteVetoed' && hooked) reached.push('DeleteVetoed vetoed')
+  if (call.kind === 'Update' && before && Object.keys(strip(fieldsOf(before), omit)).length === 0) reached.push('Update from a document with only omitted fields')
+  return reached
+}
+const ALWAYS_REACHED = ['Create', 'Update', 'Delete', 'InsertMany', 'UpdateMany', 'DeleteMany', 'DeleteVetoed', 'Upsert', 'Upsert matching', 'Upsert inserting', 'DeleteVetoed vetoed']
+
 const noSwitch = (call: Call) => !('flags' in call) || (!call.flags.hook && !call.flags.event && !call.flags.history)
 
 const strip = (doc: Doc, omit: Omit): Doc => Object.fromEntries(Object.entries(doc).filter(([k]) => !omit.keys.includes(k)))
@@ -270,6 +305,7 @@ export const createHarness = () => {
     const hooked = filter !== undefined && 'flags' in call && !skipped(call.flags) && matched.length > 0
     expect(predeleted.slice(calls).map((docs) => bag(docs))).toEqual(hooked ? [bag(matched)] : [])
     expect(failure).toBe(hooked && call.kind === 'DeleteVetoed' ? VETO : undefined)
+    return hooked
   }
 
   // One call: what it writes and emits, and the onError calls it causes, against the model's.
@@ -280,16 +316,20 @@ export const createHarness = () => {
     const healthyCfg = { $: 'Cfg', ...cfg }
     const modelOmit = toModelOmit(omit)
     const omitted = [...omit.keys, ...(omit.id ? ['_id'] : [])]
-    const live = call.kind === 'Upsert' && (await M.exists({ _id: oid(call.id) })) !== null
+    const before = 'id' in call ? await M.collection.findOne({ _id: oid(call.id) }) : null
+    const live = call.kind === 'Upsert' && before !== null
     const evsBefore = seen.length
     const errorsBefore = errors.length
-    await executeChecked(M, call, extra)
+    const hooked = await executeChecked(M, call, extra)
     const next = modelCall(modelCfg, modelOmit, states.state, toModelCall(call))
     const healthyNext = modelCall(healthyCfg, modelOmit, states.healthy, toModelCall(call))
     expect(errors.length - errorsBefore).toBe(rejected ? failedWrites(fromList(healthyNext.hist).slice(fromList(states.healthy.hist).length)) : 0)
 
     // Every entry written, whatever its model: an entry recorded under another name is still one too many.
-    const written = (await history().find({}).sort({ _id: 1 }).skip(recorded.length).toArray()) as unknown as RealHist[]
+    // Selected by identity: ObjectIds are not in creation order once their counter wraps.
+    const written = (await history()
+      .find({ _id: { $nin: recorded.map(({ h }) => h._id) } } as never)
+      .toArray()) as unknown as RealHist[]
     const kind = kindOf(call, live)
     expect(written.map((h) => h.op).filter((op) => op !== OP_NAMES[call.kind])).toEqual([])
     expect(bag(written.map((h) => fromRealHist(h, kind)))).toEqual(bag(fromList(next.hist).slice(fromList(states.state.hist).length).map(fromModelHist)))
@@ -300,12 +340,14 @@ export const createHarness = () => {
     recorded.push(...written.map((h) => ({ kind, h })))
     states.state = next
     states.healthy = healthyNext
+    return reachedBy(call, before, hooked, omit)
   }
 
   // Random call sequences on the target: each call checked, then the store, then the replay.
   const checkSequences = async (target: Target, numRuns: number) => {
     const { cfg, omit, rejected, M } = target
     let sequences = 0
+    const reached = new Set<string>()
     await rejectHistoryWrites(rejected)
     await fc
       .assert(
@@ -317,7 +359,7 @@ export const createHarness = () => {
           errors.length = 0
           const states = { state: empty(), healthy: empty() }
           const recorded: { kind: Kind; h: RealHist }[] = []
-          for (const call of calls) await checkCall(target, call, states, recorded)
+          for (const call of calls) for (const rule of await checkCall(target, call, states, recorded)) reached.add(rule)
 
           const realDocs = await M.collection.find({}).toArray()
           const realStore = realDocs.map((d) => [idOf(d._id), docKey(fieldsOf(d))]).sort()
@@ -338,6 +380,8 @@ export const createHarness = () => {
       )
       .finally(() => rejectHistoryWrites(false))
     expect(sequences).toBe(numRuns)
+    const expected = omit.id ? [...ALWAYS_REACHED, 'Update from a document with only omitted fields'] : ALWAYS_REACHED
+    expect(expected.filter((rule) => !reached.has(rule))).toEqual([])
   }
 
   return { seen, pluginOptions, history, checkSequences }

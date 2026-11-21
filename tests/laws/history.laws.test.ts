@@ -50,13 +50,12 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
   })
 
   // Every configuration gets its own run budget, so a rule that only one of them reaches is not left to the draw.
-  it.each(models)(
-    '$label: each call writes the history and events the model writes, the store is the model store, and history replays to it',
-    async (target) => {
+  // A plain loop: it.each cuts $label at 40 characters, which made two configurations share a name.
+  for (const target of models) {
+    it(`${target.label}: each call writes the history and events the model writes, the store is the model store, and history replays to it`, async () => {
       await checkSequences(target, 60)
-    },
-    120_000,
-  )
+    }, 120_000)
+  }
 
   // Characterization: the updated event's doc keeps each $unset field as a key whose value is undefined.
   it('characterization: the updated event lists unset fields as undefined keys', async () => {
