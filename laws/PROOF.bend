@@ -1023,6 +1023,203 @@ def Laws.omit_only_change_silent(c, keys, i, store, hist, evs, id, doc, old, f, 
   %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {Some{old} : Maybe<+List<P.Entry>>}, e) : {Spec.records(Hs.update_pick(_, c, Hs.Omit{keys, i}, f, id, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}
   oocs_hook(Hs.skipped(f), c, keys, i, f, id, old, doc, store, hist, evs, d, s)
 
+# ---- omitted keys never reach history ----
+
+# strip_lacks, one entry: an entry that strip keeps has a key the omit option does not list, so not k.
+def strip_lacks_keep(be: Bool, +keys: +List<Nat>, +j: Nat, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, +q: {Hs.mem(keys, j) == False{} : Bool}, -t: +List<P.Entry>, +e: {Nat.is_eq(j, k) == be : Bool}, ih: {Spec.has_key(Hs.strip(keys, t), k) == False{} : Bool}) -> {Bool.or(be, Spec.has_key(Hs.strip(keys, t), k)) == False{} : Bool}:
+  match be:
+    case True{}:
+      qk = {(%is_eq_true_eq(j, k, e) : {Hs.mem(keys, _) == False{} : Bool}; q) : {Hs.mem(keys, k) == False{} : Bool}}
+      Empty.absurd({True{} == False{} : Bool}, false_ne_true(Equal.trans(Bool, False{}, Hs.mem(keys, k), True{}, Equal.sym(Bool, Hs.mem(keys, k), False{}, qk), m)))
+    case False{}:
+      ih
+
+def strip_lacks_entry(bm: Bool, +keys: +List<Nat>, +j: Nat, +v: Nat, t: +List<P.Entry>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, +q: {Hs.mem(keys, j) == bm : Bool}, ih: {Spec.has_key(Hs.strip(keys, t), k) == False{} : Bool}) -> {Spec.has_key(Hs.strip_pick(bm, P.E{j, v}, Hs.strip(keys, t)), k) == False{} : Bool}:
+  match bm:
+    case True{}:
+      ih
+    case False{}:
+      strip_lacks_keep(Nat.is_eq(j, k), keys, j, k, m, q, t, {==}, ih)
+
+# LEMMA: a document stripped of the omitted keys has none of them.
+def strip_lacks(+keys: +List<Nat>, d: +List<P.Entry>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}) -> {Spec.has_key(Hs.strip(keys, d), k) == False{} : Bool}:
+  match d:
+    case Nil{}:
+      {==}
+    case Con{P.E{+j, +v}, +t}:
+      strip_lacks_entry(Hs.mem(keys, j), keys, j, v, t, k, m, {==}, strip_lacks(keys, t, k, m))
+
+# No operation of ops is on key k.
+def NoKey(ops: List<P.Op>, +k: Nat) -> Type:
+  match ops:
+    case Nil{}:
+      Unit
+    case Con{o, t}:
+      {Nat.is_eq(Spec.op_key(o), k) == False{} : Bool} & NoKey(t, k)
+
+# LEMMA: ops with no operation on k mention no k once kept as data.
+def no_key_mention(ops: List<P.Op>, +k: Nat, nk: NoKey(ops, k)) -> {Spec.ops_mention(Hs.ops_data(ops), k) == False{} : Bool}:
+  match ops:
+    case Nil{}:
+      {==}
+    case Con{+o, t}:
+      (e, nt) = nk
+      %Equal.sym(Bool, Nat.is_eq(Spec.op_key(o), k), False{}, e) : {Bool.or(_, Spec.ops_mention(Hs.ops_data(t), k)) == False{} : Bool}
+      no_key_mention(t, k, nt)
+
+def no_key_append(x: List<P.Op>, y: List<P.Op>, +k: Nat, nx: NoKey(x, k), ny: NoKey(y, k)) -> NoKey(List.append(&1, P.Op, x, y), k):
+  match x:
+    case Nil{}:
+      ny
+    case Con{+o, t}:
+      (e, nt) = nx
+      (e, no_key_append(t, y, k, nt, ny))
+
+def nk_same(bb: Bool, +j: Nat, +w: Nat, +k: Nat, +e: {Nat.is_eq(j, k) == False{} : Bool}) -> NoKey(P.diff_same(bb, j, w), k):
+  match bb:
+    case True{}:
+      Unit{}
+    case False{}:
+      (e, Unit{})
+
+def nk_one(mm: Maybe<Nat>, +j: Nat, +v: Nat, +k: Nat, +e: {Nat.is_eq(j, k) == False{} : Bool}) -> NoKey(P.diff_one_pick(mm, j, v), k):
+  match mm:
+    case None{}:
+      (e, Unit{})
+    case Some{+w}:
+      nk_same(Nat.is_eq(v, w), j, w, k, e)
+
+def nk_added_one(mm: Maybe<Nat>, +j: Nat, +w: Nat, +k: Nat, +e: {Nat.is_eq(j, k) == False{} : Bool}) -> NoKey(P.diff_added_pick(mm, j, w), k):
+  match mm:
+    case None{}:
+      (e, Unit{})
+    case Some{y}:
+      Unit{}
+
+def nk_source_entry(be: Bool, +j: Nat, +v: Nat, +t: +List<P.Entry>, +b: +List<P.Entry>, +k: Nat, h: {Bool.or(be, Spec.has_key(t, k)) == False{} : Bool}, +e: {Nat.is_eq(j, k) == be : Bool}, ih: @h2: {Spec.has_key(t, k) == False{} : Bool} -> NoKey(P.diff_source(t, b), k)) -> NoKey(List.append(&1, P.Op, P.diff_one_pick(P.lookup(b, j), j, v), P.diff_source(t, b)), k):
+  match be:
+    case True{}:
+      Empty.absurd(NoKey(List.append(&1, P.Op, P.diff_one_pick(P.lookup(b, j), j, v), P.diff_source(t, b)), k), false_ne_true(Equal.sym(Bool, True{}, False{}, h)))
+    case False{}:
+      no_key_append(P.diff_one_pick(P.lookup(b, j), j, v), P.diff_source(t, b), k, nk_one(P.lookup(b, j), j, v, k, e), ih(h))
+
+# LEMMA: diff removes and replaces only keys of the source.
+def nk_source(a: +List<P.Entry>, +b: +List<P.Entry>, +k: Nat, h: {Spec.has_key(a, k) == False{} : Bool}) -> NoKey(P.diff_source(a, b), k):
+  match a:
+    case Nil{}:
+      Unit{}
+    case Con{P.E{+j, +v}, +t}:
+      nk_source_entry(Nat.is_eq(j, k), j, v, t, b, k, h, {==}, h2 => nk_source(t, b, k, h2))
+
+def nk_added_entry(be: Bool, +j: Nat, +w: Nat, +t: +List<P.Entry>, +a: +List<P.Entry>, +k: Nat, h: {Bool.or(be, Spec.has_key(t, k)) == False{} : Bool}, +e: {Nat.is_eq(j, k) == be : Bool}, ih: @h2: {Spec.has_key(t, k) == False{} : Bool} -> NoKey(P.diff_added(t, a), k)) -> NoKey(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, j), j, w), P.diff_added(t, a)), k):
+  match be:
+    case True{}:
+      Empty.absurd(NoKey(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, j), j, w), P.diff_added(t, a)), k), false_ne_true(Equal.sym(Bool, True{}, False{}, h)))
+    case False{}:
+      no_key_append(P.diff_added_pick(P.lookup(a, j), j, w), P.diff_added(t, a), k, nk_added_one(P.lookup(a, j), j, w, k, e), ih(h))
+
+# LEMMA: diff adds only keys of the target.
+def nk_added(b: +List<P.Entry>, +a: +List<P.Entry>, +k: Nat, h: {Spec.has_key(b, k) == False{} : Bool}) -> NoKey(P.diff_added(b, a), k):
+  match b:
+    case Nil{}:
+      Unit{}
+    case Con{P.E{+j, +w}, +t}:
+      nk_added_entry(Nat.is_eq(j, k), j, w, t, a, k, h, {==}, h2 => nk_added(t, a, k, h2))
+
+# LEMMA: a diff of two documents without k has no operation on k.
+def nk_diff(+a: +List<P.Entry>, +b: +List<P.Entry>, +k: Nat, ha: {Spec.has_key(a, k) == False{} : Bool}, hb: {Spec.has_key(b, k) == False{} : Bool}) -> NoKey(P.diff(a, b), k):
+  no_key_append(P.diff_source(a, b), P.diff_added(b, a), k, nk_source(a, b, k, ha), nk_added(b, a, k, hb))
+
+# An entry whose document and patch lack k does not mention it.
+def hm_one(+kind: Hs.HOp, +id: Nat, +v: Nat, +d: +List<P.Entry>, +p: +List<P.Op>, +k: Nat, hd: {Spec.has_key(d, k) == False{} : Bool}, hp: {Spec.ops_mention(p, k) == False{} : Bool}) -> {Spec.hist_mentions([Hs.H{kind, id, v, d, p}], k) == False{} : Bool}:
+  %Equal.sym(Bool, Spec.has_key(d, k), False{}, hd) : {Bool.or(_, Bool.or(Spec.ops_mention(p, k), False{})) == False{} : Bool}
+  %Equal.sym(Bool, Spec.ops_mention(p, k), False{}, hp) : {Bool.or(False{}, Bool.or(_, False{})) == False{} : Bool}
+  {==}
+
+def hm_cons(a: Bool, b: Bool, +rest: +List<Hs.Hist>, +h: Hs.Hist, +k: Nat, q: {Bool.or(a, Bool.or(b, Spec.hist_mentions(rest, k))) == False{} : Bool}, ih: @q2: {Spec.hist_mentions(rest, k) == False{} : Bool} -> {Spec.hist_mentions(Hs.append_hist(rest, h), k) == False{} : Bool}) -> {Bool.or(a, Bool.or(b, Spec.hist_mentions(Hs.append_hist(rest, h), k))) == False{} : Bool}:
+  match a:
+    case True{}:
+      Empty.absurd({True{} == False{} : Bool}, false_ne_true(Equal.sym(Bool, True{}, False{}, q)))
+    case False{}:
+      match b:
+        case True{}:
+          Empty.absurd({True{} == False{} : Bool}, false_ne_true(Equal.sym(Bool, True{}, False{}, q)))
+        case False{}:
+          ih(q)
+
+# LEMMA: appending an entry that does not mention k to a history that does not keeps it so.
+def hm_append(hist: +List<Hs.Hist>, +h: Hs.Hist, +k: Nat, q: {Spec.hist_mentions(hist, k) == False{} : Bool}, hh: {Spec.hist_mentions([h], k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.append_hist(hist, h), k) == False{} : Bool}:
+  match hist:
+    case Nil{}:
+      hh
+    case Con{Hs.H{+kind, +id, +v, +d, +p}, +rest}:
+      hm_cons(Spec.has_key(d, k), Spec.ops_mention(p, k), rest, h, k, q, q2 => hm_append(rest, h, k, q2, hh))
+
+def hm_when(bw: Bool, +hist: +List<Hs.Hist>, +h: Hs.Hist, +k: Nat, q: {Spec.hist_mentions(hist, k) == False{} : Bool}, hh: {Spec.hist_mentions([h], k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.when_hist(bw, hist, h), k) == False{} : Bool}:
+  match bw:
+    case True{}:
+      hm_append(hist, h, k, q, hh)
+    case False{}:
+      q
+
+def onr_create(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.create_pick(found, c, Hs.Omit{keys, i}, id, doc, store, hist, evs)), k) == False{} : Bool}:
+  match found:
+    case Some{old}:
+      q
+    case None{}:
+      hm_when(Hs.cfg_history(c), hist, Hs.H{Hs.KCreate{}, id, 0n, Hs.strip(keys, doc), []}, k, q, hm_one(Hs.KCreate{}, id, 0n, Hs.strip(keys, doc), [], k, strip_lacks(keys, doc, k, m), {==}))
+
+def onr_write(ops: +List<P.Op>, +c: Hs.Cfg, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, q: {Spec.hist_mentions(hist, k) == False{} : Bool}, hp: {Spec.ops_mention(ops, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.update_write(ops, c, f, id, old, doc, store, hist, evs)), k) == False{} : Bool}:
+  match ops:
+    case Nil{}:
+      q
+    case Con{+o, +os}:
+      hm_when(Hs.writes(c, f), hist, Hs.H{Hs.KUpdate{}, id, Hs.next_version(Hs.top_version(hist, id)), [], o <> os}, k, q, hm_one(Hs.KUpdate{}, id, Hs.next_version(Hs.top_version(hist, id)), [], o <> os, k, {==}, hp))
+
+def onr_omit(none: Bool, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.update_omit(none, c, Hs.Omit{keys, i}, f, id, old, doc, store, hist, evs)), k) == False{} : Bool}:
+  match none:
+    case True{}:
+      q
+    case False{}:
+      onr_write(Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))), c, f, id, old, doc, store, hist, evs, k, q, no_key_mention(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)), k, nk_diff(Hs.strip(keys, old), Hs.strip(keys, doc), k, strip_lacks(keys, old, k, m), strip_lacks(keys, doc, k, m))))
+
+def onr_hook(skip: Bool, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.update_hook(skip, c, Hs.Omit{keys, i}, f, id, old, doc, store, hist, evs)), k) == False{} : Bool}:
+  match skip:
+    case True{}:
+      q
+    case False{}:
+      onr_omit(Hs.blank(Hs.Omit{keys, i}, old, doc), c, keys, i, f, id, old, doc, store, hist, evs, k, m, q)
+
+def onr_update(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.update_pick(found, c, Hs.Omit{keys, i}, f, id, doc, store, hist, evs)), k) == False{} : Bool}:
+  match found:
+    case None{}:
+      q
+    case Some{+old}:
+      onr_hook(Hs.skipped(f), c, keys, i, f, id, old, doc, store, hist, evs, k, m, q)
+
+def onr_delete_hook(skip: Bool, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.delete_hook(skip, c, Hs.Omit{keys, i}, f, id, old, store, hist, evs)), k) == False{} : Bool}:
+  match skip:
+    case True{}:
+      q
+    case False{}:
+      hm_when(Hs.writes(c, f), hist, Hs.H{Hs.KDelete{}, id, 0n, Hs.strip(keys, old), []}, k, q, hm_one(Hs.KDelete{}, id, 0n, Hs.strip(keys, old), [], k, strip_lacks(keys, old, k, m), {==}))
+
+def onr_delete(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +k: Nat, +m: {Hs.mem(keys, k) == True{} : Bool}, q: {Spec.hist_mentions(hist, k) == False{} : Bool}) -> {Spec.hist_mentions(Hs.hist_of(Hs.delete_pick(found, c, Hs.Omit{keys, i}, f, id, store, hist, evs)), k) == False{} : Bool}:
+  match found:
+    case None{}:
+      q
+    case Some{+old}:
+      onr_delete_hook(Hs.skipped(f), c, keys, i, f, id, old, store, hist, evs, k, m, q)
+
+def Laws.omitted_never_recorded(c, keys, i, store, hist, evs, cmd, k, m, q):
+  match cmd:
+    case Hs.Create{+id, +doc}:
+      onr_create(Hs.find(store, id), c, keys, i, id, doc, store, hist, evs, k, m, q)
+    case Hs.Update{+id, +doc, +f}:
+      onr_update(Hs.find(store, id), c, keys, i, f, id, doc, store, hist, evs, k, m, q)
+    case Hs.Delete{+id, +f}:
+      onr_delete(Hs.find(store, id), c, keys, i, f, id, store, hist, evs, k, m, q)
+
 def Laws.store_independent(cmds, c, st):
   match cmds st:
     case Nil{} Hs.S{+store, +hist, +evs}:

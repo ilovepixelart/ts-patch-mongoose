@@ -294,7 +294,7 @@ export const createHarness = () => {
     expect(written.map((h) => h.op).filter((op) => op !== OP_NAMES[call.kind])).toEqual([])
     expect(bag(written.map((h) => fromRealHist(h, kind)))).toEqual(bag(fromList(next.hist).slice(fromList(states.state.hist).length).map(fromModelHist)))
     expect(bag(seen.slice(evsBefore).map(fromRealEv))).toEqual(bag(fromList(next.evs).slice(fromList(states.state.evs).length).map(fromModelEv)))
-    // Independent of the model (CLAIMS.bend: omitted_never_recorded): no entry holds an omitted key.
+    // Independent of the model (LAWS.bend: omitted_never_recorded): no entry holds an omitted key.
     expect(written.flatMap((h) => Object.keys(h.doc ?? {}).filter((k) => omitted.includes(k)))).toEqual([])
     expect(written.flatMap((h) => (h.patch ?? []).filter((op) => omitted.includes(op.path.slice(1))))).toEqual([])
     recorded.push(...written.map((h) => ({ kind, h })))

@@ -119,6 +119,21 @@ law store_independent:
   for st: Hs.State
   {Hs.store_of(Hs.run(cmds, c, st)) == Spec.store_run(cmds, Hs.store_of(st)) : +List<Hs.Rec>}
 
+# LAW: a key the omit option lists never reaches history: no command records it in an entry's
+# document or patch.
+law omitted_never_recorded:
+  for +c: Hs.Cfg
+  for +keys: +List<Nat>
+  for +i: Bool
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for cmd: Hs.Cmd
+  for +k: Nat
+  for +m: {Hs.mem(keys, k) == True{} : Bool}
+  for q: {Spec.hist_mentions(hist, k) == False{} : Bool}
+  {Spec.hist_mentions(Hs.hist_of(Hs.step_with(c, Hs.Omit{keys, i}, Hs.S{store, hist, evs}, cmd)), k) == False{} : Bool}
+
 # LAW: an update that changes only omitted keys records no history entry and emits no event.
 law omit_only_change_silent:
   for +c: Hs.Cfg

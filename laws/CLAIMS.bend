@@ -24,21 +24,6 @@ law replay_matches_store:
 
 # ---- omit ----
 
-# CLAIM: a key the omit option lists never reaches history: no command records it in an entry's
-# document or patch.
-law omitted_never_recorded:
-  for +c: Hs.Cfg
-  for +keys: +List<Nat>
-  for +i: Bool
-  for +store: +List<Hs.Rec>
-  for +hist: +List<Hs.Hist>
-  for +evs: +List<Hs.Ev>
-  for cmd: Hs.Cmd
-  for +k: Nat
-  for -m: {Hs.mem(keys, k) == True{} : Bool}
-  for -q: {Spec.hist_mentions(hist, k) == False{} : Bool}
-  {Spec.hist_mentions(Hs.hist_of(Hs.step_with(c, Hs.Omit{keys, i}, Hs.S{store, hist, evs}, cmd)), k) == False{} : Bool}
-
 # CLAIM: with fields omitted (and _id kept), replaying a document's history gives the stored document
 # without its omitted fields, key by key. History is on and no switch is set.
 law replay_matches_omitted_store:
