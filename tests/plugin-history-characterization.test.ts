@@ -134,13 +134,17 @@ describe('history characterization (no session)', () => {
       expect(events).toEqual([{ name: UPDATED, data: { oldDoc: { _id: id, name: 'a', count: 0, __v: 0 }, doc: { _id: id, name: 'a', count: 5, __v: 0 }, patch: replace('/count', 0, 5) } }])
     })
 
-    it('Model.create of two documents stores two create entries in input order', async () => {
+    // Each document's entry is written once its own save succeeds, so the order follows the writes.
+    it('Model.create of two documents stores one create entry per document', async () => {
       const [a, b] = await ItemModel.create([{ name: 'a' }, { name: 'b' }])
       const rows = await entries()
-      expect(rows.map((r) => [r.op, r.collectionId, (r.doc as Entry).name, r.version])).toEqual([
-        ['create', idOf(a as never), 'a', 0],
-        ['create', idOf(b as never), 'b', 0],
-      ])
+      expect(rows.map((r) => [r.op, r.collectionId, (r.doc as Entry).name, r.version])).toEqual(
+        expect.arrayContaining([
+          ['create', idOf(a as never), 'a', 0],
+          ['create', idOf(b as never), 'b', 0],
+        ]),
+      )
+      expect(rows).toHaveLength(2)
     })
 
     it('insertMany stores one create entry per document in input order and emits created in that order', async () => {
@@ -316,17 +320,17 @@ describe('history characterization (no session)', () => {
       return recorded
     }
 
-    it('save of a new document writes history with one bulkWrite before the insert', async () => {
+    it('save of a new document inserts it, then writes history with one bulkWrite', async () => {
       const { commands, sessionKeys } = await run(() => new ItemModel({ name: 'a' }).save())
-      expect(commands).toEqual(['history.bulkWrite', 'charitems.insertOne'])
+      expect(commands).toEqual(['charitems.insertOne', 'history.bulkWrite'])
       expect(sessionKeys).toEqual([])
     })
 
-    it('save of an existing document reads the original and the last version, then inserts the entry', async () => {
+    it('save of an existing document reads the original, updates it, then reads the last version and inserts the entry', async () => {
       const doc = await ItemModel.create({ name: 'a' })
       doc.count = 1
       const { commands, sessionKeys } = await run(() => doc.save())
-      expect(commands).toEqual(['charitems.findOne', 'history.findOne', 'history.insertOne', 'charitems.updateOne'])
+      expect(commands).toEqual(['charitems.findOne', 'charitems.updateOne', 'history.findOne', 'history.insertOne'])
       expect(sessionKeys).toEqual([])
     })
 

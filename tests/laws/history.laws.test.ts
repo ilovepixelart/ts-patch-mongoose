@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import mongoose from 'mongoose'
-import { patchHistoryPlugin } from '../../src/index'
+import { patchEventEmitter, patchHistoryPlugin } from '../../src/index'
 import server from '../mongo/server'
 import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
 
@@ -141,10 +141,7 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(seen).toEqual([])
   })
 
-  // Characterization: save records in pre('save'), so a create whose insert fails on a duplicate _id still
-  // writes a create entry and emits created, and replaying the history gives the rejected document.
-  // The law tests leave out creates of a live id; with the defect fixed, drop both.
-  it('characterization: a create that fails on a duplicate _id records the rejected document', async () => {
+  it('a create that fails on a duplicate _id records nothing', async () => {
     const { M, name } = models[0]
     await M.collection.deleteMany({})
     await history().deleteMany({})
@@ -154,14 +151,33 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     const stored = await M.collection.find({}).toArray()
     const entries = await history().find({ modelName: name }).sort({ _id: 1 }).toArray()
     expect(stored.map((d) => [idOf(d._id), fieldsOf(d)])).toEqual([[1, { f0: 0 }]])
-    expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([
-      ['create', 1, { f0: 0 }],
-      ['create', 1, { f0: 3 }],
+    expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([['create', 1, { f0: 0 }]])
+    expect(seen.map((e) => [e.kind, fieldsOf(e.payload.doc)])).toEqual([['ECreated', { f0: 0 }]])
+  })
+
+  it('a save of an existing document that fails on a unique index records nothing', async () => {
+    const schema = new mongoose.Schema<LawDoc>({ f0: { type: Number, unique: true }, f1: Number })
+    schema.plugin(patchHistoryPlugin, { omit: ['__v'], eventUpdated: 'law-unique-updated' })
+    const Unique = mongoose.model<LawDoc>('LawDocUnique', schema)
+    await Unique.init()
+    await history().deleteMany({})
+    const updated: unknown[] = []
+    const listener = (event: unknown) => updated.push(event)
+    patchEventEmitter.on('law-unique-updated', listener)
+    try {
+      await Unique.create({ _id: oid(1), f0: 1 })
+      const doc = await Unique.create({ _id: oid(2), f0: 2 })
+      doc.f0 = 1
+      await expect(doc.save()).rejects.toThrow(/E11000/)
+    } finally {
+      patchEventEmitter.off('law-unique-updated', listener)
+    }
+    const entries = await history().find({ modelName: 'LawDocUnique' }).toArray()
+    expect(entries.map((h) => [h.op, idOf(h.collectionId)]).sort()).toEqual([
+      ['create', 1],
+      ['create', 2],
     ])
-    expect(seen.map((e) => [e.kind, fieldsOf(e.payload.doc)])).toEqual([
-      ['ECreated', { f0: 0 }],
-      ['ECreated', { f0: 3 }],
-    ])
+    expect(updated).toEqual([])
   })
 
   // Characterization: an ordered insertMany that stops at a duplicate _id stores the documents before
