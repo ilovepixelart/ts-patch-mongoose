@@ -50,6 +50,20 @@ describe('json-patch compare', () => {
       const patch = compare({ n: 1 }, { n: 2 })
       expect(patch).toEqual([{ op: 'replace', path: '/n', value: 2 }])
     })
+
+    it('keeps NaN and Infinity replacement values rather than turning them into null', () => {
+      expect(compare({ n: 1, m: 1 }, { n: Number.NaN, m: Number.POSITIVE_INFINITY })).toEqual([
+        { op: 'replace', path: '/m', value: Number.POSITIVE_INFINITY },
+        { op: 'replace', path: '/n', value: Number.NaN },
+      ])
+    })
+
+    it('tests a removed key whose value is undefined against null', () => {
+      expect(compare({ a: 1, b: undefined }, { a: 1 }, true)).toEqual([
+        { op: 'test', path: '/b', value: null },
+        { op: 'remove', path: '/b' },
+      ])
+    })
   })
 
   // --- normalizeTarget ---
@@ -118,6 +132,18 @@ describe('json-patch compare', () => {
     it('skips new keys whose value is explicitly undefined', () => {
       const patch = compare({ a: 1 }, { a: 1, b: undefined })
       expect(patch).toEqual([])
+    })
+
+    it('emits nothing for a key whose value is undefined on both sides', () => {
+      const patch = compare({ a: 1, b: undefined }, { a: 1, b: undefined })
+      expect(patch).toEqual([])
+    })
+
+    // Characterization: a source key holding undefined is absent from the source's JSON, yet a target
+    // without the key still gets a remove for it, and RFC 6902 requires a removed location to exist.
+    it('characterization: removes a source key whose value is undefined when the target lacks it', () => {
+      const patch = compare({ a: 1, b: undefined }, { a: 1 })
+      expect(patch).toEqual([{ op: 'remove', path: '/b' }])
     })
   })
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { splitUpdateAndCommands } from '../src/hooks/update-hooks'
+import mongoose from 'mongoose'
+import { assignUpdate, splitUpdateAndCommands } from '../src/hooks/update-hooks'
 
 describe('splitUpdateAndCommands', () => {
   it('returns empty update and no commands for null input', () => {
@@ -29,5 +30,15 @@ describe('splitUpdateAndCommands', () => {
     const result = splitUpdateAndCommands({ $set: { name: 'x' } })
     expect(result.update).toEqual({})
     expect(result.commands).toEqual([{ $set: { name: 'x' } }])
+  })
+})
+
+describe('assignUpdate', () => {
+  const Doc = mongoose.model('AssignUpdateDoc', new mongoose.Schema({ name: String }))
+
+  it('ignores a command whose fields are undefined', () => {
+    const doc = new Doc({ name: 'a' })
+    const result = assignUpdate(doc, {}, [{ $set: undefined }]) as unknown as { name: string }
+    expect(result.name).toBe('a')
   })
 })

@@ -18,6 +18,17 @@ const docArb: fc.Arbitrary<Record<string, unknown>> = fc.dictionary(keyArb, leaf
 
 const intArrayArb = fc.array(intArb, { maxLength: 8 })
 
+// An array and a value that is in it about half the time: an independent integer almost never is.
+const arrayAndValueArb = intArrayArb.chain((arr) => fc.tuple(fc.constant(arr), arr.length > 0 ? fc.oneof(fc.constantFrom(...arr), intArb) : intArb))
+
+// An array and targets taken partly from it, partly not.
+const arrayAndTargetsArb = intArrayArb.chain((arr) =>
+  fc.tuple(
+    fc.constant(arr),
+    fc.tuple(fc.subarray(arr), fc.array(intArb, { maxLength: 3 })).map(([taken, other]) => [...taken, ...other]),
+  ),
+)
+
 // ---------- $set / $unset ----------
 
 describe('applyUpdate — $set / $unset properties', () => {
@@ -118,31 +129,30 @@ describe('applyUpdate — array operator properties', () => {
     )
   })
 
-  it('$addToSet is idempotent: adding the same value twice equals adding it once', () => {
+  it('$addToSet appends a value only when it is absent, and is idempotent', () => {
     fc.assert(
-      fc.property(keyArb, intArrayArb, intArb, (key, arr, value) => {
+      fc.property(keyArb, arrayAndValueArb, (key, [arr, value]) => {
         const once = applyUpdate({ [key]: arr }, { $addToSet: { [key]: value } })
-        const twice = applyUpdate(once, { $addToSet: { [key]: value } })
-        expect(JSON.stringify(twice[key])).toBe(JSON.stringify(once[key]))
+        expect(once[key]).toEqual(arr.includes(value) ? arr : [...arr, value])
+        expect(applyUpdate(once, { $addToSet: { [key]: value } })[key]).toEqual(once[key])
       }),
     )
   })
 
-  it('$pull removes every matching element — result never contains the matcher', () => {
+  it('$pull keeps exactly the elements that differ from the matcher, in order', () => {
     fc.assert(
-      fc.property(keyArb, intArrayArb, intArb, (key, arr, value) => {
+      fc.property(keyArb, arrayAndValueArb, (key, [arr, value]) => {
         const result = applyUpdate({ [key]: arr }, { $pull: { [key]: value } })
-        expect((result[key] as unknown[]).some((v) => v === value)).toBe(false)
+        expect(result[key]).toEqual(arr.filter((v) => v !== value))
       }),
     )
   })
 
-  it('$pullAll removes every element of the target set', () => {
+  it('$pullAll keeps exactly the elements that are not targets, in order', () => {
     fc.assert(
-      fc.property(keyArb, intArrayArb, intArrayArb, (key, arr, targets) => {
+      fc.property(keyArb, arrayAndTargetsArb, (key, [arr, targets]) => {
         const result = applyUpdate({ [key]: arr }, { $pullAll: { [key]: targets } })
-        const after = result[key] as unknown[]
-        for (const t of targets) expect(after.includes(t)).toBe(false)
+        expect(result[key]).toEqual(arr.filter((v) => !targets.includes(v)))
       }),
     )
   })
@@ -181,20 +191,24 @@ describe('applyUpdate — array operator properties', () => {
 // ---------- $min / $max ----------
 
 describe('applyUpdate — $min / $max properties', () => {
-  it('$min never produces a value greater than min(seed, candidate)', () => {
+  // MongoDB: $min "updates the value of the field to a specified value if the specified value is less
+  // than the current value" ($max: greater). Strictly, so an equal candidate (0 against -0) keeps it.
+  it('$min stores the candidate only when it is less than the stored value', () => {
     fc.assert(
       fc.property(keyArb, finiteNumberArb, finiteNumberArb, (key, seed, candidate) => {
         const result = applyUpdate({ [key]: seed }, { $min: { [key]: candidate } })
-        expect(result[key]).toBeLessThanOrEqual(Math.min(seed, candidate))
+        // biome-ignore lint/complexity/useMathMinMax: Math.min(0, -0) is -0, while $min keeps an equal stored value
+        expect(result[key]).toBe(candidate < seed ? candidate : seed)
       }),
     )
   })
 
-  it('$max never produces a value less than max(seed, candidate)', () => {
+  it('$max stores the candidate only when it is greater than the stored value', () => {
     fc.assert(
       fc.property(keyArb, finiteNumberArb, finiteNumberArb, (key, seed, candidate) => {
         const result = applyUpdate({ [key]: seed }, { $max: { [key]: candidate } })
-        expect(result[key]).toBeGreaterThanOrEqual(Math.max(seed, candidate))
+        // biome-ignore lint/complexity/useMathMinMax: Math.max(0, -0) is -0, while $max keeps an equal stored value
+        expect(result[key]).toBe(candidate > seed ? candidate : seed)
       }),
     )
   })

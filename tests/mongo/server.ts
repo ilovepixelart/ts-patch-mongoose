@@ -1,28 +1,21 @@
-import fs from 'node:fs'
-import { MongoMemoryServer } from 'mongodb-memory-server'
+import { inject } from 'vitest'
+
 import mongoose from 'mongoose'
 
+// Connects to the run's replica set (tests/mongo/global-setup.ts) with a database of its own, and
+// drops only that database when done.
 const server = (dbName: string) => {
-  let mongo: MongoMemoryServer
-  const dbPath = `./tests/mongo/${dbName}`
-
   const create = async () => {
-    fs.mkdirSync(dbPath, { recursive: true })
-    mongo = await MongoMemoryServer.create({
-      instance: {
-        dbName,
-        dbPath,
-      },
-    })
-
-    const uri = mongo.getUri()
-    await mongoose.connect(uri)
+    await mongoose.connect(inject('mongoUri'), { dbName })
+    // Connecting starts building every registered model's collection and indexes without waiting for
+    // it; on the shared server, with every file doing the same, that takes seconds. Finishing it
+    // here keeps it out of the first test's time limit.
+    await Promise.all(Object.values(mongoose.models).map((model) => model.init()))
   }
 
   const destroy = async () => {
     await mongoose.connection.dropDatabase()
     await mongoose.connection.close()
-    await mongo.stop({ doCleanup: true, force: true })
   }
 
   return { create, destroy }

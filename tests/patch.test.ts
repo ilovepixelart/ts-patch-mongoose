@@ -1,9 +1,9 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose from 'mongoose'
 import em from '../src/em'
 import { patchHistoryPlugin } from '../src/index'
-import { bulkPatch, getData, getJsonOmit, getMetadata, getReason, getUser, getValue, updatePatch } from '../src/patch'
+import { bulkPatch, getData, getJsonOmit, getMetadata, getObjectOmit, getReason, getUser, getValue, updatePatch } from '../src/patch'
 import { USER_DELETED } from './constants/events'
 import server from './mongo/server'
 import { type User, UserSchema } from './schemas/User'
@@ -34,10 +34,6 @@ describe('patch tests', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('patches').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   describe('getObjects', () => {
@@ -80,7 +76,38 @@ describe('patch tests', () => {
     })
   })
 
+  describe('getObjectOmit', () => {
+    // Characterization: a missing document passes through instead of throwing.
+    it('characterization: returns a null document as is', () => {
+      expect(getObjectOmit({}, null as unknown as HydratedDocument<User>)).toBeNull()
+    })
+  })
+
   describe('bulkPatch', () => {
+    it('does not call getUser, getReason or getMetadata when history is disabled', async () => {
+      const doc = new UserModel({ name: 'John', role: 'user' })
+      const getters = { getUser: vi.fn(), getReason: vi.fn(), getMetadata: vi.fn() }
+      const context: PatchContext<User> = { op: 'deleteOne', modelName: 'User', collectionName: 'users', deletedDocs: [doc] }
+
+      await bulkPatch({ eventDeleted: USER_DELETED, patchHistoryDisabled: true, ...getters }, context, 'eventDeleted', 'deletedDocs')
+
+      expect(em.emit).toHaveBeenCalled()
+      expect([getters.getUser, getters.getReason, getters.getMetadata].map((fn) => fn.mock.calls.length)).toEqual([0, 0, 0])
+    })
+
+    it('writes one entry per document and no user, reason or metadata keys when no getter is set', async () => {
+      await mongoose.connection.collection('history').deleteMany({})
+      const doc = new UserModel({ name: 'John', role: 'user' })
+      const onError = vi.fn()
+      const context: PatchContext<User> = { op: 'deleteOne', modelName: 'User', collectionName: 'users', deletedDocs: [doc] }
+
+      await bulkPatch({ onError }, context, 'eventDeleted', 'deletedDocs')
+
+      const rows = await mongoose.connection.collection('history').find({}).toArray()
+      expect(onError).not.toHaveBeenCalled()
+      expect(rows.map((row) => [row.op, String(row.collectionId), ['user', 'reason', 'metadata'].filter((key) => Object.hasOwn(row, key))])).toEqual([['deleteOne', String(doc._id), []]])
+    })
+
     it('should emit eventDeleted if opts.patchHistoryDisabled is false', async () => {
       const doc = new UserModel({ name: 'John', role: 'user' })
 
@@ -143,6 +170,12 @@ describe('patch tests', () => {
   })
 
   describe('should getUser()', () => {
+    it('should return undefined when no getter is set', async () => {
+      await expect(getUser({})).resolves.toBeUndefined()
+      await expect(getReason({})).resolves.toBeUndefined()
+      await expect(getMetadata({})).resolves.toBeUndefined()
+    })
+
     it('should return user, reason, metadata', async () => {
       const opts: PluginOptions<User> = {
         getUser: () => ({ name: 'test' }),

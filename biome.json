@@ -3,7 +3,13 @@
   "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*.ts", "tests/**/*.ts", "e2e/**"]
+    "includes": [
+      "src/**/*.ts",
+      "tests/**/*.ts",
+      "e2e/**",
+      "laws/**",
+      "!laws/generated"
+    ]
   },
   "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
   "assist": {

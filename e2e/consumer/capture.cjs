@@ -2,17 +2,48 @@
 
 // Turns what a scenario observed into plain JSON. Only values that differ between two runs of
 // the same code are normalized: ObjectIds generated at runtime become #1, #2, ... in order of
-// first appearance, Dates become '<Date>'. Fixed ids (timestamp 0) are kept verbatim.
+// first appearance; times within a day of this run become '<Date>' for a Date, '<DateString>' for
+// the ISO string JSON makes of one (in patches) and '<Now>' for epoch milliseconds (Date.now() in
+// a patch); BSON Timestamps become '<Timestamp>'. A Date and its string stay distinguishable, and
+// fixed values (ids with timestamp 0, dates the fixtures set) are kept verbatim.
+
+const STARTED = Date.now()
+const DAY = 24 * 60 * 60 * 1000
 
 const isObjectId = (value) => value?._bsontype === 'ObjectId' || value?._bsontype === 'ObjectID'
+const isNow = (value) => Number.isInteger(value) && Math.abs(value - STARTED) < DAY
 const isDocument = (value) => typeof value?.$__ === 'object' && typeof value.toObject === 'function'
+// Exactly the strings Date#toJSON produces: they parse back to a Date that serializes to the same string.
+const isSerializedDate = (value) => {
+  const date = new Date(value)
+  return !Number.isNaN(date.getTime()) && date.toISOString() === value
+}
+
+const dateShape = (date) => {
+  const time = date.getTime()
+  if (Number.isNaN(time)) return 'Date(invalid)'
+  return isNow(time) ? '<Date>' : `Date(${date.toISOString()})`
+}
+
+// An object that only inherits from RegExp (a broken clone) has no source to print.
+const regExpShape = (re) => {
+  try {
+    return `RegExp(${RegExp.prototype.toString.call(re)})`
+  } catch {
+    return 'RegExp(invalid)'
+  }
+}
 
 const plain = (value) => {
   if (value === undefined) return '<undefined>'
   if (typeof value === 'bigint') return `${value}n`
+  if (typeof value === 'string' && isSerializedDate(value) && isNow(Date.parse(value))) return '<DateString>'
+  if (isNow(value)) return '<Now>'
   if (value === null || typeof value !== 'object') return value
   if (isObjectId(value)) return `ObjectId(${value.toHexString()})`
-  if (value instanceof Date) return '<Date>'
+  if (value._bsontype === 'Timestamp') return '<Timestamp>'
+  if (value instanceof Date) return dateShape(value)
+  if (value instanceof RegExp) return regExpShape(value)
   if (isDocument(value)) return plain(value.toObject())
   if (Array.isArray(value)) return Array.from(value, plain)
   const out = {}

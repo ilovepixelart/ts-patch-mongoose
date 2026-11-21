@@ -19,6 +19,7 @@ describe('applyUpdate', () => {
       expect(items[0]).toBe('a')
       expect(items[1]).toBeUndefined()
       expect(items[2]).toBe('c')
+      expect(Object.hasOwn(items, 1)).toBe(true)
     })
   })
 
@@ -36,6 +37,22 @@ describe('applyUpdate', () => {
     it('replaces when candidate is smaller than the current value', () => {
       const result = applyUpdate({ score: 10 }, { $min: { score: 3 } })
       expect(result).toEqual({ score: 3 })
+    })
+
+    it('sets the field when it holds undefined', () => {
+      const result = applyUpdate({ score: undefined }, { $min: { score: 5 } })
+      expect(result).toEqual({ score: 5 })
+    })
+
+    it('keeps the current value when the candidate is equal', () => {
+      const current = new Date(1000)
+      const result = applyUpdate({ at: current }, { $min: { at: new Date(1000) } })
+      expect(result.at).toBe(current)
+    })
+
+    it('creates the parent when a nested path is missing', () => {
+      const result = applyUpdate({}, { $min: { 'o.x': 5 } })
+      expect(result).toEqual({ o: { x: 5 } })
     })
   })
 
@@ -59,6 +76,22 @@ describe('applyUpdate', () => {
       const result = applyUpdate({ score: 10 }, { $max: { score: 5 } })
       expect(result).toEqual({ score: 10 })
     })
+
+    it('sets the field when it holds undefined', () => {
+      const result = applyUpdate({ score: undefined }, { $max: { score: 5 } })
+      expect(result).toEqual({ score: 5 })
+    })
+
+    it('keeps the current value when the candidate is equal', () => {
+      const current = new Date(1000)
+      const result = applyUpdate({ at: current }, { $max: { at: new Date(1000) } })
+      expect(result.at).toBe(current)
+    })
+
+    it('creates the parent when a nested path is missing', () => {
+      const result = applyUpdate({}, { $max: { 'o.x': 5 } })
+      expect(result).toEqual({ o: { x: 5 } })
+    })
   })
 
   describe('$addToSet with non-JSON-stringifiable values', () => {
@@ -67,6 +100,22 @@ describe('applyUpdate', () => {
       const bigB = BigInt(2)
       const result = applyUpdate({ values: [bigA] }, { $addToSet: { values: bigB } })
       expect((result as { values: unknown[] }).values).toEqual([bigA, bigB])
+    })
+
+    it('does not add a value that cannot be JSON-stringified when the same value is present', () => {
+      const big = BigInt(1)
+      const result = applyUpdate({ values: [big] }, { $addToSet: { values: big } })
+      expect((result as { values: unknown[] }).values).toEqual([big])
+    })
+
+    it('treats a non-array existing field as an empty array', () => {
+      const result = applyUpdate({ values: 'not-an-array' }, { $addToSet: { values: 'a' } })
+      expect(result).toEqual({ values: ['a'] })
+    })
+
+    it('adds null as a single value', () => {
+      const result = applyUpdate({ values: [1] }, { $addToSet: { values: null } })
+      expect((result as { values: unknown[] }).values).toEqual([1, null])
     })
   })
 
@@ -79,6 +128,11 @@ describe('applyUpdate', () => {
     it('treats a non-numeric value as 0 when incrementing', () => {
       const result = applyUpdate({ count: 'not-a-number' }, { $inc: { count: 3 } })
       expect(result).toEqual({ count: 3 })
+    })
+
+    it('replaces a null parent with an object holding the incremented field', () => {
+      const result = applyUpdate({ o: null }, { $inc: { 'o.x': 1 } })
+      expect(result).toEqual({ o: { x: 1 } })
     })
   })
 
@@ -104,6 +158,16 @@ describe('applyUpdate', () => {
       const result = applyUpdate({ tags: ['a'] }, { $push: { tags: { $each: ['b', 'c'] } } })
       expect(result).toEqual({ tags: ['a', 'b', 'c'] })
     })
+
+    it('appends null as a single value', () => {
+      const result = applyUpdate({ tags: ['a'] }, { $push: { tags: null } })
+      expect(result).toEqual({ tags: ['a', null] })
+    })
+
+    it('appends an object whose $each is not an array as a single value', () => {
+      const result = applyUpdate({ tags: ['a'] }, { $push: { tags: { $each: 'bc' } } })
+      expect(result).toEqual({ tags: ['a', { $each: 'bc' }] })
+    })
   })
 
   describe('$rename', () => {
@@ -128,6 +192,16 @@ describe('applyUpdate', () => {
       const result = applyUpdate({}, { $currentDate: { stamp: { $type: 'timestamp' } } })
       expect(typeof (result as { stamp: unknown }).stamp).toBe('number')
     })
+
+    it('sets a Date object when $type is "date"', () => {
+      const result = applyUpdate({}, { $currentDate: { stamp: { $type: 'date' } } })
+      expect((result as { stamp: unknown }).stamp).toBeInstanceOf(Date)
+    })
+
+    it('sets a Date object when the spec is null', () => {
+      const result = applyUpdate({}, { $currentDate: { stamp: null } })
+      expect((result as { stamp: unknown }).stamp).toBeInstanceOf(Date)
+    })
   })
 
   describe('$pop', () => {
@@ -144,6 +218,11 @@ describe('applyUpdate', () => {
     it('is a no-op when the list is empty or missing', () => {
       expect(applyUpdate({ list: [] }, { $pop: { list: 1 } })).toEqual({ list: [] })
       expect(applyUpdate({}, { $pop: { list: 1 } })).toEqual({})
+    })
+
+    it('keeps the same empty list rather than writing a new one', () => {
+      const list: unknown[] = []
+      expect(applyUpdate({ list }, { $pop: { list: 1 } }).list).toBe(list)
     })
   })
 
@@ -169,6 +248,11 @@ describe('applyUpdate', () => {
       const result = applyUpdate({ a: 1 }, { $set: null })
       expect(result).toEqual({ a: 1 })
     })
+
+    it('ignores a string argument payload rather than reading its characters as fields', () => {
+      const result = applyUpdate({ a: 1 }, { $set: 'ab' })
+      expect(result).toEqual({ a: 1 })
+    })
   })
 
   describe('nested path edge cases', () => {
@@ -176,6 +260,30 @@ describe('applyUpdate', () => {
       // Exercised via $unset on a deep missing path — should not throw
       const result = applyUpdate({ a: 1 }, { $unset: { 'missing.child.leaf': '' } })
       expect(result).toEqual({ a: 1 })
+    })
+
+    it('handles a path whose parent is missing for every array and rename operator', () => {
+      expect(applyUpdate({}, { $mul: { 'm.x': 2 } })).toEqual({ m: { x: 0 } })
+      expect(applyUpdate({}, { $rename: { 'm.x': 'y' } })).toEqual({})
+      expect(applyUpdate({}, { $push: { 'm.x': 1 } })).toEqual({ m: { x: [1] } })
+      expect(applyUpdate({}, { $addToSet: { 'm.x': 1 } })).toEqual({ m: { x: [1] } })
+      expect(applyUpdate({}, { $pull: { 'm.x': 1 } })).toEqual({})
+      expect(applyUpdate({}, { $pullAll: { 'm.x': [1] } })).toEqual({})
+      expect(applyUpdate({}, { $pop: { 'm.x': 1 } })).toEqual({})
+    })
+
+    it('replaces a null parent with an object when setting a nested path', () => {
+      const result = applyUpdate({ o: null }, { 'o.x': 1 })
+      expect(result).toEqual({ o: { x: 1 } })
+    })
+
+    // Characterization: only the top level is copied. The plugin always passes a fresh toObject() copy.
+    it('characterization: writes a nested change through to the input, which shares nested objects with the result', () => {
+      const input = { top: 1, o: { x: 1 } }
+      const result = applyUpdate(input, { $inc: { 'o.x': 1 }, $set: { top: 2 } })
+      expect(result).toEqual({ top: 2, o: { x: 2 } })
+      expect(input).toEqual({ top: 1, o: { x: 2 } })
+      expect(result.o).toBe(input.o)
     })
   })
 })

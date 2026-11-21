@@ -12,7 +12,7 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs, promisify } from 'node:util'
-import { compareBuilds, differingIds, loadAllowlist } from './compare.mjs'
+import { compareBuilds, differingIds, loadAllowlist, versionMismatches } from './compare.mjs'
 
 const PACKAGE = 'ts-patch-mongoose'
 const here = dirname(fileURLToPath(import.meta.url))
@@ -50,7 +50,11 @@ const npm = async (cwd, npmArgs) => (await exec('npm', npmArgs, { cwd, maxBuffer
 
 const rootPackage = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 const mongooseVersion = (args.mongoose ?? rootPackage.devDependencies.mongoose).replace(/^mongoose@/, '')
-const env = { ...process.env, MONGOMS_DOWNLOAD_DIR: process.env.MONGOMS_DOWNLOAD_DIR ?? join(homedir(), '.cache', 'mongodb-binaries') }
+// The MongoDB server version unit tests use (package.json config.mongodbMemoryServer), unless overridden.
+const mongodbVersion = process.env.MONGOMS_VERSION ?? rootPackage.config.mongodbMemoryServer.version
+const env = { ...process.env, MONGOMS_VERSION: mongodbVersion, MONGOMS_DOWNLOAD_DIR: process.env.MONGOMS_DOWNLOAD_DIR ?? join(homedir(), '.cache', 'mongodb-binaries') }
+// After the binary is downloaded once, a run that would download another version fails instead.
+const runEnv = { ...env, MONGOMS_RUNTIME_DOWNLOAD: 'false' }
 
 // A dependency value for package.json: a tarball path, or a version of the published package.
 const dependencySpec = (spec) => {
@@ -80,7 +84,7 @@ const createConsumer = async (work, name, spec) => {
 
 const runNode = async (consumer, script, out, timeout) => {
   try {
-    await exec(process.execPath, [script, out], { cwd: consumer.dir, env, timeout, maxBuffer: 64 * 1024 * 1024 })
+    await exec(process.execPath, [script, out], { cwd: consumer.dir, env: runEnv, timeout, maxBuffer: 64 * 1024 * 1024 })
     return JSON.parse(readFileSync(join(consumer.dir, out), 'utf8'))
   } catch (error) {
     const reason = error.killed ? `timed out after ${timeout / 1000}s` : `exited with ${error.code}`
@@ -140,6 +144,8 @@ const main = async () => {
     const baselineSpec = dependencySpec(args.baseline ?? `${PACKAGE}@${(await npm(root, ['view', `${PACKAGE}@latest`, 'version'])).trim()}`)
     const [candidate, baseline] = await phase(`installed candidate (${candidateSpec}) and baseline (${baselineSpec}) with mongoose@${mongooseVersion}`, async () => [await createConsumer(work, 'candidate', candidateSpec), await createConsumer(work, 'baseline', baselineSpec)])
     console.log(`[e2e] candidate ${PACKAGE}@${candidate.installed}, baseline ${PACKAGE}@${baseline.installed}, mongoose ${candidate.mongoose}`)
+    const installedMongoose = [candidate, baseline].map(({ name, mongoose }) => ({ name, version: mongoose }))
+    failures.push(...versionMismatches('mongoose', mongooseVersion, installedMongoose))
     await phase('MongoDB binary ready', () => exec(process.execPath, [join('node_modules', 'mongodb-memory-server', 'postinstall.js')], { cwd: candidate.dir, env }))
 
     const [candidateCjs, candidateEsm, baselineCjs, baselineEsm] = await phase('ran the scenarios through require and import', () =>
@@ -147,6 +153,9 @@ const main = async () => {
     )
     checkFormats(candidate, candidateCjs, candidateEsm)
     checkFormats(baseline, baselineCjs, baselineEsm)
+    const runs = Object.entries({ candidateCjs, candidateEsm, baselineCjs, baselineEsm }).filter(([, run]) => run)
+    const servers = runs.map(([name, run]) => ({ name, version: run.mongodb }))
+    failures.push(...versionMismatches('mongodb', mongodbVersion, servers))
     if (candidateCjs) coverage(candidateCjs.scenarios)
     if (candidateCjs && baselineCjs) checkBuilds(baselineCjs, candidateCjs)
 

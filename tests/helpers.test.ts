@@ -1,7 +1,7 @@
 import type { Mock, MockInstance } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { cloneDeep, isEmpty, setPatchHistoryTTL } from '../src/helpers'
+import { cloneDeep, isEmpty, isObjectLike, setPatchHistoryTTL } from '../src/helpers'
 import { HistoryModel } from '../src/model'
 import { ms } from '../src/ms'
 
@@ -134,6 +134,26 @@ describe('isEmpty', () => {
     const proto = { inherited: 1 }
     const obj = Object.create(proto)
     expect(isEmpty(obj)).toBe(true)
+  })
+
+  // Characterization: lodash reports a function with own enumerable properties as not empty.
+  it('characterization: returns true for a function with own enumerable properties', () => {
+    expect(isEmpty(Object.assign(() => {}, { a: 1 }))).toBe(true)
+  })
+})
+
+describe('isObjectLike', () => {
+  it('should return true for objects and arrays', () => {
+    expect(isObjectLike({})).toBe(true)
+    expect(isObjectLike([])).toBe(true)
+  })
+
+  it('should return false for null, undefined, primitives and functions', () => {
+    expect(isObjectLike(null)).toBe(false)
+    expect(isObjectLike(undefined)).toBe(false)
+    expect(isObjectLike('a')).toBe(false)
+    expect(isObjectLike(1)).toBe(false)
+    expect(isObjectLike(() => {})).toBe(false)
   })
 })
 
@@ -331,6 +351,7 @@ describe('cloneDeep', () => {
     expect(cloned).not.toBe(original)
     expect(cloned).toBeInstanceOf(Error)
     expect(cloned.message).toBe('no stack')
+    expect(typeof cloned.stack).toBe('string')
   })
 
   it('should fall through to cloneCollection for partial BSON-like objects', () => {
@@ -361,6 +382,44 @@ describe('cloneDeep', () => {
     const cloned = cloneDeep(original)
     expect(cloned).not.toBe(original)
     expect(cloned.toHexString()).toBe(hex)
+  })
+
+  it('should clone an object with toHexString but no _bsontype field by field', () => {
+    class Hex {
+      value: string
+      constructor(value = 'own') {
+        this.value = value
+      }
+      toHexString() {
+        return 'hex'
+      }
+    }
+    const cloned = cloneDeep(new Hex())
+    expect(cloned).toBeInstanceOf(Hex)
+    expect(cloned.value).toBe('own')
+  })
+
+  it('should keep the prototype of class instances', () => {
+    class Point {
+      x: number
+      constructor(x: number) {
+        this.x = x
+      }
+      norm() {
+        return Math.abs(this.x)
+      }
+    }
+    const cloned = cloneDeep(new Point(-2))
+    expect(cloned).toBeInstanceOf(Point)
+    expect(cloned.norm()).toBe(2)
+  })
+
+  // Characterization: an object without a prototype is cloned onto Object.prototype.
+  it('characterization: gives an object without a prototype the Object prototype', () => {
+    const original = Object.assign(Object.create(null) as Record<string, number>, { a: 1 })
+    const cloned = cloneDeep(original)
+    expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype)
+    expect(cloned.a).toBe(1)
   })
 })
 

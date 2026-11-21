@@ -97,3 +97,12 @@ export const compareBuilds = (baseline, candidate, allowlist, mongooseVersion) =
   const unused = applicable.filter((entry) => !used.has(entry)).map(({ scenario, reason }) => ({ scenario, reason }))
   return { failures, allowed, unused }
 }
+
+const EXACT_VERSION = /^\d+\.\d+\.\d+$/
+
+// Every `{ name, version }` that is not the exact version requested of `dependency`. A range or
+// tag cannot be compared, so it yields none.
+export const versionMismatches = (dependency, requested, found) => {
+  if (!EXACT_VERSION.test(requested)) return []
+  return found.filter(({ version }) => version !== requested).map(({ name, version }) => `${name} has ${dependency} ${version}, not the requested ${requested}`)
+}

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { model, Schema } from 'mongoose'
 import em from '../src/em'
@@ -209,10 +209,6 @@ describe('plugin — complex data structures', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('ecomorders').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   // --- Create ---
@@ -726,10 +722,6 @@ describe('plugin — all mongoose schema types', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('should create and track a document with every schema type', async () => {
     const refId = new mongoose.Types.ObjectId()
     const doc = await AllTypesModel.create({
@@ -983,10 +975,6 @@ describe('plugin — populated documents', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('should store ObjectId refs not populated objects in history', async () => {
     const author = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
     const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author._id })
@@ -995,6 +983,17 @@ describe('plugin — populated documents', () => {
     const doc = entry?.doc as Record<string, unknown>
 
     expect(String(doc.author)).toBe(author._id.toString())
+  })
+
+  it('should record only the changed field when saving a document with a populated ref', async () => {
+    const author = await AuthorModel.create({ name: 'Jane', bio: 'Senior novelist' })
+    const article = await ArticleModel.create({ title: 'Test', body: 'Content', author: author._id })
+    const loaded = await ArticleModel.findById(article._id).populate('author').orFail()
+    loaded.title = 'Changed'
+    await loaded.save()
+
+    const updates = await HistoryModel.find({ op: 'update', collectionId: article._id })
+    expect(updates.map((entry) => entry.patch?.map((op) => op.path))).toEqual([['/title', '/title']])
   })
 
   it('should track author ref change as ObjectId diff', async () => {
@@ -1048,10 +1047,6 @@ describe('plugin — discriminators', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('baseevents').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('should create history for discriminator with type-specific fields', async () => {
@@ -1136,10 +1131,6 @@ describe('plugin — subdocument manipulation', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('posts').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('should track pushing subdoc via mongoose array push then save', async () => {
@@ -1239,10 +1230,6 @@ describe('plugin — virtuals, getters, validation', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('should NOT include virtual fields in history', async () => {
     const profile = await ProfileModel.create({ firstName: 'Jane', lastName: 'Doe', handle: 'Jane_Doe' })
 
@@ -1308,10 +1295,6 @@ describe('plugin — concurrent updates', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('ecomorders').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('should handle sequential rapid updates with correct versions', async () => {
@@ -1380,10 +1363,6 @@ describe('plugin — findOneAndDelete / findByIdAndDelete', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('should track findOneAndDelete with full document snapshot', async () => {
     const order = await EcomOrderModel.create({
       orderNumber: `FOAD-${Date.now()}`,
@@ -1440,10 +1419,6 @@ describe('plugin — replaceOne', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('should track replaceOne with full document replacement', async () => {
     const order = await EcomOrderModel.create({
       orderNumber: `REPLACE-${Date.now()}`,
@@ -1493,10 +1468,6 @@ describe('plugin — organization e2e lifecycle', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('organizations').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   const makeOrg = () => ({
@@ -2412,10 +2383,6 @@ describe('plugin — patchHistoryDisabled (events only, no history)', () => {
     await mongoose.connection.collection('history').deleteMany({})
   })
 
-  afterEach(() => {
-    vi.resetAllMocks()
-  })
-
   it('create should emit event but not write history', async () => {
     await EventOnlyModel.create({
       name: 'EventOnly Corp',
@@ -2539,10 +2506,6 @@ describe('plugin — async getUser/getReason/getMetadata', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('asynccallbackorgs').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('create should resolve async getUser/getReason/getMetadata', async () => {

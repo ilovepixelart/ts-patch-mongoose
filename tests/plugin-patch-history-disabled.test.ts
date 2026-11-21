@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import mongoose, { model } from 'mongoose'
 import em from '../src/em'
@@ -30,10 +30,6 @@ describe('plugin - patch history disabled', () => {
   beforeEach(async () => {
     await mongoose.connection.collection('users').deleteMany({})
     await mongoose.connection.collection('history').deleteMany({})
-  })
-
-  afterEach(() => {
-    vi.resetAllMocks()
   })
 
   it('should createHistory', async () => {
