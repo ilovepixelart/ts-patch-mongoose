@@ -1001,6 +1001,28 @@ def store_step_independent(c, o, st, cmd):
     case Hs.S{+store, +hist, +evs} Hs.Delete{+id, +f}:
       si_delete(Hs.find(store, id), c, o, f, id, store, hist, evs)
 
+# omit_only_change_silent, once the update is past its hooks: the omitted documents are the same, so
+# their diff is empty and the update writes no entry.
+def oocs_omit(none: Bool, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, d: Spec.Distinct(Hs.strip(keys, old)), s: {Hs.strip(keys, old) == Hs.strip(keys, doc) : +List<P.Entry>}) -> {Spec.records(Hs.update_omit(none, c, Hs.Omit{keys, i}, f, id, old, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}:
+  match none:
+    case True{}:
+      {==}
+    case False{}:
+      %s : {Spec.records(Hs.update_write(Hs.ops_data(P.diff(Hs.strip(keys, old), _)), c, f, id, old, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}
+      %Equal.sym(List<P.Op>, P.diff(Hs.strip(keys, old), Hs.strip(keys, old)), [], Laws.diff_self_empty(Hs.strip(keys, old), d)) : {Spec.records(Hs.update_write(Hs.ops_data(_), c, f, id, old, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}
+      {==}
+
+def oocs_hook(skip: Bool, +c: Hs.Cfg, +keys: +List<Nat>, +i: Bool, +f: Hs.Flags, +id: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, d: Spec.Distinct(Hs.strip(keys, old)), s: {Hs.strip(keys, old) == Hs.strip(keys, doc) : +List<P.Entry>}) -> {Spec.records(Hs.update_hook(skip, c, Hs.Omit{keys, i}, f, id, old, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}:
+  match skip:
+    case True{}:
+      {==}
+    case False{}:
+      oocs_omit(Hs.blank(Hs.Omit{keys, i}, old, doc), c, keys, i, f, id, old, doc, store, hist, evs, d, s)
+
+def Laws.omit_only_change_silent(c, keys, i, store, hist, evs, id, doc, old, f, e, d, s):
+  %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(store, id), {Some{old} : Maybe<+List<P.Entry>>}, e) : {Spec.records(Hs.update_pick(_, c, Hs.Omit{keys, i}, f, id, doc, store, hist, evs)) == Hs.S{[], hist, evs} : Hs.State}
+  oocs_hook(Hs.skipped(f), c, keys, i, f, id, old, doc, store, hist, evs, d, s)
+
 def Laws.store_independent(cmds, c, st):
   match cmds st:
     case Nil{} Hs.S{+store, +hist, +evs}:

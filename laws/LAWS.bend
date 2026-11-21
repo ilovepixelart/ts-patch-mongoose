@@ -119,6 +119,23 @@ law store_independent:
   for st: Hs.State
   {Hs.store_of(Hs.run(cmds, c, st)) == Spec.store_run(cmds, Hs.store_of(st)) : +List<Hs.Rec>}
 
+# LAW: an update that changes only omitted keys records no history entry and emits no event.
+law omit_only_change_silent:
+  for +c: Hs.Cfg
+  for +keys: +List<Nat>
+  for +i: Bool
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for +id: Nat
+  for +doc: +List<P.Entry>
+  for +old: +List<P.Entry>
+  for +f: Hs.Flags
+  for e: {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
+  for d: Spec.Distinct(Hs.strip(keys, old))
+  for s: {Hs.strip(keys, old) == Hs.strip(keys, doc) : +List<P.Entry>}
+  {Spec.records(Hs.step_with(c, Hs.Omit{keys, i}, Hs.S{store, hist, evs}, Hs.Update{id, doc, f})) == Hs.S{[], hist, evs} : Hs.State}
+
 # ---- bulk operations and upserts ----
 
 # LAW: an upsert of an existing document is an update of it.
