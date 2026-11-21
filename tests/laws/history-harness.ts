@@ -150,12 +150,8 @@ const callArbWith = (flagsArb: fc.Arbitrary<Flags>, fieldArb: fc.Arbitrary<strin
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('Upsert' as const), id: idArb, doc: docArb, flags: flagsArb }) },
   )
 
-// A known defect (pinned in history.laws.test.ts): an upsert that inserts records the live document with the highest _id
-// whose fields hold every value it sets, when there is one, instead of the inserted document.
-const misattributed = (call: Call, live: Map<number, Doc>) => call.kind === 'Upsert' && !live.has(call.id) && Object.keys(call.doc).length > 0 && [...live].some(([id, doc]) => id > call.id && Object.entries(call.doc).every(([k, v]) => doc[k] === v))
-
 // Leaves out inserts of a live id (what the plugin records for an insertMany that fails is pinned in
-// history.laws.test.ts) and the upserts the defect above misattributes, and turns a Repeat or Touch into an update of the id's current document, or
+// history.laws.test.ts), and turns a Repeat or Touch into an update of the id's current document, or
 // drops it when the id is not live.
 const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
   if (call.kind === 'Repeat' || call.kind === 'Touch') {
@@ -175,7 +171,6 @@ const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
     const items = call.items.filter((item) => !live.has(item.id))
     return items.length > 0 ? [{ kind: 'InsertMany', items }] : []
   }
-  if (misattributed(call, live)) return []
   if ((call.kind === 'Update' && call.via === 'save') || (call.kind === 'Delete' && call.via === 'document')) return [{ ...call, flags: NO_SWITCH }]
   return [call]
 }

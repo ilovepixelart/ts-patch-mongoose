@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import mongoose from 'mongoose'
 import { patchEventEmitter, patchHistoryPlugin } from '../../src/index'
+import { isMongooseLessThan8 } from '../../src/version'
 import server from '../mongo/server'
 import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
 
@@ -104,10 +105,7 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
   })
 
-  // Characterization: an upsert that inserts finds the inserted document again by the values it sets,
-  // newest _id first, so an existing document with those values and a higher _id is recorded instead.
-  // The law test leaves these upserts out (misattributed); with the defect fixed, drop both.
-  it('characterization: an inserting upsert records an existing document that has the same values and a higher _id', async () => {
+  it('an inserting upsert records the inserted document, not an existing one with the same values', async () => {
     const { M, name } = models[0]
     await M.collection.deleteMany({})
     await history().deleteMany({})
@@ -119,17 +117,46 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(fieldsOf(inserted)).toEqual({ f3: 1 })
     expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([
       ['create', 2, { f0: 0, f3: 1 }],
-      ['updateOne', 2, { f0: 0, f3: 1 }],
+      ['updateOne', 1, { f3: 1 }],
     ])
     expect(seen.map((e) => [e.kind, fieldsOf(e.payload.doc)])).toEqual([
       ['ECreated', { f0: 0, f3: 1 }],
-      ['ECreated', { f0: 0, f3: 1 }],
+      ['ECreated', { f3: 1 }],
     ])
   })
 
-  // Characterization: with no defaults, an empty filter and an empty update, the lookup has no value
-  // to find the inserted document by, so the insert is in no history entry and emits no event.
-  it('characterization: an inserting upsert with an empty filter and update records nothing', async () => {
+  for (const returned of ['before', 'after'] as const) {
+    it(`a findOneAndUpdate upsert returning the document ${returned} the write records the inserted document`, async () => {
+      const { M, name } = models[0]
+      await M.collection.deleteMany({})
+      await history().deleteMany({})
+      await M.create({ _id: oid(2), f0: 0, f3: 1 })
+      await M.findOneAndUpdate({ _id: oid(1) }, { $set: { f3: 1 } }, { upsert: true, new: returned === 'after' })
+      const entries = await history().find({ modelName: name }).sort({ _id: 1 }).toArray()
+      expect(entries.map((h) => [h.op, idOf(h.collectionId), fieldsOf(h.doc)])).toEqual([
+        ['create', 2, { f0: 0, f3: 1 }],
+        ['findOneAndUpdate', 1, { f3: 1 }],
+      ])
+    })
+  }
+
+  // With an empty filter and update, only the result can say which document the upsert inserted.
+  for (const [label, options] of [
+    ['the document after the write', { new: true }],
+    ['the raw result', isMongooseLessThan8 ? { rawResult: true } : { includeResultMetadata: true }],
+  ] as const) {
+    it(`a findOneAndUpdate upsert with an empty filter and update records the inserted document from ${label}`, async () => {
+      const { M, name } = models[0]
+      await M.collection.deleteMany({})
+      await history().deleteMany({})
+      await M.findOneAndUpdate({}, {}, { upsert: true, ...options })
+      const stored = await M.collection.find({}).toArray()
+      const entries = await history().find({ modelName: name }).toArray()
+      expect(entries.map((h) => [h.op, String(h.collectionId)])).toEqual([['findOneAndUpdate', String(stored[0]?._id)]])
+    })
+  }
+
+  it('an inserting upsert with an empty filter and update records the inserted document', async () => {
     const { M, name } = models[0]
     await M.collection.deleteMany({})
     await history().deleteMany({})
@@ -137,8 +164,9 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     await M.updateOne({}, {}, { upsert: true })
     const stored = await M.collection.find({}).toArray()
     expect(stored.map(fieldsOf)).toEqual([{}])
-    expect(await history().countDocuments({ modelName: name })).toBe(0)
-    expect(seen).toEqual([])
+    const entries = await history().find({ modelName: name }).toArray()
+    expect(entries.map((h) => [h.op, String(h.collectionId)])).toEqual([['updateOne', String(stored[0]?._id)]])
+    expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
   })
 
   it('a create that fails on a duplicate _id records nothing', async () => {
@@ -203,9 +231,7 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(seen.map((e) => e.kind)).toEqual(['ECreated'])
   })
 
-  // Characterization: the lookup above includes the schema's defaults, so with an array path (default [])
-  // even an upsert that sets no value finds the newest document whose array is empty.
-  it('characterization: with an array path, an inserting upsert that sets nothing records the newest document', async () => {
+  it('with an array path, an inserting upsert that sets nothing records the inserted document', async () => {
     const schema = new mongoose.Schema<LawDoc & { items: number[] }>({ f0: Number, items: [Number] })
     schema.plugin(patchHistoryPlugin, { omit: ['__v'] })
     const WithArray = mongoose.model('LawDocWithArray', schema)
@@ -216,7 +242,7 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     const entries = await history().find({ modelName: 'LawDocWithArray' }).sort({ _id: 1 }).toArray()
     expect(entries.map((h) => [h.op, idOf(h.collectionId)])).toEqual([
       ['updateOne', 2],
-      ['updateOne', 2],
+      ['updateOne', 1],
     ])
   })
 })
