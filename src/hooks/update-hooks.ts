@@ -52,6 +52,37 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
   return { update, commands }
 }
 
+// The _id an upsert inserted, as the write reports it: upsertedId of an update result, the upserted id of
+// a raw findOneAndUpdate result, or the _id of the document a findOneAndUpdate returns after the write.
+// null when the result says nothing was inserted (another writer inserted the document first, so the
+// upsert updated it), undefined when the result cannot tell.
+const insertedId = (result: unknown): unknown => {
+  if (!isObjectLike(result)) return undefined
+  const { matchedCount, upsertedId, lastErrorObject, _id } = result as { matchedCount?: number; upsertedId?: unknown; lastErrorObject?: { upserted?: unknown }; _id?: unknown }
+  if (matchedCount !== undefined) return upsertedId ?? null
+  if (lastErrorObject) return lastErrorObject.upserted ?? null
+  return _id
+}
+
+// Without a reported _id, the filter finds the inserted document first: nothing matched it before the
+// upsert. The values the update sets come after, newest _id first.
+const findInserted = async <T>(model: Model<T>, filter: Record<string, unknown>, updateQuery: UpdateWithAggregationPipeline | UpdateQuery<T> | null): Promise<HydratedDocument<T> | null> => {
+  const { update, commands } = splitUpdateAndCommands(updateQuery)
+  const simulated = assignUpdate(model.hydrate({}), update, commands) as unknown as Record<string, unknown>
+  const simulatedFilter = Object.fromEntries(Object.entries(simulated).filter(([, v]) => v !== undefined))
+
+  for (const query of [filter, update, simulatedFilter]) {
+    if (isEmpty(query)) continue
+    const found = await model
+      .findOne(query as never)
+      .sort({ _id: -1 })
+      .lean()
+      .exec()
+    if (found) return found as HydratedDocument<T>
+  }
+  return null
+}
+
 export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<T>): void => {
   schema.pre(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
     const options = this.getOptions()
@@ -79,7 +110,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     })
   })
 
-  schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>) {
+  schema.post(updateMethods as MongooseQueryMiddleware[], { document: false, query: true }, async function (this: HookContext<T>, result: unknown) {
     const options = this.getOptions()
     if (isHookIgnored(options)) return
     if (!this._context) return
@@ -87,24 +118,9 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     if (!this._context.isNew) return
 
     const model = this.model as Model<T>
-    const updateQuery = this.getUpdate()
-    const { update, commands } = splitUpdateAndCommands(updateQuery)
-
-    const filter = this.getFilter()
-    const simulated = assignUpdate(model.hydrate({}), update, commands) as unknown as Record<string, unknown>
-    const simulatedFilter = Object.fromEntries(Object.entries(simulated).filter(([, v]) => v !== undefined))
-    const candidates = [update, simulatedFilter, filter]
-
-    let current: HydratedDocument<T> | null = null
-    for (const query of candidates) {
-      if (current || isEmpty(query)) continue
-      const found = await model
-        .findOne(query as never)
-        .sort({ _id: -1 })
-        .lean()
-        .exec()
-      current = found as HydratedDocument<T>
-    }
+    const id = insertedId(result)
+    if (id === null) return
+    const current = id === undefined ? await findInserted(model, this.getFilter(), this.getUpdate()) : ((await model.findById(id).lean().exec()) as HydratedDocument<T> | null)
 
     if (current) {
       this._context.createdDocs = [current] as HydratedDocument<T>[]
