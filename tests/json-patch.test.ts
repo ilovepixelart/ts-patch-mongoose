@@ -119,6 +119,18 @@ describe('json-patch compare', () => {
       const patch = compare({ a: 1 }, { a: 1, b: undefined })
       expect(patch).toEqual([])
     })
+
+    it('emits nothing for a key whose value is undefined on both sides', () => {
+      const patch = compare({ a: 1, b: undefined }, { a: 1, b: undefined })
+      expect(patch).toEqual([])
+    })
+
+    // Characterization: a source key holding undefined is absent from the source's JSON, yet a target
+    // without the key still gets a remove for it, and RFC 6902 requires a removed location to exist.
+    it('characterization: removes a source key whose value is undefined when the target lacks it', () => {
+      const patch = compare({ a: 1, b: undefined }, { a: 1 })
+      expect(patch).toEqual([{ op: 'remove', path: '/b' }])
+    })
   })
 
   // --- Array diffing ---

@@ -102,6 +102,13 @@ describe('ms', () => {
     expect(ms('a'.repeat(101))).toBeNaN()
   })
 
+  it('parses a valid string of exactly 100 chars and rejects one of 101', () => {
+    // @ts-expect-error testing a long amount
+    expect(ms(`${'1'.repeat(99)}s`)).toBe(Number(`${'1'.repeat(99)}000`))
+    // @ts-expect-error testing a long amount
+    expect(ms(`${'1'.repeat(100)}s`)).toBeNaN()
+  })
+
   it('should return NaN for invalid strings', () => {
     // @ts-expect-error testing invalid input
     expect(ms('abc')).toBeNaN()

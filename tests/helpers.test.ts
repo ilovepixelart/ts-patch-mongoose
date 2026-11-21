@@ -331,6 +331,7 @@ describe('cloneDeep', () => {
     expect(cloned).not.toBe(original)
     expect(cloned).toBeInstanceOf(Error)
     expect(cloned.message).toBe('no stack')
+    expect(typeof cloned.stack).toBe('string')
   })
 
   it('should fall through to cloneCollection for partial BSON-like objects', () => {

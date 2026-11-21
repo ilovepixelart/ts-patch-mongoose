@@ -57,6 +57,15 @@ describe('omitDeep', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
   })
 
+  // Characterization: an own __proto__ key (as JSON.parse makes it) is assigned to the result, which
+  // sets the result's prototype; the unsafe path leaves its contents whole.
+  it('characterization: leaves an own __proto__ child whole under a __proto__ path', () => {
+    const obj = JSON.parse('{"__proto__": {"x": 1, "y": 2}}') as Record<string, unknown>
+    const result = omitDeep(obj, ['__proto__.x'])
+    expect(Object.keys(result)).toEqual([])
+    expect(Object.getPrototypeOf(result)).toEqual({ x: 1, y: 2 })
+  })
+
   it('should block constructor in dot-notation paths', () => {
     const obj = { a: 1 }
     omitDeep(obj, ['constructor.something'])
