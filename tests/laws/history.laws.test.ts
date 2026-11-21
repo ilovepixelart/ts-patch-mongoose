@@ -11,7 +11,7 @@ import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } 
 // sequences on the plugin and the model alike: each call's history entries and events must be the
 // model's, the stored documents must be the model's, and replaying a document's history must give the
 // stored document without its omitted fields wherever the law applies (history on, no switches, _id
-// kept; CLAIMS.bend: replay_matches_store, replay_matches_omitted_store).
+// kept; LAWS.bend: replay_matches_store, replay_matches_omitted_store).
 
 const CONFIGS: Cfg[] = [
   { history: true, events: true },

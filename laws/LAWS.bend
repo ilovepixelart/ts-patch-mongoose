@@ -151,6 +151,32 @@ law omit_only_change_silent:
   for s: {Hs.strip(keys, old) == Hs.strip(keys, doc) : +List<P.Entry>}
   {Spec.records(Hs.step_with(c, Hs.Omit{keys, i}, Hs.S{store, hist, evs}, Hs.Update{id, doc, f})) == Hs.S{[], hist, evs} : Hs.State}
 
+# LAW (the plugin's contract): after any commands whose documents have distinct keys, replaying a
+# document's history gives the stored document, key by key; for a deleted or missing document both say
+# there is none. History is on and no switch is set.
+law replay_matches_store:
+  for cmds: List<Hs.Cmd>
+  for dc: Spec.AllDistinct(cmds)
+  for nf: Spec.NoSwitches(cmds)
+  for +ev: Bool
+  for +id: Nat
+  for +j: Nat
+  st = Hs.run(cmds, Hs.Cfg{True{}, ev}, Hs.empty())
+  {Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j) == Spec.doc_lookup(Hs.find(Hs.store_of(st), id), j) : Maybe<Maybe<Nat>>}
+
+# LAW: with fields omitted (and _id kept), replaying a document's history gives the stored document
+# without its omitted fields, key by key. History is on and no switch is set.
+law replay_matches_omitted_store:
+  for cmds: List<Hs.Cmd>
+  for dc: Spec.AllDistinct(cmds)
+  for nf: Spec.NoSwitches(cmds)
+  for +ev: Bool
+  for +keys: +List<Nat>
+  for +id: Nat
+  for +j: Nat
+  st = Hs.run_with(cmds, Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, Hs.empty())
+  {Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.store_of(st), id)), j) : Maybe<Maybe<Nat>>}
+
 # ---- bulk operations and upserts ----
 
 # LAW: an upsert of an existing document is an update of it.

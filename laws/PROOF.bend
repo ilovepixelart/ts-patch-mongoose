@@ -514,18 +514,22 @@ def added_fill(b: +List<P.Entry>, +a: +List<P.Entry>, +d: +List<P.Entry>, +j: Na
       %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a)), d), P.apply(P.diff_added(t, a), P.apply(P.diff_added_pick(P.lookup(a, k), k, w), d)), apply_append(P.diff_added_pick(P.lookup(a, k), k, w), P.diff_added(t, a), d)) : {P.lookup(_, j) == P.lookup_pick(Nat.is_eq(k, j), w, P.lookup(t, j)) : Maybe<Nat>}
       added_fill_entry(Nat.is_eq(k, j), k, w, t, a, d, j, ha, hd, nk, {==}, d2 => hd2 => added_fill(t, a, d2, j, ha, hd2, dt))
 
-# The round trip, split on whether the source holds j.
-def roundtrip_at(m: Maybe<Nat>, +a: +List<P.Entry>, +b: +List<P.Entry>, db: Spec.Distinct(b), +j: Nat, +e: {P.lookup(a, j) == m : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), j) == P.lookup(b, j) : Maybe<Nat>}:
+# The round trip from any document d that agrees with the source a at j, split on whether a holds j.
+def roundtrip_from(m: Maybe<Nat>, +a: +List<P.Entry>, +b: +List<P.Entry>, +d: +List<P.Entry>, db: Spec.Distinct(b), +j: Nat, +e: {P.lookup(a, j) == m : Maybe<Nat>}, +hd: {P.lookup(d, j) == P.lookup(a, j) : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), d)), j) == P.lookup(b, j) : Maybe<Nat>}:
   match m:
     case None{}:
-      hd = Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_source(a, b), a), j), P.lookup(a, j), None{}, source_skip(a, b, a, j, e), e)
-      added_fill(b, a, P.apply(P.diff_source(a, b), a), j, e, hd, db)
+      hs = Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_source(a, b), d), j), P.lookup(d, j), None{}, source_skip(a, b, d, j, e), Equal.trans(Maybe<Nat>, P.lookup(d, j), P.lookup(a, j), None{}, hd, e))
+      added_fill(b, a, P.apply(P.diff_source(a, b), d), j, e, hs, db)
     case Some{+y}:
-      Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), j), P.lookup(P.apply(P.diff_source(a, b), a), j), P.lookup(b, j), added_held(b, a, P.apply(P.diff_source(a, b), a), j, y, e), source_reach(a, b, a, j, y, e, {==}))
+      Equal.trans(Maybe<Nat>, P.lookup(P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), d)), j), P.lookup(P.apply(P.diff_source(a, b), d), j), P.lookup(b, j), added_held(b, a, P.apply(P.diff_source(a, b), d), j, y, e), source_reach(a, b, d, j, y, e, hd))
+
+# LEMMA: applying the diff of a and b to a document that agrees with a at j gives b's value at j.
+def roundtrip_d(+a: +List<P.Entry>, +b: +List<P.Entry>, +d: +List<P.Entry>, db: Spec.Distinct(b), +j: Nat, +hd: {P.lookup(d, j) == P.lookup(a, j) : Maybe<Nat>}) -> {P.lookup(P.apply(P.diff(a, b), d), j) == P.lookup(b, j) : Maybe<Nat>}:
+  %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_source(a, b), P.diff_added(b, a)), d), P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), d)), apply_append(P.diff_source(a, b), P.diff_added(b, a), d)) : {P.lookup(_, j) == P.lookup(b, j) : Maybe<Nat>}
+  roundtrip_from(P.lookup(a, j), a, b, d, db, j, {==}, hd)
 
 def Laws.apply_diff_roundtrip(a, b, db, j):
-  %Equal.sym(+List<P.Entry>, P.apply(List.append(&1, P.Op, P.diff_source(a, b), P.diff_added(b, a)), a), P.apply(P.diff_added(b, a), P.apply(P.diff_source(a, b), a)), apply_append(P.diff_source(a, b), P.diff_added(b, a), a)) : {P.lookup(_, j) == P.lookup(b, j) : Maybe<Nat>}
-  roundtrip_at(P.lookup(a, j), a, b, db, j, {==})
+  roundtrip_d(a, b, a, db, j, {==})
 
 # ---- chunk ----
 
@@ -1219,6 +1223,316 @@ def Laws.omitted_never_recorded(c, keys, i, store, hist, evs, cmd, k, m, q):
       onr_update(Hs.find(store, id), c, keys, i, f, id, doc, store, hist, evs, k, m, q)
     case Hs.Delete{+id, +f}:
       onr_delete(Hs.find(store, id), c, keys, i, f, id, store, hist, evs, k, m, q)
+
+# ---- replaying history gives the stored document ----
+
+# LEMMA: replaying a history with one entry appended replays the history, then the entry.
+def replay_append(hist: +List<Hs.Hist>, +kind: Hs.HOp, +hid: Nat, +v: Nat, +d: +List<P.Entry>, +p: +List<P.Op>, +id: Nat, acc: Maybe<+List<P.Entry>>) -> {Spec.replay_go(Hs.append_hist(hist, Hs.H{kind, hid, v, d, p}), id, acc) == Spec.replay_pick(Nat.is_eq(hid, id), Hs.H{kind, hid, v, d, p}, Spec.replay_go(hist, id, acc)) : Maybe<+List<P.Entry>>}:
+  match hist:
+    case Nil{}:
+      {==}
+    case Con{Hs.H{+k2, +hid2, +v2, +d2, +p2}, +rest}:
+      replay_append(rest, kind, hid, v, d, p, id, Spec.replay_pick(Nat.is_eq(hid2, id), Hs.H{k2, hid2, v2, d2, p2}, acc))
+
+def frs_entry(bb: Bool, +rid: Nat, +doc: +List<P.Entry>, +rest: +List<Hs.Rec>, +id: Nat, +q: {Nat.is_eq(rid, id) == bb : Bool}, ih: {Hs.find(Hs.remove(rest, id), id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}) -> {Hs.find(Hs.remove_pick(bb, Hs.R{rid, doc}, Hs.remove(rest, id)), id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}:
+  match bb:
+    case True{}:
+      ih
+    case False{}:
+      %Equal.sym(Bool, Nat.is_eq(rid, id), False{}, q) : {Hs.find_pick(_, doc, Hs.find(Hs.remove(rest, id), id)) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}
+      ih
+
+# LEMMA: a removed document is not found.
+def find_remove_same(store: +List<Hs.Rec>, +id: Nat) -> {Hs.find(Hs.remove(store, id), id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}:
+  match store:
+    case Nil{}:
+      {==}
+    case Con{Hs.R{+rid, +doc}, +rest}:
+      frs_entry(Nat.is_eq(rid, id), rid, doc, rest, id, {==}, find_remove_same(rest, id))
+
+def fro_entry(bb: Bool, +rid: Nat, +doc: +List<P.Entry>, +rest: +List<Hs.Rec>, +a: Nat, +b: Nat, +ne: {Nat.is_eq(a, b) == False{} : Bool}, +q: {Nat.is_eq(rid, a) == bb : Bool}, ih: {Hs.find(Hs.remove(rest, a), b) == Hs.find(rest, b) : Maybe<+List<P.Entry>>}) -> {Hs.find(Hs.remove_pick(bb, Hs.R{rid, doc}, Hs.remove(rest, a)), b) == Hs.find_pick(Nat.is_eq(rid, b), doc, Hs.find(rest, b)) : Maybe<+List<P.Entry>>}:
+  match bb:
+    case True{}:
+      %Equal.sym(Nat, rid, a, is_eq_true_eq(rid, a, q)) : {Hs.find(Hs.remove(rest, a), b) == Hs.find_pick(Nat.is_eq(_, b), doc, Hs.find(rest, b)) : Maybe<+List<P.Entry>>}
+      %Equal.sym(Bool, Nat.is_eq(a, b), False{}, ne) : {Hs.find(Hs.remove(rest, a), b) == Hs.find_pick(_, doc, Hs.find(rest, b)) : Maybe<+List<P.Entry>>}
+      ih
+    case False{}:
+      %ih : {Hs.find_pick(Nat.is_eq(rid, b), doc, Hs.find(Hs.remove(rest, a), b)) == Hs.find_pick(Nat.is_eq(rid, b), doc, _) : Maybe<+List<P.Entry>>}
+      {==}
+
+# LEMMA: removing one id leaves every other id's document as it is.
+def find_remove_other(store: +List<Hs.Rec>, +a: Nat, +b: Nat, +ne: {Nat.is_eq(a, b) == False{} : Bool}) -> {Hs.find(Hs.remove(store, a), b) == Hs.find(store, b) : Maybe<+List<P.Entry>>}:
+  match store:
+    case Nil{}:
+      {==}
+    case Con{Hs.R{+rid, +doc}, +rest}:
+      fro_entry(Nat.is_eq(rid, a), rid, doc, rest, a, b, ne, {==}, find_remove_other(rest, a, b, ne))
+
+def ops_disc(l: +List<P.Op>) -> Type:
+  match l:
+    case Nil{}:
+      Unit
+    case Con{o, t}:
+      Empty
+
+# LEMMA: ops kept as data are empty only when the ops are.
+def ops_data_nil(x: List<P.Op>, e: {{[] : +List<P.Op>} == Hs.ops_data(x) : +List<P.Op>}) -> {x == {[] : List<P.Op>} : List<P.Op>}:
+  match x:
+    case Nil{}:
+      {==}
+    case Con{o, t}:
+      Empty.absurd({o <> t == {[] : List<P.Op>} : List<P.Op>}, (%e : ops_disc(_); Unit{}))
+
+# LEMMA: ops kept as data and used once again are the ops.
+def once_data(x: List<P.Op>) -> {Hs.ops_once(Hs.ops_data(x)) == x : List<P.Op>}:
+  match x:
+    case Nil{}:
+      {==}
+    case Con{+o, t}:
+      %Equal.sym(List<P.Op>, Hs.ops_once(Hs.ops_data(t)), t, once_data(t)) : {o <> _ == o <> t : List<P.Op>}
+      {==}
+
+# A key the document lacks is also absent past the document's first entry.
+def sln_tail(be: Bool, +v: Nat, +r: +List<P.Entry>, +k: Nat, n: {P.lookup_pick(be, v, P.lookup(r, k)) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(r, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}:
+  match be:
+    case True{}:
+      Empty.absurd({P.lookup(r, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}, some_ne_none(v, n))
+    case False{}:
+      n
+
+def sln_keep(be: Bool, +keys: +List<Nat>, +v: Nat, +r: +List<P.Entry>, +k: Nat, n: {P.lookup_pick(be, v, P.lookup(r, k)) == {None{} : Maybe<Nat>} : Maybe<Nat>}, ih: @n2: {P.lookup(r, k) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> {P.lookup(Hs.strip(keys, r), k) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup_pick(be, v, P.lookup(Hs.strip(keys, r), k)) == {None{} : Maybe<Nat>} : Maybe<Nat>}:
+  match be:
+    case True{}:
+      Empty.absurd({{Some{v} : Maybe<Nat>} == {None{} : Maybe<Nat>} : Maybe<Nat>}, some_ne_none(v, n))
+    case False{}:
+      ih(n)
+
+def sln_entry(bm: Bool, +keys: +List<Nat>, +j: Nat, +v: Nat, +r: +List<P.Entry>, +k: Nat, n: {P.lookup_pick(Nat.is_eq(j, k), v, P.lookup(r, k)) == {None{} : Maybe<Nat>} : Maybe<Nat>}, ih: @n2: {P.lookup(r, k) == {None{} : Maybe<Nat>} : Maybe<Nat>} -> {P.lookup(Hs.strip(keys, r), k) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(Hs.strip_pick(bm, P.E{j, v}, Hs.strip(keys, r)), k) == {None{} : Maybe<Nat>} : Maybe<Nat>}:
+  match bm:
+    case True{}:
+      ih(sln_tail(Nat.is_eq(j, k), v, r, k, n))
+    case False{}:
+      sln_keep(Nat.is_eq(j, k), keys, v, r, k, n, ih)
+
+# LEMMA: stripping keys adds none: a key the document lacks, the stripped document lacks.
+def strip_lookup_none(+keys: +List<Nat>, d: +List<P.Entry>, +k: Nat, n: {P.lookup(d, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}) -> {P.lookup(Hs.strip(keys, d), k) == {None{} : Maybe<Nat>} : Maybe<Nat>}:
+  match d:
+    case Nil{}:
+      {==}
+    case Con{P.E{+j, +v}, +r}:
+      sln_entry(Hs.mem(keys, j), keys, j, v, r, k, n, n2 => strip_lookup_none(keys, r, k, n2))
+
+def sd_entry(bm: Bool, +keys: +List<Nat>, +k: Nat, +v: Nat, +t: +List<P.Entry>, n: {P.lookup(t, k) == {None{} : Maybe<Nat>} : Maybe<Nat>}, ih: Spec.Distinct(Hs.strip(keys, t))) -> Spec.Distinct(Hs.strip_pick(bm, P.E{k, v}, Hs.strip(keys, t))):
+  match bm:
+    case True{}:
+      ih
+    case False{}:
+      (strip_lookup_none(keys, t, k, n), ih)
+
+# LEMMA: a document with distinct keys keeps them distinct once stripped.
+def strip_distinct(+keys: +List<Nat>, d: +List<P.Entry>, dd: Spec.Distinct(d)) -> Spec.Distinct(Hs.strip(keys, d)):
+  match d:
+    case Nil{}:
+      Unit{}
+    case Con{P.E{+k, +v}, +t}:
+      (n, dt) = dd
+      sd_entry(Hs.mem(keys, k), keys, k, v, t, n, strip_distinct(keys, t, dt))
+
+# LEMMA: stripping no keys leaves the document.
+def strip_nil(d: +List<P.Entry>) -> {Hs.strip([], d) == d : +List<P.Entry>}:
+  match d:
+    case Nil{}:
+      {==}
+    case Con{P.E{+k, +v}, +t}:
+      %Equal.sym(+List<P.Entry>, Hs.strip([], t), t, strip_nil(t)) : {P.E{k, v} <> _ == P.E{k, v} <> t : +List<P.Entry>}
+      {==}
+
+def doc_strip_nil(m: Maybe<+List<P.Entry>>, +j: Nat) -> {Spec.doc_lookup(Spec.doc_strip([], m), j) == Spec.doc_lookup(m, j) : Maybe<Maybe<Nat>>}:
+  match m:
+    case None{}:
+      {==}
+    case Some{+d}:
+      %strip_nil(d) : {Spec.doc_lookup(Spec.doc_strip([], Some{d}), j) == Spec.doc_lookup(Some{_}, j) : Maybe<Maybe<Nat>>}
+      {==}
+
+# Commands with no switch set carry the flags that are all off.
+def flags_off(f: Hs.Flags, nsw: Spec.T(Spec.switches_off(f))) -> {f == Hs.Flags{False{}, False{}, False{}} : Hs.Flags}:
+  match f:
+    case Hs.Flags{True{}, e, h}:
+      Empty.absurd({Hs.Flags{True{}, e, h} == Hs.Flags{False{}, False{}, False{}} : Hs.Flags}, nsw)
+    case Hs.Flags{False{}, True{}, h}:
+      Empty.absurd({Hs.Flags{False{}, True{}, h} == Hs.Flags{False{}, False{}, False{}} : Hs.Flags}, nsw)
+    case Hs.Flags{False{}, False{}, True{}}:
+      Empty.absurd({Hs.Flags{False{}, False{}, True{}} == Hs.Flags{False{}, False{}, False{}} : Hs.Flags}, nsw)
+    case Hs.Flags{False{}, False{}, False{}}:
+      {==}
+
+def mm_disc(m: Maybe<Maybe<Nat>>) -> Type:
+  match m:
+    case None{}:
+      Unit
+    case Some{x}:
+      Empty
+
+def unsome(m: Maybe<Maybe<Nat>>) -> Maybe<Nat>:
+  match m:
+    case None{}:
+      None{}
+    case Some{x}:
+      x
+
+# For one id and key: replaying the history reads the key as the stored document stripped of the omitted keys does.
+def Inv(+keys: +List<Nat>, +id: Nat, +j: Nat, +st: Hs.State) -> Type:
+  {Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.store_of(st), id)), j) : Maybe<Maybe<Nat>>}
+
+# rp_create, on the created id or another.
+def rp_create_at(bb: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +cid: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> {Spec.doc_lookup(Spec.replay_pick(bb, Hs.H{Hs.KCreate{}, cid, 0n, Hs.strip(keys, doc), {[] : +List<P.Op>}}, Spec.replay(hist, id)), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find_pick(bb, doc, Hs.find(store, id))), j) : Maybe<Maybe<Nat>>}:
+  match bb:
+    case True{}:
+      {==}
+    case False{}:
+      inv
+
+def rp_create(found: Maybe<+List<P.Entry>>, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +cid: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> Inv(keys, id, j, Hs.create_pick(found, Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, cid, doc, store, hist, evs)):
+  match found:
+    case Some{old}:
+      inv
+    case None{}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Spec.replay_go(Hs.append_hist(hist, Hs.H{Hs.KCreate{}, cid, 0n, Hs.strip(keys, doc), {[] : +List<P.Op>}}), id, None{}), Spec.replay_pick(Nat.is_eq(cid, id), Hs.H{Hs.KCreate{}, cid, 0n, Hs.strip(keys, doc), {[] : +List<P.Op>}}, Spec.replay_go(hist, id, None{})), replay_append(hist, Hs.KCreate{}, cid, 0n, Hs.strip(keys, doc), {[] : +List<P.Op>}, id, None{})) : {Spec.doc_lookup(_, j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.R{cid, doc} <> store, id)), j) : Maybe<Maybe<Nat>>}
+      rp_create_at(Nat.is_eq(cid, id), keys, id, j, cid, doc, store, hist, inv)
+
+# rp_write with an empty patch, on the updated id or another: the omitted documents agree at j.
+def rp_same_at(bb: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +uid: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +q: {Nat.is_eq(uid, id) == bb : Bool}, +e: {Hs.find(store, uid) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}, +same: {P.lookup(Hs.strip(keys, old), j) == P.lookup(Hs.strip(keys, doc), j) : Maybe<Nat>}, inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find_pick(bb, doc, Hs.find(Hs.remove(store, uid), id))), j) : Maybe<Maybe<Nat>>}:
+  match bb:
+    case True{}:
+      +kj = is_eq_true_eq(uid, id, q)
+      +eid = {(%kj : {Hs.find(store, _) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}; e) : {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}}
+      inv2 = {(%eid : {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}; inv) : {Spec.doc_lookup(Spec.replay(hist, id), j) == {Some{P.lookup(Hs.strip(keys, old), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}}
+      %same : {Spec.doc_lookup(Spec.replay(hist, id), j) == {Some{_} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}
+      inv2
+    case False{}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(Hs.remove(store, uid), id), Hs.find(store, id), find_remove_other(store, uid, id, q)) : {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}
+      inv
+
+# rp_write with a patch, on the updated id, once the replay so far is known.
+def rp_patch_acc(acc: Maybe<+List<P.Entry>>, +keys: +List<Nat>, +j: Nat, +uid: Nat, +ver: Nat, +op: P.Op, +os: +List<P.Op>, +old: +List<P.Entry>, +doc: +List<P.Entry>, +eo: {op <> os == Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))) : +List<P.Op>}, ds_: Spec.Distinct(Hs.strip(keys, doc)), inv2: {Spec.doc_lookup(acc, j) == {Some{P.lookup(Hs.strip(keys, old), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}) -> {Spec.doc_lookup(Spec.replay_pick(True{}, Hs.H{Hs.KUpdate{}, uid, ver, {[] : +List<P.Entry>}, op <> os}, acc), j) == {Some{P.lookup(Hs.strip(keys, doc), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}:
+  match acc:
+    case None{}:
+      Empty.absurd({{None{} : Maybe<Maybe<Nat>>} == {Some{P.lookup(Hs.strip(keys, doc), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}, (%inv2 : mm_disc(_); Unit{}))
+    case Some{+cur}:
+      +hcur = {Equal.cong(Maybe<Maybe<Nat>>, Maybe<Nat>, m => unsome(m), Some{P.lookup(cur, j)}, Some{P.lookup(Hs.strip(keys, old), j)}, inv2) : {P.lookup(cur, j) == P.lookup(Hs.strip(keys, old), j) : Maybe<Nat>}}
+      %Equal.sym(+List<P.Op>, op <> os, Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))), eo) : {{Some{P.lookup(P.apply(Hs.ops_once(_), cur), j)} : Maybe<Maybe<Nat>>} == {Some{P.lookup(Hs.strip(keys, doc), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}
+      %Equal.sym(List<P.Op>, Hs.ops_once(Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)))), P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)), once_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)))) : {{Some{P.lookup(P.apply(_, cur), j)} : Maybe<Maybe<Nat>>} == {Some{P.lookup(Hs.strip(keys, doc), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}
+      %Equal.sym(Maybe<Nat>, P.lookup(P.apply(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)), cur), j), P.lookup(Hs.strip(keys, doc), j), roundtrip_d(Hs.strip(keys, old), Hs.strip(keys, doc), cur, ds_, j, hcur)) : {{Some{_} : Maybe<Maybe<Nat>>} == {Some{P.lookup(Hs.strip(keys, doc), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}
+      {==}
+
+# rp_write with a patch, on the updated id or another.
+def rp_patch_at(bb: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +uid: Nat, +ver: Nat, +op: P.Op, +os: +List<P.Op>, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +q: {Nat.is_eq(uid, id) == bb : Bool}, +e: {Hs.find(store, uid) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}, +eo: {op <> os == Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))) : +List<P.Op>}, ds_: Spec.Distinct(Hs.strip(keys, doc)), inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> {Spec.doc_lookup(Spec.replay_pick(bb, Hs.H{Hs.KUpdate{}, uid, ver, {[] : +List<P.Entry>}, op <> os}, Spec.replay(hist, id)), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find_pick(bb, doc, Hs.find(Hs.remove(store, uid), id))), j) : Maybe<Maybe<Nat>>}:
+  match bb:
+    case True{}:
+      +kj = is_eq_true_eq(uid, id, q)
+      +eid = {(%kj : {Hs.find(store, _) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}; e) : {Hs.find(store, id) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}}
+      inv2 = {(%eid : {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}; inv) : {Spec.doc_lookup(Spec.replay(hist, id), j) == {Some{P.lookup(Hs.strip(keys, old), j)} : Maybe<Maybe<Nat>>} : Maybe<Maybe<Nat>>}}
+      rp_patch_acc(Spec.replay(hist, id), keys, j, uid, ver, op, os, old, doc, eo, ds_, inv2)
+    case False{}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(Hs.remove(store, uid), id), Hs.find(store, id), find_remove_other(store, uid, id, q)) : {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}
+      inv
+
+def rp_write(ops: +List<P.Op>, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +uid: Nat, +old: +List<P.Entry>, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +eo: {ops == Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))) : +List<P.Op>}, +e: {Hs.find(store, uid) == {Some{old} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}, ds_: Spec.Distinct(Hs.strip(keys, doc)), inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> Inv(keys, id, j, Hs.update_write(ops, Hs.Cfg{True{}, ev}, Hs.Flags{False{}, False{}, False{}}, uid, old, doc, store, hist, evs)):
+  match ops:
+    case Nil{}:
+      +dz = ops_data_nil(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc)), eo)
+      +same = {(%dz : {P.lookup(P.apply(_, Hs.strip(keys, old)), j) == P.lookup(Hs.strip(keys, doc), j) : Maybe<Nat>}; roundtrip_d(Hs.strip(keys, old), Hs.strip(keys, doc), Hs.strip(keys, old), ds_, j, {==})) : {P.lookup(Hs.strip(keys, old), j) == P.lookup(Hs.strip(keys, doc), j) : Maybe<Nat>}}
+      rp_same_at(Nat.is_eq(uid, id), keys, id, j, uid, old, doc, store, hist, {==}, e, same, inv)
+    case Con{+op, +os}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Spec.replay_go(Hs.append_hist(hist, Hs.H{Hs.KUpdate{}, uid, Hs.next_version(Hs.top_version(hist, uid)), {[] : +List<P.Entry>}, op <> os}), id, None{}), Spec.replay_pick(Nat.is_eq(uid, id), Hs.H{Hs.KUpdate{}, uid, Hs.next_version(Hs.top_version(hist, uid)), {[] : +List<P.Entry>}, op <> os}, Spec.replay_go(hist, id, None{})), replay_append(hist, Hs.KUpdate{}, uid, Hs.next_version(Hs.top_version(hist, uid)), {[] : +List<P.Entry>}, op <> os, id, None{})) : {Spec.doc_lookup(_, j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.R{uid, doc} <> Hs.remove(store, uid), id)), j) : Maybe<Maybe<Nat>>}
+      rp_patch_at(Nat.is_eq(uid, id), keys, id, j, uid, Hs.next_version(Hs.top_version(hist, uid)), op, os, old, doc, store, hist, {==}, e, eo, ds_, inv)
+
+def rp_update(found: Maybe<+List<P.Entry>>, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +uid: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, +e: {Hs.find(store, uid) == found : Maybe<+List<P.Entry>>}, dd: Spec.Distinct(doc), inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> Inv(keys, id, j, Hs.update_pick(found, Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, Hs.Flags{False{}, False{}, False{}}, uid, doc, store, hist, evs)):
+  match found:
+    case None{}:
+      inv
+    case Some{+old}:
+      rp_write(Hs.ops_data(P.diff(Hs.strip(keys, old), Hs.strip(keys, doc))), ev, keys, id, j, uid, old, doc, store, hist, evs, {==}, e, strip_distinct(keys, doc, dd), inv)
+
+# rp_delete, on the deleted id or another.
+def rp_delete_at(bb: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +did: Nat, +old: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +q: {Nat.is_eq(did, id) == bb : Bool}, inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> {Spec.doc_lookup(Spec.replay_pick(bb, Hs.H{Hs.KDelete{}, did, 0n, Hs.strip(keys, old), {[] : +List<P.Op>}}, Spec.replay(hist, id)), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.remove(store, did), id)), j) : Maybe<Maybe<Nat>>}:
+  match bb:
+    case True{}:
+      +gone = {(%is_eq_true_eq(did, id, q) : {Hs.find(Hs.remove(store, did), _) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}; find_remove_same(store, did)) : {Hs.find(Hs.remove(store, did), id) == {None{} : Maybe<+List<P.Entry>>} : Maybe<+List<P.Entry>>}}
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(Hs.remove(store, did), id), None{}, gone) : {{None{} : Maybe<Maybe<Nat>>} == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}
+      {==}
+    case False{}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Hs.find(Hs.remove(store, did), id), Hs.find(store, id), find_remove_other(store, did, id, q)) : {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, _), j) : Maybe<Maybe<Nat>>}
+      inv
+
+def rp_delete(found: Maybe<+List<P.Entry>>, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +did: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>, inv: {Spec.doc_lookup(Spec.replay(hist, id), j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(store, id)), j) : Maybe<Maybe<Nat>>}) -> Inv(keys, id, j, Hs.delete_pick(found, Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, Hs.Flags{False{}, False{}, False{}}, did, store, hist, evs)):
+  match found:
+    case None{}:
+      inv
+    case Some{+old}:
+      %Equal.sym(Maybe<+List<P.Entry>>, Spec.replay_go(Hs.append_hist(hist, Hs.H{Hs.KDelete{}, did, 0n, Hs.strip(keys, old), {[] : +List<P.Op>}}), id, None{}), Spec.replay_pick(Nat.is_eq(did, id), Hs.H{Hs.KDelete{}, did, 0n, Hs.strip(keys, old), {[] : +List<P.Op>}}, Spec.replay_go(hist, id, None{})), replay_append(hist, Hs.KDelete{}, did, 0n, Hs.strip(keys, old), {[] : +List<P.Op>}, id, None{})) : {Spec.doc_lookup(_, j) == Spec.doc_lookup(Spec.doc_strip(keys, Hs.find(Hs.remove(store, did), id)), j) : Maybe<Maybe<Nat>>}
+      rp_delete_at(Nat.is_eq(did, id), keys, id, j, did, old, store, hist, {==}, inv)
+
+def rp_create_st(st: Hs.State, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +cid: Nat, +doc: +List<P.Entry>, inv: Inv(keys, id, j, st)) -> Inv(keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Create{cid, doc})):
+  match st:
+    case Hs.S{+store, +hist, +evs}:
+      rp_create(Hs.find(store, cid), ev, keys, id, j, cid, doc, store, hist, evs, inv)
+
+def rp_update_st(st: Hs.State, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +uid: Nat, +doc: +List<P.Entry>, +f: Hs.Flags, nsw: Spec.T(Spec.switches_off(f)), dd: Spec.Distinct(doc), inv: Inv(keys, id, j, st)) -> Inv(keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Update{uid, doc, f})):
+  match st:
+    case Hs.S{+store, +hist, +evs}:
+      %Equal.sym(Hs.Flags, f, Hs.Flags{False{}, False{}, False{}}, flags_off(f, nsw)) : Inv(keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, Hs.S{store, hist, evs}, Hs.Update{uid, doc, _}))
+      rp_update(Hs.find(store, uid), ev, keys, id, j, uid, doc, store, hist, evs, {==}, dd, inv)
+
+def rp_delete_st(st: Hs.State, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +did: Nat, +f: Hs.Flags, nsw: Spec.T(Spec.switches_off(f)), inv: Inv(keys, id, j, st)) -> Inv(keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Delete{did, f})):
+  match st:
+    case Hs.S{+store, +hist, +evs}:
+      %Equal.sym(Hs.Flags, f, Hs.Flags{False{}, False{}, False{}}, flags_off(f, nsw)) : Inv(keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, Hs.S{store, hist, evs}, Hs.Delete{did, _}))
+      rp_delete(Hs.find(store, did), ev, keys, id, j, did, store, hist, evs, inv)
+
+# LEMMA: every command with distinct keys and no switch keeps the replay agreeing with the store at
+# one id and key.
+def rp_run(cmds: List<Hs.Cmd>, +ev: Bool, +keys: +List<Nat>, +id: Nat, +j: Nat, +st: Hs.State, inv: Inv(keys, id, j, st), dc: Spec.AllDistinct(cmds), nf: Spec.NoSwitches(cmds)) -> Inv(keys, id, j, Hs.run_with(cmds, Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st)):
+  match cmds:
+    case Nil{}:
+      inv
+    case Con{Hs.Create{+cid, +doc}, cs}:
+      (dd, dcs) = dc
+      rp_run(cs, ev, keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Create{cid, doc}), rp_create_st(st, ev, keys, id, j, cid, doc, inv), dcs, nf)
+    case Con{Hs.Update{+uid, +doc, +f}, cs}:
+      (dd, dcs) = dc
+      (nsw, nfs) = nf
+      rp_run(cs, ev, keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Update{uid, doc, f}), rp_update_st(st, ev, keys, id, j, uid, doc, f, nsw, dd, inv), dcs, nfs)
+    case Con{Hs.Delete{+did, +f}, cs}:
+      (nsw, nfs) = nf
+      rp_run(cs, ev, keys, id, j, Hs.step_with(Hs.Cfg{True{}, ev}, Hs.Omit{keys, False{}}, st, Hs.Delete{did, f}), rp_delete_st(st, ev, keys, id, j, did, f, nsw, inv), dc, nfs)
+
+def Laws.replay_matches_omitted_store(cmds, dc, nf, ev, keys, id, j):
+  rp_run(cmds, ev, keys, id, j, Hs.empty(), {==}, dc, nf)
+
+# For one id and key, with nothing omitted: replaying the history reads the key as the stored document does.
+def Inv0(+id: Nat, +j: Nat, +st: Hs.State) -> Type:
+  {Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j) == Spec.doc_lookup(Hs.find(Hs.store_of(st), id), j) : Maybe<Maybe<Nat>>}
+
+# rp_run with nothing omitted, ending on the stored document itself.
+def rp_run0(cmds: List<Hs.Cmd>, +ev: Bool, +id: Nat, +j: Nat, +st: Hs.State, inv: Inv([], id, j, st), dc: Spec.AllDistinct(cmds), nf: Spec.NoSwitches(cmds)) -> Inv0(id, j, Hs.run(cmds, Hs.Cfg{True{}, ev}, st)):
+  match cmds:
+    case Nil{}:
+      Equal.trans(Maybe<Maybe<Nat>>, Spec.doc_lookup(Spec.replay(Hs.hist_of(st), id), j), Spec.doc_lookup(Spec.doc_strip([], Hs.find(Hs.store_of(st), id)), j), Spec.doc_lookup(Hs.find(Hs.store_of(st), id), j), inv, doc_strip_nil(Hs.find(Hs.store_of(st), id), j))
+    case Con{Hs.Create{+cid, +doc}, cs}:
+      (dd, dcs) = dc
+      rp_run0(cs, ev, id, j, Hs.step(Hs.Cfg{True{}, ev}, st, Hs.Create{cid, doc}), rp_create_st(st, ev, [], id, j, cid, doc, inv), dcs, nf)
+    case Con{Hs.Update{+uid, +doc, +f}, cs}:
+      (dd, dcs) = dc
+      (nsw, nfs) = nf
+      rp_run0(cs, ev, id, j, Hs.step(Hs.Cfg{True{}, ev}, st, Hs.Update{uid, doc, f}), rp_update_st(st, ev, [], id, j, uid, doc, f, nsw, dd, inv), dcs, nfs)
+    case Con{Hs.Delete{+did, +f}, cs}:
+      (nsw, nfs) = nf
+      rp_run0(cs, ev, id, j, Hs.step(Hs.Cfg{True{}, ev}, st, Hs.Delete{did, f}), rp_delete_st(st, ev, [], id, j, did, f, nsw, inv), dc, nfs)
+
+def Laws.replay_matches_store(cmds, dc, nf, ev, id, j):
+  rp_run0(cmds, ev, id, j, Hs.empty(), {==}, dc, nf)
 
 def Laws.store_independent(cmds, c, st):
   match cmds st:
