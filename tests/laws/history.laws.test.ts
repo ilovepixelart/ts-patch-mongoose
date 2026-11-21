@@ -140,6 +140,26 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     })
   }
 
+  // Another writer inserting the same document between the plugin's count and the write (a later pre
+  // hook stands in for it) turns the upsert into an update of that document: it inserted nothing.
+  for (const method of ['updateOne', 'findOneAndUpdate'] as const) {
+    it(`an upsert by ${method} that matches a document inserted after the plugin counted records no creation`, async () => {
+      const schema = new mongoose.Schema<LawDoc>({ f0: Number, f3: Number })
+      schema.plugin(patchHistoryPlugin, { omit: ['__v'] })
+      schema.pre(method, async function () {
+        await this.model.collection.insertOne({ _id: oid(1), f0: 0 })
+      })
+      const Raced = mongoose.model<LawDoc>(`LawDocRaced${method}`, schema)
+      await Raced.collection.deleteMany({})
+      await history().deleteMany({})
+      const raw = isMongooseLessThan8 ? { rawResult: true } : { includeResultMetadata: true }
+      if (method === 'updateOne') await Raced.updateOne({ _id: oid(1) }, { $set: { f3: 3 } }, { upsert: true })
+      else await Raced.findOneAndUpdate({ _id: oid(1) }, { $set: { f3: 3 } }, { upsert: true, ...raw })
+      expect((await Raced.collection.find({}).toArray()).map(fieldsOf)).toEqual([{ f0: 0, f3: 3 }])
+      expect(await history().countDocuments({ modelName: `LawDocRaced${method}` })).toBe(0)
+    })
+  }
+
   // With an empty filter and update, only the result can say which document the upsert inserted.
   for (const [label, options] of [
     ['the document after the write', { new: true }],

@@ -54,10 +54,14 @@ export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipe
 
 // The _id an upsert inserted, as the write reports it: upsertedId of an update result, the upserted id of
 // a raw findOneAndUpdate result, or the _id of the document a findOneAndUpdate returns after the write.
+// null when the result says nothing was inserted (another writer inserted the document first, so the
+// upsert updated it), undefined when the result cannot tell.
 const insertedId = (result: unknown): unknown => {
   if (!isObjectLike(result)) return undefined
-  const { upsertedId, lastErrorObject, _id } = result as { upsertedId?: unknown; lastErrorObject?: { upserted?: unknown }; _id?: unknown }
-  return upsertedId ?? lastErrorObject?.upserted ?? _id ?? undefined
+  const { matchedCount, upsertedId, lastErrorObject, _id } = result as { matchedCount?: number; upsertedId?: unknown; lastErrorObject?: { upserted?: unknown }; _id?: unknown }
+  if (matchedCount !== undefined) return upsertedId ?? null
+  if (lastErrorObject) return lastErrorObject.upserted ?? null
+  return _id
 }
 
 // Without a reported _id, the filter finds the inserted document first: nothing matched it before the
@@ -115,6 +119,7 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
 
     const model = this.model as Model<T>
     const id = insertedId(result)
+    if (id === null) return
     const current = id === undefined ? await findInserted(model, this.getFilter(), this.getUpdate()) : ((await model.findById(id).lean().exec()) as HydratedDocument<T> | null)
 
     if (current) {
