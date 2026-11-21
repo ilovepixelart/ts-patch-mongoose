@@ -52,7 +52,7 @@ law omit_unsafe_path_ignored:
 
 # ---- history contract ----
 
-# LAW: an update or delete with ignoreHook writes no history and emits no event.
+# LAW: an update or delete with ignoreHook writes no history.
 law ignore_hook_silent:
   for +c: Hs.Cfg
   for +store: +List<Hs.Rec>
@@ -61,6 +61,16 @@ law ignore_hook_silent:
   for cmd: Hs.Cmd
   for q: Spec.IgnoresHook(cmd)
   {Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, cmd)) == hist : +List<Hs.Hist>}
+
+# LAW: an update or delete with ignoreHook emits no event.
+law ignore_hook_quiet:
+  for +c: Hs.Cfg
+  for +store: +List<Hs.Rec>
+  for +hist: +List<Hs.Hist>
+  for +evs: +List<Hs.Ev>
+  for cmd: Hs.Cmd
+  for q: Spec.IgnoresHook(cmd)
+  {Hs.evs_of(Hs.step(c, Hs.S{store, hist, evs}, cmd)) == evs : +List<Hs.Ev>}
 
 # LAW: an update of a missing document changes nothing.
 law update_missing_noop:

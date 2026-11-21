@@ -688,6 +688,34 @@ def Laws.ignore_hook_silent(c, store, hist, evs, cmd, q):
     case Hs.Delete{id, Hs.Flags{False{}, e, h}}:
       Empty.absurd({Hs.hist_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Delete{id, Hs.Flags{False{}, e, h}})) == hist : +List<Hs.Hist>}, q)
 
+# ignore_hook_quiet: for an existing or missing document alike, and whatever is omitted, the hook emits nothing.
+def ihq_update(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +e: Bool, +h: Bool, +id: Nat, +doc: +List<P.Entry>, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.update_pick(found, c, o, Hs.Flags{True{}, e, h}, id, doc, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{old}:
+      {==}
+
+def ihq_delete(found: Maybe<+List<P.Entry>>, +c: Hs.Cfg, +o: Hs.Omit, +e: Bool, +h: Bool, +id: Nat, +store: +List<Hs.Rec>, +hist: +List<Hs.Hist>, +evs: +List<Hs.Ev>) -> {Hs.evs_of(Hs.delete_pick(found, c, o, Hs.Flags{True{}, e, h}, id, store, hist, evs)) == evs : +List<Hs.Ev>}:
+  match found:
+    case None{}:
+      {==}
+    case Some{old}:
+      {==}
+
+def Laws.ignore_hook_quiet(c, store, hist, evs, cmd, q):
+  match cmd:
+    case Hs.Create{id, doc}:
+      Empty.absurd({Hs.evs_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Create{id, doc})) == evs : +List<Hs.Ev>}, q)
+    case Hs.Update{+id, +doc, Hs.Flags{True{}, +e, +h}}:
+      ihq_update(Hs.find(store, id), c, Hs.no_omit(), e, h, id, doc, store, hist, evs)
+    case Hs.Update{id, doc, Hs.Flags{False{}, e, h}}:
+      Empty.absurd({Hs.evs_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Update{id, doc, Hs.Flags{False{}, e, h}})) == evs : +List<Hs.Ev>}, q)
+    case Hs.Delete{+id, Hs.Flags{True{}, +e, +h}}:
+      ihq_delete(Hs.find(store, id), c, Hs.no_omit(), e, h, id, store, hist, evs)
+    case Hs.Delete{id, Hs.Flags{False{}, e, h}}:
+      Empty.absurd({Hs.evs_of(Hs.step(c, Hs.S{store, hist, evs}, Hs.Delete{id, Hs.Flags{False{}, e, h}})) == evs : +List<Hs.Ev>}, q)
+
 # ---- bulk operations and upserts ----
 
 def Laws.upsert_existing_is_update(c, o, store, hist, evs, id, doc, old, f, e):
