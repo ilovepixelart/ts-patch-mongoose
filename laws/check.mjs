@@ -40,6 +40,8 @@ export default model
 
 const exportModels = async (dir) => {
   for (const model of MODELS) {
+    // bend leaves the output untouched when it fails, so a committed module must not pass for a fresh one.
+    rmSync(join(dir, `${model}.mjs`), { force: true })
     const out = await bend([`${model}.bend`, '-o', join(dir, `${model}.mjs`)])
     if (!existsSync(join(dir, `${model}.mjs`))) throw new Error(`${model}.bend did not compile:\n${out}`)
     writeFileSync(join(dir, `${model}.d.mts`), DECLARATION)
@@ -57,7 +59,7 @@ if (args.write) {
 
   const claims = await bend(['CLAIMS.bend', '--check-only'])
   const claimCount = (readFileSync(join(here, 'CLAIMS.bend'), 'utf8').match(/^law /gm) ?? []).length
-  if (!new RegExp(`Error: ${claimCount} TODOs found\\.`).test(claims) && !(claimCount === 0 && /ALL PROOFS CHECK/.test(claims))) {
+  if (!new RegExp(`Error: ${claimCount} TODOs? found\\.`).test(claims) && !(claimCount === 0 && /ALL PROOFS CHECK/.test(claims))) {
     failures.push(`CLAIMS.bend must type-check with only its ${claimCount} open claims missing:\n${claims.trim()}`)
   }
 

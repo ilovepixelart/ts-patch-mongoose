@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { isDeepStrictEqual } from 'node:util'
 import fc from 'fast-check'
 import { compare, type Operation } from '../src/json-patch'
 
@@ -102,11 +103,16 @@ describe('json-patch compare — properties', () => {
     )
   })
 
+  it('emits no patch for the same keys and values in another order', () => {
+    expect(compare({ 'a/b': -1, 'a~b': false, '': true }, { 'a/b': -1, '': true, 'a~b': false })).toEqual([])
+  })
+
   it('emits a patch iff the JSON projections differ', () => {
     fc.assert(
       fc.property(pairArb, ({ a, b }) => {
         const patch = compare(a, b)
-        const sameJson = JSON.stringify(a) === JSON.stringify(b)
+        // Key order is not part of a JSON object, and compare ignores it.
+        const sameJson = isDeepStrictEqual(json(a), json(b))
         if (sameJson) {
           // Equal JSON projections must produce an empty patch.
           expect(patch).toEqual([])

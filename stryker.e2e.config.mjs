@@ -12,7 +12,8 @@ export default {
   tsconfigFile: base.tsconfigFile,
   testRunner: 'command',
   buildCommand: 'node e2e/mutation/mutant.mjs prepare',
-  commandRunner: { command: `MUTANT_KILLS_DIR=${path.resolve('reports/mutation/e2e-kills')} node e2e/mutation/mutant.mjs run` },
+  // Single-quoted for the shell, so a checkout path with spaces or $ stays one value.
+  commandRunner: { command: `MUTANT_KILLS_DIR='${path.resolve('reports/mutation/e2e-kills').replaceAll("'", "'\\''")}' node e2e/mutation/mutant.mjs run` },
   coverageAnalysis: 'off',
   concurrency: 4,
   timeoutMS: 300_000,
