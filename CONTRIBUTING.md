@@ -56,9 +56,11 @@ npm run test:e2e -- --mongoose 6.12.2       # another mongoose version
 - `require` or `import` of the package fails, or the two disagree on any scenario
 - any scenario differs from the published version at a path that no `e2e/allowlist.json` entry for that scenario allows
 - an `e2e/allowlist.json` entry allows no difference (remove entries once their change is published)
+- outside a rolled back transaction, the last updated event of a stored document does not carry that document as mongoose reads it back, and no `e2e/known-defects.json` entry names the scenario
+- an `e2e/known-defects.json` entry names no such scenario (remove it with the fix)
 - any manual transaction of the cold-start check fails
 
-An intended behaviour change goes into `e2e/allowlist.json` with the scenarios it changes, the difference paths it changes in them (for example `$.events[*].payload.doc.**`, where `*` matches one key or index and `**` any rest of the path) and the reason. The tooling's own tests run with `npm run test:e2e:tools`. `--candidate <version|file.tgz>` and `--baseline <version>` replace the packed build or the published version; `--keep` keeps the consumer projects and their outputs (they are always kept when the run fails). CI runs it for every mongoose major.
+An intended behaviour change goes into `e2e/allowlist.json` with the scenarios it changes, the difference paths it changes in them (for example `$.events[*].payload.doc.**`, where `*` matches one key or index and `**` any rest of the path) and the reason. The second check needs no baseline, so it also fails on a defect the published version shares; a defect it finds that a later change fixes goes into `e2e/known-defects.json` with the scenario and the reason. The tooling's own tests run with `npm run test:e2e:tools`. `--candidate <version|file.tgz>` and `--baseline <version>` replace the packed build or the published version; `--known-defects <file>` replaces `e2e/known-defects.json`; `--keep` keeps the consumer projects and their outputs (they are always kept when the run fails). CI runs it for every mongoose major.
 
 ## Mutation testing
 

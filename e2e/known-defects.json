@@ -1,0 +1,111 @@
+{
+  "description": "Scenarios where an updated event's doc is not the document MongoDB stored, each a defect a later change fixes. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version) and `reason`. An entry that matches no violation fails the run: remove it with the fix.",
+  "entries": [
+    {
+      "scenario": "*/save:existing/*",
+      "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "scenario": "*/save:populated/*",
+      "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "scenario": "*/save:unchanged/*",
+      "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "scenario": "*/save:repeated/*",
+      "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "scenario": "*/updateOne:set-unknown-field/*",
+      "reason": "A $set of a path the schema lacks is in the updated event's doc, though strict mode drops it from the write"
+    },
+    {
+      "scenario": "*/updateOne:operators/*",
+      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/updateOne:rename/*",
+      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/updateOne:rename-visible/*",
+      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/upsert:updateOne-match/*",
+      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/upsert:setOnInsert-match/*",
+      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/updateOne:unset-array-element/*",
+      "reason": "An $unset of an array element leaves null in the stored array; the updated event's doc has undefined"
+    },
+    {
+      "scenario": "*/updateOne:unset-then-min/*",
+      "reason": "$min and $max on an array element an earlier $unset removed are applied differently from MongoDB"
+    },
+    {
+      "scenario": "*/updateOne:unset-then-max/*",
+      "reason": "$min and $max on an array element an earlier $unset removed are applied differently from MongoDB"
+    },
+    {
+      "scenario": "*/updateOne:subdocument-push/*",
+      "reason": "A pushed subdocument is in the updated event's doc without the _id mongoose gives it"
+    },
+    {
+      "scenario": "timestamps/updateOne/*",
+      "mongoose": 6,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/updateMany/*",
+      "mongoose": 6,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/findOneAndUpdate/*",
+      "mongoose": 6,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/updateOne/*",
+      "mongoose": 7,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/updateMany/*",
+      "mongoose": 7,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/findOneAndUpdate/*",
+      "mongoose": 7,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/updateOne/*",
+      "mongoose": 8,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/updateMany/*",
+      "mongoose": 8,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "timestamps/findOneAndUpdate/*",
+      "mongoose": 8,
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+    },
+    {
+      "scenario": "*/findOneAndReplace/*",
+      "mongoose": 6,
+      "reason": "Mongoose 6 stores a findOneAndReplace without the schema's array defaults and fills them in when the document is read back; the updated event's doc has the stored form"
+    }
+  ]
+}

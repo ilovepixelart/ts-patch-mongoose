@@ -34,7 +34,7 @@ export const diffPaths = (baseline, candidate) => describe(differences(baseline,
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-const globToRegExp = (glob) => new RegExp(`^${glob.split('*').map(escapeRegExp).join('[^/]+')}$`)
+export const globToRegExp = (glob) => new RegExp(`^${glob.split('*').map(escapeRegExp).join('[^/]+')}$`)
 
 // A difference path pattern: `*` matches within one key or index, `**` matches any rest of the path.
 export const pathToRegExp = (glob) =>
