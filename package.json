@@ -99,6 +99,14 @@
     "typescript": "7.0.2",
     "vitest": "5.1.0"
   },
+  "overrides": {
+    "@stryker-mutator/core": {
+      "minimatch": "11.0.5",
+      "typed-rest-client": {
+        "qs": "6.17.1"
+      }
+    }
+  },
   "peerDependencies": {
     "mongoose": ">=6.12.0 < 10"
   },
