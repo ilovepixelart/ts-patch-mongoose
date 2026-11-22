@@ -16,11 +16,11 @@ type Doc = Record<string, number>
 export type LawDoc = { _id: mongoose.Types.ObjectId; f0?: number; f1?: number; f2?: number; f3?: number }
 type Flags = { hook: boolean; event: boolean; history: boolean }
 type Item = { id: number; doc: Doc }
-// One mongoose call each: save of a new document, an update (updateOne, findOneAndUpdate, or save of
-// the loaded document), a delete (deleteOne, findOneAndDelete, or deleteOne of the loaded document),
+// One mongoose call each: save of a new document, an update (updateOne, findOneAndUpdate, replaceOne,
+// findOneAndReplace, or save of the loaded document), a delete (deleteOne, findOneAndDelete, or deleteOne of the loaded document),
 // insertMany, updateMany, deleteMany, deleteMany whose preDelete rejects (DeleteVetoed), and updateOne
 // with upsert. A save or a document's deleteOne takes no query switch.
-type UpdateVia = 'updateOne' | 'findOneAndUpdate' | 'save'
+type UpdateVia = 'updateOne' | 'findOneAndUpdate' | 'replaceOne' | 'findOneAndReplace' | 'save'
 type DeleteVia = 'deleteOne' | 'findOneAndDelete' | 'document'
 type Call =
   | { kind: 'Create'; id: number; doc: Doc }
@@ -129,9 +129,15 @@ const noSwitchArb = fc.constant({ hook: false, event: false, history: false })
 // Repeat updates an id with the document it already has, and Touch with one field changed: random
 // documents almost never do either, and Touch of an omitted field is an update that changes only
 // omitted fields. Recreate deletes a live id, creates it again and updates it, so that an update
-// follows a delete of the same id (the version rule).
-type Generated = Call | { kind: 'Repeat'; id: number; flags: Flags } | { kind: 'Touch'; id: number; field: string; value: number; flags: Flags } | { kind: 'Recreate'; id: number; doc: Doc; next: Doc }
-const updateViaArb = fc.constantFrom<UpdateVia>('updateOne', 'findOneAndUpdate', 'save')
+// follows a delete of the same id (the version rule). Rewrite replaces a live id with a random
+// document, so a replacement that drops fields is common.
+type Generated =
+  | Call
+  | { kind: 'Repeat'; id: number; flags: Flags; via: UpdateVia }
+  | { kind: 'Touch'; id: number; field: string; value: number; flags: Flags; via: UpdateVia }
+  | { kind: 'Recreate'; id: number; doc: Doc; next: Doc }
+  | { kind: 'Rewrite'; id: number; doc: Doc; flags: Flags; via: 'replaceOne' | 'findOneAndReplace' }
+const updateViaArb = fc.constantFrom<UpdateVia>('updateOne', 'findOneAndUpdate', 'replaceOne', 'findOneAndReplace', 'save')
 // Before mongoose 8 a document's deleteOne runs the document hooks, which record another op.
 const deleteViaArb = fc.constantFrom<DeleteVia>('deleteOne', 'findOneAndDelete', ...(isMongooseLessThan8 ? [] : (['document'] as const)))
 const NO_SWITCH: Flags = { hook: false, event: false, history: false }
@@ -139,9 +145,10 @@ const callArbWith = (flagsArb: fc.Arbitrary<Flags>, fieldArb: fc.Arbitrary<strin
   fc.oneof(
     fc.record({ kind: fc.constant('Create' as const), id: idArb, doc: docArb }),
     fc.record({ kind: fc.constant('Update' as const), id: idArb, doc: docArb, flags: flagsArb, via: updateViaArb }),
-    fc.record({ kind: fc.constant('Repeat' as const), id: idArb, flags: flagsArb }),
+    fc.record({ kind: fc.constant('Repeat' as const), id: idArb, flags: flagsArb, via: updateViaArb }),
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('Recreate' as const), id: idArb, doc: docArb, next: docArb }) },
-    { weight: 3, arbitrary: fc.record({ kind: fc.constant('Touch' as const), id: idArb, field: fieldArb, value: fc.integer({ min: 0, max: 3 }), flags: flagsArb }) },
+    { weight: 2, arbitrary: fc.record({ kind: fc.constant('Rewrite' as const), id: idArb, doc: docArb, flags: flagsArb, via: fc.constantFrom('replaceOne' as const, 'findOneAndReplace' as const) }) },
+    { weight: 3, arbitrary: fc.record({ kind: fc.constant('Touch' as const), id: idArb, field: fieldArb, value: fc.integer({ min: 0, max: 3 }), flags: flagsArb, via: updateViaArb }) },
     fc.record({ kind: fc.constant('Delete' as const), id: idArb, flags: flagsArb, via: deleteViaArb }),
     fc.record({ kind: fc.constant('InsertMany' as const), items: fc.uniqueArray(fc.record({ id: idArb, doc: docArb }), { selector: (item) => item.id, minLength: 1, maxLength: 3 }) }),
     fc.record({ kind: fc.constant('UpdateMany' as const), ids: idsArb, doc: docArb, flags: flagsArb }),
@@ -157,8 +164,9 @@ const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
   if (call.kind === 'Repeat' || call.kind === 'Touch') {
     const doc = live.get(call.id)
     const changed = call.kind === 'Touch' ? { [call.field]: call.value } : {}
-    return doc ? [{ kind: 'Update', id: call.id, doc: { ...doc, ...changed }, flags: call.flags, via: 'updateOne' }] : []
+    return doc ? [{ kind: 'Update', id: call.id, doc: { ...doc, ...changed }, flags: call.via === 'save' ? NO_SWITCH : call.flags, via: call.via }] : []
   }
+  if (call.kind === 'Rewrite') return live.has(call.id) ? [{ ...call, kind: 'Update' }] : []
   if (call.kind === 'Recreate') {
     if (!live.has(call.id)) return []
     return [
@@ -251,7 +259,7 @@ const toModelCall = (call: Call) => {
 const switchesOf = (flags: Flags) => ({ ignoreHook: flags.hook, ignoreEvent: flags.event, ignorePatchHistory: flags.history })
 
 // A whole-document update as $set and $unset: the update path whose history the plugin builds from
-// the operators. A replaceOne that drops fields does not record the removal (pinned in history.laws.test.ts).
+// the operators.
 const replaceWith = (doc: Doc) => ({ $set: { ...doc }, $unset: Object.fromEntries(FIELDS.filter((f) => !(f in doc)).map((f) => [f, 1])) })
 
 const executeUpdate = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { kind: 'Update' }>) => {
@@ -261,8 +269,15 @@ const executeUpdate = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { ki
     for (const field of FIELDS) doc.set(field, call.doc[field])
     return doc.save()
   }
-  const query = call.via === 'findOneAndUpdate' ? M.findOneAndUpdate({ _id: oid(call.id) }, replaceWith(call.doc)) : M.updateOne({ _id: oid(call.id) }, replaceWith(call.doc))
-  return query.setOptions(switchesOf(call.flags)).exec()
+  const filter = { _id: oid(call.id) }
+  const switches = switchesOf(call.flags)
+  if (call.via === 'updateOne') return M.updateOne(filter, replaceWith(call.doc)).setOptions(switches).exec()
+  if (call.via === 'findOneAndUpdate') return M.findOneAndUpdate(filter, replaceWith(call.doc)).setOptions(switches).exec()
+  // A replacement keeps the fields the laws do not cover. It is a new object: mongoose adds __v to the one it is given.
+  const current = await M.collection.findOne(filter)
+  const replacement = { ...Object.fromEntries(Object.entries(current ?? {}).filter(([k]) => !FIELDS.includes(k) && k !== '_id' && k !== '__v')), ...call.doc }
+  const query = call.via === 'replaceOne' ? M.replaceOne(filter, replacement) : M.findOneAndReplace(filter, replacement)
+  return query.setOptions(switches).exec()
 }
 
 const executeDelete = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { kind: 'Delete' }>) => {
@@ -308,7 +323,7 @@ const deleteFilter = (call: Call) => {
 const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: boolean, omit: Omit, deleted: Set<number>): string[] => {
   const reached: string[] = [call.kind]
   if (call.kind === 'Create' && before) reached.push('Create of a live id')
-  if (call.kind === 'Update' && call.via !== 'updateOne') reached.push(`Update by ${call.via}`)
+  if (call.kind === 'Update' && call.via !== 'updateOne' && before) reached.push(`Update by ${call.via}`)
   if (call.kind === 'Delete' && call.via !== 'deleteOne') reached.push(`Delete by ${call.via}`)
   if (call.kind === 'Upsert') reached.push(before ? 'Upsert matching' : 'Upsert inserting')
   if (call.kind === 'DeleteVetoed' && hooked) reached.push('DeleteVetoed vetoed')
@@ -326,6 +341,8 @@ const ALWAYS_REACHED = [
   'Delete',
   'Update by save',
   'Update by findOneAndUpdate',
+  'Update by replaceOne',
+  'Update by findOneAndReplace',
   'Delete by findOneAndDelete',
   'InsertMany',
   'UpdateMany',

@@ -7,7 +7,7 @@ import server from '../mongo/server'
 import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
-// events each mongoose call writes (save, updateOne, findOneAndUpdate, deleteOne, findOneAndDelete, a
+// events each mongoose call writes (save, updateOne, findOneAndUpdate, replaceOne, findOneAndReplace, deleteOne, findOneAndDelete, a
 // document's deleteOne, insertMany, updateMany, deleteMany and upserts), under every configuration, omit option and query switch. These tests run random call
 // sequences on the plugin and the model alike: each call's history entries and events must be the
 // model's, the stored documents must be the model's, and replaying a document's history must give the
@@ -70,8 +70,7 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(updated?.payload.doc?.f1).toBeUndefined()
   })
 
-  // Characterization: replaceOne history misses the fields a replacement drops, so replaying it does not give the stored document.
-  it('characterization: a replaceOne that drops a field records no removal of it', async () => {
+  it('a replaceOne that drops a field records its removal', async () => {
     const { M } = models[0]
     await M.collection.deleteMany({})
     await history().deleteMany({})
@@ -83,6 +82,8 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     expect(update?.patch).toEqual([
       { op: 'test', path: '/f1', value: 1 },
       { op: 'replace', path: '/f1', value: 2 },
+      { op: 'test', path: '/f0', value: 0 },
+      { op: 'remove', path: '/f0' },
     ])
   })
 
