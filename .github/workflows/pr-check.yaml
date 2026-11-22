@@ -184,8 +184,9 @@ jobs:
 
   # The proofs of laws/ (npm run laws): Bend checks them, and --verdict rechecks them with BendTT's
   # kernel, which Lean builds. Both toolchains are pinned and checked against the release digests.
-  # Required by the CI job below. The proofs and the generated modules depend on laws/ alone, so a
-  # pull request that changes nothing under laws/ skips the check; main and manual runs check always.
+  # Required by the CI job below. The proofs and the generated modules depend on laws/, the toolchain
+  # this job pins and the laws scripts, so a pull request that changes none of them skips the check;
+  # main and manual runs check always.
   laws:
     name: Laws (Bend proofs)
     runs-on: ubuntu-latest
@@ -212,10 +213,10 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          if [ -z "$BASE" ] || [ -n "$(git diff --name-only "$BASE" HEAD -- laws/)" ]; then
+          if [ -z "$BASE" ] || [ -n "$(git diff --name-only "$BASE" HEAD -- laws/ .github/workflows/pr-check.yaml)" ] || git diff "$BASE" HEAD -- package.json | grep -q '^[-+] *"laws'; then
             echo "check=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Nothing under laws/ changed: the proofs and the generated modules are as on the base."
+            echo "Nothing under laws/, in this workflow or in the laws scripts changed: the proofs and the generated modules are as on the base."
             echo "check=false" >> "$GITHUB_OUTPUT"
           fi
 
