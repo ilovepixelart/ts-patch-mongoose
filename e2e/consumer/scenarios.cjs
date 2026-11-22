@@ -347,6 +347,8 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet, onScenario = () => 
         record.thrown = errorShape(error)
       }
       record.state = (await M.collection.find({}).sort({ _id: 1 }).toArray()).map(plain)
+      // The stored documents as mongoose reads them, the form an event's doc has.
+      record.read = (await M.find({}).sort({ _id: 1 }).exec()).map(plain)
       record.history = (await history.find({}).sort({ _id: 1 }).toArray()).map(historyEntry)
       Object.assign(record, structuredClone(rec.seen))
       return aliasObjectIds(record)

@@ -2,9 +2,10 @@
 // it and the latest published version (or --baseline) into two fresh consumer projects outside
 // the repository, runs the same scenarios in each through require and through import against
 // real replica sets, and fails on any difference that allowlist.json does not list, on any
-// difference between require and import, and on any failed cold-start transaction.
+// difference between require and import, on any updated event whose doc is not the stored document
+// unless known-defects.json names it, and on any failed cold-start transaction.
 //
-//   npm run test:e2e -- [--mongoose 9.4.1] [--candidate <spec|file.tgz>] [--baseline <spec>] [--keep]
+//   npm run test:e2e -- [--mongoose 9.4.1] [--candidate <spec|file.tgz>] [--baseline <spec>] [--known-defects <file>] [--keep]
 
 import { execFile } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -13,6 +14,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs, promisify } from 'node:util'
 import { compareBuilds, differingIds, loadAllowlist, versionMismatches } from './compare.mjs'
+import { checkStore, loadKnownDefects } from './store-oracle.mjs'
 
 const PACKAGE = 'ts-patch-mongoose'
 const here = dirname(fileURLToPath(import.meta.url))
@@ -26,6 +28,7 @@ const { values: args } = parseArgs({
     candidate: { type: 'string' },
     baseline: { type: 'string' },
     allowlist: { type: 'string', default: join(here, 'allowlist.json') },
+    'known-defects': { type: 'string', default: join(here, 'known-defects.json') },
     keep: { type: 'boolean', default: false },
   },
 })
@@ -107,6 +110,13 @@ const checkBuilds = (baseline, candidate) => {
   for (const { scenario, reason } of unused) failures.push(`allowlist.json entry "${scenario}" (${reason}) matches no difference: remove it`)
 }
 
+// Independent of the baseline: each updated event must carry the document MongoDB stored.
+const checkAgainstStore = (candidate) => {
+  const { failures: violations, unused } = checkStore(candidate.scenarios, loadKnownDefects(args['known-defects']), mongooseVersion)
+  for (const { id, doc, paths } of violations) failures.push(`the last updated event of ${doc} in ${id} is not the stored document (stored, event):\n  ${paths.join('\n  ')}`)
+  for (const { scenario, reason } of unused) failures.push(`known-defects.json entry "${scenario}" (${reason}) matches no violation: remove it`)
+}
+
 const checkColdStart = (result) => {
   if (!result) return
   const { plan, starts, ms } = result
@@ -158,6 +168,7 @@ const main = async () => {
     failures.push(...versionMismatches('mongodb', mongodbVersion, servers))
     if (candidateCjs) coverage(candidateCjs.scenarios)
     if (candidateCjs && baselineCjs) checkBuilds(baselineCjs, candidateCjs)
+    if (candidateCjs) checkAgainstStore(candidateCjs)
 
     checkColdStart(await phase('ran the cold-start check', () => runNode(candidate, 'cold-start.mjs', 'cold-start.json', 900_000)))
   } finally {
