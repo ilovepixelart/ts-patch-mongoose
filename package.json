@@ -111,7 +111,7 @@
     "mongoose": ">=6.12.0 < 10"
   },
   "simple-git-hooks": {
-    "pre-commit": "npm run type:check",
+    "pre-commit": "npm run type:check && npm run type:check:tests",
     "pre-push": "npm run biome"
   },
   "np": {
