@@ -33,6 +33,18 @@ describe('plain keeps what the fixtures fix', () => {
     assert.deepEqual(aliasObjectIds({ id: fixed }), { id: fixed })
   })
 
+  it('keeps the entries of a Map, each value made plain', () => {
+    assert.deepEqual(
+      plain({
+        dict: new Map([
+          ['a', 1],
+          ['at', new Date(now)],
+        ]),
+      }),
+      { dict: { a: 1, at: '<Date>' } },
+    )
+  })
+
   it('prints a regular expression with its flags, and an invalid date or broken regular expression without throwing', () => {
     assert.deepEqual(plain({ re: /a+b/gi, bad: new Date(Number.NaN), broken: Object.create(RegExp.prototype) }), { re: 'RegExp(/a+b/gi)', bad: 'Date(invalid)', broken: 'RegExp(invalid)' })
   })

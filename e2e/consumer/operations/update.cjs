@@ -3,7 +3,7 @@
 const { has } = require('./gates.cjs')
 
 // Query updates and replacements without upsert: the update hooks patch every matched document.
-// bulkWrite is not hooked; it shows what the plugin does not see.
+// bulkWrite is not hooked; it shows what the plugin does not see, so the store oracles expect no record of it.
 
 module.exports = [
   { name: 'updateOne', run: ({ M, o, oid }) => M.updateOne({ _id: oid(1) }, { $set: { n: 50 } }, o) },
@@ -40,6 +40,8 @@ module.exports = [
   { name: 'findOneAndReplace', run: ({ M, o, oid }) => M.findOneAndReplace({ _id: oid(2) }, { sku: 'b-replaced', n: 200 }, o) },
   {
     name: 'bulkWrite',
+    silent: true,
+    history: false,
     run: ({ M, o, oid }) => M.bulkWrite([{ updateOne: { filter: { _id: oid(1) }, update: { $set: { n: 80 } } } }, { deleteOne: { filter: { _id: oid(2) } } }], o),
   },
 ]

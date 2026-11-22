@@ -1,111 +1,509 @@
 {
-  "description": "Scenarios where an updated event's doc is not the document MongoDB stored, each a defect a later change fixes. Each entry has `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version) and `reason`. An entry that matches no violation fails the run: remove it with the fix.",
+  "description": "Scenarios where what the plugin recorded disagrees with what MongoDB stored, each a defect a later change fixes. Each entry has `oracle` (the check in e2e/store-oracle.mjs it excuses), `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version, or a version prefix such as \"6.13\"), `paths` (the violation paths it excuses; `*` matches one key or index, `**` any rest of the path) and `reason`. A violation passes only when every one of its paths is excused. An entry that matches no violation fails the run: remove it with the fix.",
   "entries": [
     {
+      "oracle": "updated-doc",
       "scenario": "*/save:existing/*",
+      "paths": ["$.__v"],
       "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/save:populated/*",
+      "paths": ["$.__v"],
       "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/save:unchanged/*",
+      "paths": ["$.__v"],
       "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/save:repeated/*",
+      "paths": ["$.__v"],
       "reason": "A save's updated event carries the document captured before the write, without the version key the write sets"
     },
     {
+      "oracle": "updated-doc",
+      "scenario": "*/upsert:updateOne-match/*",
+      "paths": ["$.__v"],
+      "reason": "An upsert that matched a document lists the version key in its updated event's doc as a key whose value is undefined"
+    },
+    {
+      "oracle": "updated-doc",
+      "scenario": "*/upsert:setOnInsert-match/*",
+      "paths": ["$.__v"],
+      "reason": "An upsert that matched a document lists the version key in its updated event's doc as a key whose value is undefined"
+    },
+    {
+      "oracle": "updated-doc",
+      "scenario": "*/updateOne:operators/*",
+      "paths": ["$.secret"],
+      "reason": "The updated event's doc keeps each field the update removed as a key whose value is undefined"
+    },
+    {
+      "oracle": "updated-doc",
+      "scenario": "*/updateOne:rename/*",
+      "paths": ["$.secret"],
+      "reason": "The updated event's doc keeps each field the update removed as a key whose value is undefined"
+    },
+    {
+      "oracle": "updated-doc",
+      "scenario": "*/updateOne:rename-visible/*",
+      "paths": ["$.sku"],
+      "reason": "The updated event's doc keeps each field the update removed as a key whose value is undefined"
+    },
+    {
+      "oracle": "updated-doc",
       "scenario": "*/updateOne:set-unknown-field/*",
+      "paths": ["$.unknown"],
       "reason": "A $set of a path the schema lacks is in the updated event's doc, though strict mode drops it from the write"
     },
     {
-      "scenario": "*/updateOne:operators/*",
-      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
-    },
-    {
-      "scenario": "*/updateOne:rename/*",
-      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
-    },
-    {
-      "scenario": "*/updateOne:rename-visible/*",
-      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
-    },
-    {
-      "scenario": "*/upsert:updateOne-match/*",
-      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
-    },
-    {
-      "scenario": "*/upsert:setOnInsert-match/*",
-      "reason": "The updated event's doc keeps each removed field as a key whose value is undefined"
-    },
-    {
+      "oracle": "updated-doc",
       "scenario": "*/updateOne:unset-array-element/*",
-      "reason": "An $unset of an array element leaves null in the stored array; the updated event's doc has undefined"
+      "paths": ["$.labels[*]"],
+      "reason": "An $unset of an array element stores null, but the updated event's doc has undefined there"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/updateOne:unset-then-min/*",
-      "reason": "$min and $max on an array element an earlier $unset removed are applied differently from MongoDB"
+      "paths": ["$.labels[*]"],
+      "reason": "The updated event's doc applies $min and $max to an array element after $unset differently from MongoDB"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/updateOne:unset-then-max/*",
-      "reason": "$min and $max on an array element an earlier $unset removed are applied differently from MongoDB"
+      "paths": ["$.labels[*]"],
+      "reason": "The updated event's doc applies $min and $max to an array element after $unset differently from MongoDB"
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/updateOne:subdocument-push/*",
-      "reason": "A pushed subdocument is in the updated event's doc without the _id mongoose gives it"
+      "paths": ["$.items[*]._id"],
+      "reason": "A subdocument pushed by an update lacks in the updated event's doc the _id the write gives it"
     },
     {
+      "oracle": "created-doc",
+      "scenario": "*/save:new/*",
+      "paths": ["$.__v"],
+      "reason": "A save's created event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/insertMany:lean-undefined-field/*",
+      "mongoose": "6.13",
+      "paths": ["$.note"],
+      "reason": "An insertMany with lean stores a field set to undefined as null, but the created event's doc leaves it out"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/insertMany:lean-undefined-field/*",
+      "mongoose": 7,
+      "paths": ["$.note"],
+      "reason": "An insertMany with lean stores a field set to undefined as null, but the created event's doc leaves it out"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/insertMany:lean-undefined-field/*",
+      "mongoose": 8,
+      "paths": ["$.note"],
+      "reason": "An insertMany with lean stores a field set to undefined as null, but the created event's doc leaves it out"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/insertMany:lean-undefined-field/*",
+      "mongoose": 9,
+      "paths": ["$.note"],
+      "reason": "An insertMany with lean stores a field set to undefined as null, but the created event's doc leaves it out"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/save:repeated/committed",
+      "paths": ["$.n", "$.tags[*]"],
+      "reason": "In a transaction with an explicit session the plugin reads outside it (README, Transactions), so it does not see the document a save created in the transaction, and the later save of it records nothing"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:push/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:push-missing/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:push-null/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:push-object/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:addToSet-each-duplicates/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:addToSet-missing/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:addToSet-null/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:addToSet-object/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:pull/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:currentDate-date-type/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:currentDate-timestamp/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:currentDate-undefined-spec/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:max-equal-other-type/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:min+max-missing-parent/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:rename-nested/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-array-to-object/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-escaped-keys/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-mixed-buffer/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-mixed-date/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-new-array-path/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-new-non-index-paths/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-new-object-path/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-null/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-object-to-array/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-shrink-array/*",
+      "paths": ["$.extra.**"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:rename-non-string/*",
+      "mongoose": 8,
+      "paths": ["$.extra.**", "$.1"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:rename-non-string/*",
+      "mongoose": 9,
+      "paths": ["$.extra.**", "$.1"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:positional/*",
+      "paths": ["$.labels[*]"],
+      "reason": "An update through the positional $ operator changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:pipeline/*",
+      "paths": ["$.n"],
+      "reason": "An update with an aggregation pipeline changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/updateOne:set-map/*",
+      "paths": ["$.dict**"],
+      "reason": "A $set of a Map field changes the stored document, but the plugin diffs Maps as empty objects and records nothing"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "omit-all-but-new/updateOne:inc-missing/*",
+      "paths": ["$.score"],
+      "reason": "An update from a document whose fields are all omitted records nothing: the plugin skips an update whose omitted original is empty"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "omit-all-but-new/updateOne:rename-visible/*",
+      "paths": ["$.note"],
+      "reason": "An update from a document whose fields are all omitted records nothing: the plugin skips an update whose omitted original is empty"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "omit-all-but-secret/updateOne:operators/*",
+      "paths": ["$.secret"],
+      "reason": "An update that leaves the omitted document empty records nothing: the plugin skips an update whose omitted result is empty"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/upsert:*-insert/committed",
+      "paths": ["$"],
+      "reason": "In a transaction with an explicit session the plugin reads outside it (README, Transactions), so it does not see the document an upsert inserted in the transaction and records no creation"
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/insertMany:duplicate-unordered/*",
+      "paths": ["$"],
+      "reason": "An unordered insertMany that hits a duplicate _id stores the other documents, but the error skips post('insertMany'), so none of them is recorded"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/save:existing/*",
+      "paths": ["$patch", "$.dict**", "$.__v"],
+      "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/save:populated/*",
+      "paths": ["$patch", "$.dict**", "$.__v"],
+      "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/save:unchanged/*",
+      "paths": ["$patch", "$.dict**", "$.__v"],
+      "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/save:subdocument-array/*",
+      "paths": ["$patch", "$.__v"],
+      "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/replaceOne/*",
+      "paths": ["$patch"],
+      "reason": "A replacement's patch tests and removes a Map field with the empty object the plugin diffs Maps as, not the value stored"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/findOneAndReplace/*",
+      "paths": ["$patch"],
+      "reason": "A replacement's patch tests and removes a Map field with the empty object the plugin diffs Maps as, not the value stored"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:repeated/committed",
+      "paths": ["$patch"],
+      "reason": "In a transaction with an explicit session the plugin reads outside it (README, Transactions), so the second update's patch tests the value the transaction already replaced"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:max-higher/*",
+      "paths": ["$.extra.**"],
+      "reason": "A patch misses the change $max, $min or $mul makes to a path inside a Mixed field"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:min+max-missing/*",
+      "paths": ["$.extra.**"],
+      "reason": "A patch misses the change $max, $min or $mul makes to a path inside a Mixed field"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:mul/*",
+      "paths": ["$.extra.**"],
+      "reason": "A patch misses the change $max, $min or $mul makes to a path inside a Mixed field"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-unknown-field/*",
+      "paths": ["$.unknown"],
+      "reason": "A $set of a path the schema lacks is in the patch, though strict mode drops it from the write"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:subdocument-push/*",
+      "paths": ["$.items[*]._id"],
+      "reason": "A subdocument pushed by an update lacks in the patch the _id the write gives it"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:unset-then-min/*",
+      "paths": ["$.labels[*]"],
+      "reason": "The patch applies $min and $max to an array element after $unset differently from MongoDB"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:unset-then-max/*",
+      "paths": ["$.labels[*]"],
+      "reason": "The patch applies $min and $max to an array element after $unset differently from MongoDB"
+    },
+    {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateOne/*",
       "mongoose": 6,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateMany/*",
       "mongoose": 6,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/findOneAndUpdate/*",
       "mongoose": 6,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateOne/*",
       "mongoose": 7,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateMany/*",
       "mongoose": 7,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/findOneAndUpdate/*",
       "mongoose": 7,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateOne/*",
       "mongoose": 8,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/updateMany/*",
       "mongoose": 8,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "timestamps/findOneAndUpdate/*",
       "mongoose": 8,
-      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined"
+      "reason": "Before mongoose 9, timestamps add createdAt to an update as $setOnInsert, and the updated event's doc lists it as a key whose value is undefined",
+      "paths": ["$.createdAt"]
     },
     {
+      "oracle": "updated-doc",
       "scenario": "*/findOneAndReplace/*",
       "mongoose": 6,
-      "reason": "Mongoose 6 stores a findOneAndReplace without the schema's array defaults and fills them in when the document is read back; the updated event's doc has the stored form"
+      "reason": "Mongoose 6 stores a findOneAndReplace without the schema's array defaults and fills them in when the document is read back; the updated event's doc has the stored form",
+      "paths": ["$.items", "$.labels", "$.tags"]
+    },
+    {
+      "oracle": "recorded",
+      "scenario": "*/deleteOne:document/*",
+      "mongoose": 6,
+      "paths": ["$"],
+      "reason": "On mongoose 6 a document's deleteOne() deletes the document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "rolled-back",
+      "scenario": "*/deleteOne:document/als-aborted",
+      "mongoose": 7,
+      "paths": ["$state**"],
+      "reason": "On mongoose 7 a document's deleteOne() inside a transaction async local storage rolls back deletes the document anyway"
     }
   ]
 }

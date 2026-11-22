@@ -110,11 +110,11 @@ const checkBuilds = (baseline, candidate) => {
   for (const { scenario, reason } of unused) failures.push(`allowlist.json entry "${scenario}" (${reason}) matches no difference: remove it`)
 }
 
-// Independent of the baseline: each updated event must carry the document MongoDB stored.
+// Independent of the baseline: what each scenario recorded must agree with what MongoDB stored.
 const checkAgainstStore = (candidate) => {
   const { failures: violations, unused } = checkStore(candidate.scenarios, loadKnownDefects(args['known-defects']), mongooseVersion)
-  for (const { id, doc, paths } of violations) failures.push(`the last updated event of ${doc} in ${id} is not the stored document (stored, event):\n  ${paths.join('\n  ')}`)
-  for (const { scenario, reason } of unused) failures.push(`known-defects.json entry "${scenario}" (${reason}) matches no violation: remove it`)
+  for (const { oracle, id, doc, paths } of violations) failures.push(`store oracle ${oracle}: ${doc} in ${id}:\n  ${paths.join('\n  ')}`)
+  for (const { oracle, scenario, reason } of unused) failures.push(`known-defects.json entry ${oracle} "${scenario}" (${reason}) matches no violation: remove it`)
 }
 
 const checkColdStart = (result) => {
