@@ -1,5 +1,5 @@
 {
-  "description": "Scenarios where what the plugin recorded disagrees with what MongoDB stored, each a defect a later change fixes. Each entry has `oracle` (the check in e2e/store-oracle.mjs it excuses), `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version), `paths` (the violation paths it excuses; `*` matches one key or index, `**` any rest of the path) and `reason`. A violation passes only when every one of its paths is excused. An entry that matches no violation fails the run: remove it with the fix.",
+  "description": "Scenarios where what the plugin recorded disagrees with what MongoDB stored, each a defect a later change fixes. Each entry has `oracle` (the check in e2e/store-oracle.mjs it excuses), `scenario` (a scenario id; `*` matches one path segment), optional `mongoose` (a major version, or a version prefix such as \"6.13\"), `paths` (the violation paths it excuses; `*` matches one key or index, `**` any rest of the path) and `reason`. A violation passes only when every one of its paths is excused. An entry that matches no violation fails the run: remove it with the fix.",
   "entries": [
     {
       "oracle": "updated-doc",
@@ -90,6 +90,13 @@
       "scenario": "*/save:new/*",
       "paths": ["$.__v"],
       "reason": "A save's created event carries the document captured before the write, without the version key the write sets"
+    },
+    {
+      "oracle": "created-doc",
+      "scenario": "*/insertMany:lean-undefined-field/*",
+      "mongoose": "6.13",
+      "paths": ["$.note"],
+      "reason": "An insertMany with lean stores a field set to undefined as null, but the created event's doc leaves it out"
     },
     {
       "oracle": "created-doc",

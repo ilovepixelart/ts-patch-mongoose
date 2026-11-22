@@ -228,7 +228,7 @@ export const storeViolations = (scenarios) => {
 }
 
 // Known defects: violations a later change fixes, each named by oracle, scenario (`*` matches one path
-// segment), optionally a mongoose major version, the paths it excuses (`*` matches one key or index,
+// segment), optionally a mongoose major version (6) or version prefix ("6.13"), the paths it excuses (`*` matches one key or index,
 // `**` any rest) and the reason. An entry that matches no violation fails, so a fix must remove it.
 export const loadKnownDefects = (file) => {
   const { entries } = JSON.parse(readFileSync(file, 'utf8'))
@@ -240,7 +240,7 @@ export const loadKnownDefects = (file) => {
     if (!ORACLES.includes(entry.oracle)) throw new Error(`${where}: "oracle" must be one of ${ORACLES.join(', ')}`)
     if (typeof entry.scenario !== 'string' || entry.scenario === '') throw new Error(`${where}: "scenario" must name the scenarios it covers`)
     if (typeof entry.reason !== 'string' || entry.reason.trim() === '') throw new Error(`${where}: "reason" must name the defect`)
-    if (entry.mongoose !== undefined && !Number.isInteger(entry.mongoose)) throw new Error(`${where}: "mongoose" must be a major version number`)
+    if (entry.mongoose !== undefined && !Number.isInteger(entry.mongoose) && !/^\d+(\.\d+)*$/.test(String(entry.mongoose))) throw new Error(`${where}: "mongoose" must be a major version number or a version prefix such as "6.13"`)
     if (!Array.isArray(entry.paths) || entry.paths.length === 0 || entry.paths.some((path) => typeof path !== 'string' || !path.startsWith('$'))) {
       throw new Error(`${where}: "paths" must list the violation paths it excuses, each starting with $`)
     }
@@ -253,8 +253,8 @@ const excuses = (entry, violation) => entry.oracle === violation.oracle && entry
 
 // The violations no known defect excuses, and the known defects that excuse no violation.
 export const checkStore = (scenarios, known, mongooseVersion) => {
-  const major = Number.parseInt(mongooseVersion, 10)
-  const applicable = known.filter((entry) => entry.mongoose === undefined || entry.mongoose === major)
+  const appliesTo = (mongoose) => mongoose === undefined || `${mongooseVersion}.`.startsWith(`${mongoose}.`)
+  const applicable = known.filter((entry) => appliesTo(entry.mongoose))
   const used = new Set()
   const failures = []
   for (const violation of storeViolations(scenarios)) {

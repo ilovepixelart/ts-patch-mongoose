@@ -225,6 +225,13 @@ describe('checkStore', () => {
     assert.equal(checkStore(scenarios, known([entryFor({ oracle: 'recorded' })]), '9.12.2').failures.length, 2 - 1)
   })
 
+  it('applies an entry to a minor version given as a version prefix', () => {
+    assert.deepEqual(checkStore(scenarios, known([entryFor({ mongoose: '6.13' })]), '6.13.13').failures, [])
+    assert.equal(checkStore(scenarios, known([entryFor({ mongoose: '6.13' })]), '6.12.0').failures.length, 1)
+    assert.equal(checkStore(scenarios, known([entryFor({ mongoose: '6.1' })]), '6.13.13').failures.length, 1)
+    assert.throws(() => known([entryFor({ mongoose: 'six' })]), /"mongoose" must be a major version number or a version prefix/)
+  })
+
   it('fails a violation at a path the known defect does not name', () => {
     assert.equal(checkStore(scenarios, known([entryFor({ paths: ['$.n'] })]), '9.12.2').failures.length, 1)
   })
