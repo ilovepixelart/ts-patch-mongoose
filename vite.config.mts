@@ -10,7 +10,7 @@ export default defineConfig({
     dir: 'tests',
     environment: 'node',
     globalSetup: ['tests/mongo/global-setup.ts'],
-    setupFiles: ['tests/setup/fast-check.ts'],
+    setupFiles: ['tests/setup/fast-check.ts', 'tests/setup/console.ts'],
     // Before every test: mocks lose their recorded calls and per-test implementations, and spies are restored.
     mockReset: true,
     restoreMocks: true,
@@ -27,6 +27,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
+      // The coverage every mongoose major reaches now: one more uncovered statement, branch or line fails.
+      thresholds: { statements: 99.5, branches: 97.9, functions: 100, lines: 99.8 },
       include: ['src/**/*.ts'],
       exclude: [
         'node_modules/**',

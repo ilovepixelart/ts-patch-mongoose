@@ -1404,7 +1404,7 @@ describe('plugin — findOneAndDelete / findByIdAndDelete', () => {
 // --- replaceOne ---
 
 describe('plugin — replaceOne', () => {
-  const instance = server('plugin-replace')
+  const instance = server('plugin-complex-data-replace')
 
   beforeAll(async () => {
     await instance.create()
