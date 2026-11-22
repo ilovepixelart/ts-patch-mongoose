@@ -4,7 +4,7 @@ import fc from 'fast-check'
 import mongoose from 'mongoose'
 import model from '../../laws/generated/history.mjs'
 import { patchEventEmitter } from '../../src/index'
-import { isMongooseLessThan8 } from '../../src/version'
+import { isMongoose6, isMongooseLessThan8 } from '../../src/version'
 import { type BendList, fromList, toList } from './bend'
 
 // The harness that holds the plugin to laws/history.bend: random mongoose call sequences, run on a
@@ -16,21 +16,28 @@ type Doc = Record<string, number>
 export type LawDoc = { _id: mongoose.Types.ObjectId; f0?: number; f1?: number; f2?: number; f3?: number }
 type Flags = { hook: boolean; event: boolean; history: boolean }
 type Item = { id: number; doc: Doc }
-// One mongoose call each: save of a new document, an update (updateOne, findOneAndUpdate, replaceOne,
-// findOneAndReplace, or save of the loaded document), a delete (deleteOne, findOneAndDelete, or deleteOne of the loaded document),
-// insertMany, updateMany, deleteMany, deleteMany whose preDelete rejects (DeleteVetoed), and updateOne
-// with upsert. A save or a document's deleteOne takes no query switch.
-type UpdateVia = 'updateOne' | 'findOneAndUpdate' | 'replaceOne' | 'findOneAndReplace' | 'save'
-type DeleteVia = 'deleteOne' | 'findOneAndDelete' | 'document'
+// One mongoose call each: create of one document or of several, an update by any update method or by
+// save of the loaded document, a delete by any delete method or by deleteOne of the loaded document,
+// insertMany (ordered or not), updateMany, deleteMany, deleteMany whose preDelete rejects (DeleteVetoed),
+// and an upsert by any update method. A save or a document's deleteOne takes no query switch. Methods
+// mongoose has removed are drawn only on the versions that have them.
+const UPDATE_VIAS = ['updateOne', 'findOneAndUpdate', 'findByIdAndUpdate', 'replaceOne', 'findOneAndReplace', 'save', ...(isMongoose6 ? (['update'] as const) : [])] as const
+// Before mongoose 8 a document's deleteOne runs the document hooks, which record another op.
+const DELETE_VIAS = ['deleteOne', 'findOneAndDelete', 'findByIdAndDelete', ...(isMongooseLessThan8 ? (['findOneAndRemove', 'findByIdAndRemove'] as const) : (['document'] as const)), ...(isMongoose6 ? (['remove'] as const) : [])] as const
+const UPSERT_VIAS = ['updateOne', 'findOneAndUpdate', 'replaceOne', 'findOneAndReplace', ...(isMongoose6 ? (['update'] as const) : [])] as const
+type UpdateVia = 'updateOne' | 'findOneAndUpdate' | 'findByIdAndUpdate' | 'replaceOne' | 'findOneAndReplace' | 'save' | 'update'
+type DeleteVia = 'deleteOne' | 'findOneAndDelete' | 'findByIdAndDelete' | 'findOneAndRemove' | 'findByIdAndRemove' | 'remove' | 'document'
+type UpsertVia = 'updateOne' | 'findOneAndUpdate' | 'replaceOne' | 'findOneAndReplace' | 'update'
 type Call =
   | { kind: 'Create'; id: number; doc: Doc }
+  | { kind: 'CreateMany'; items: Item[] }
   | { kind: 'Update'; id: number; doc: Doc; flags: Flags; via: UpdateVia }
   | { kind: 'Delete'; id: number; flags: Flags; via: DeleteVia }
-  | { kind: 'InsertMany'; items: Item[] }
+  | { kind: 'InsertMany'; items: Item[]; ordered: boolean }
   | { kind: 'UpdateMany'; ids: number[]; doc: Doc; flags: Flags }
   | { kind: 'DeleteMany'; ids: number[]; flags: Flags }
   | { kind: 'DeleteVetoed'; ids: number[]; flags: Flags }
-  | { kind: 'Upsert'; id: number; doc: Doc; flags: Flags }
+  | { kind: 'Upsert'; id: number; doc: Doc; flags: Flags; via: UpsertVia }
 export type Cfg = { history: boolean; events: boolean }
 // The omit option: fields left out, and whether _id is too.
 export type Omit = { keys: string[]; id: boolean }
@@ -88,15 +95,13 @@ const fromModelEv = (e: ModelEv) => ({ kind: e.$, doc: e.doc && entriesKey(e.doc
 type RealEv = { kind: string; payload: { doc?: Record<string, unknown>; oldDoc?: Record<string, unknown>; patch?: JsonOp[] } }
 const fromRealEv = ({ kind, payload }: RealEv) => ({ kind, doc: payload.doc && docKey(fieldsOf(payload.doc)), old: payload.oldDoc && docKey(fieldsOf(payload.oldDoc)), patch: payload.patch && realOps(payload.patch) })
 
-// The op each call's history entries carry, and the kind of what it does to a document.
-const OP_NAMES: Record<Exclude<Call['kind'], 'Update' | 'Delete'>, string> = { Create: 'create', InsertMany: 'create', UpdateMany: 'updateMany', DeleteMany: 'deleteMany', DeleteVetoed: 'deleteMany', Upsert: 'updateOne' }
-const opName = (call: Call) => {
-  if (call.kind === 'Update') return call.via === 'save' ? 'update' : call.via
-  if (call.kind === 'Delete') return call.via === 'document' ? 'deleteOne' : call.via
-  return OP_NAMES[call.kind]
-}
+// The op each call's history entries carry, and the kind of what it does to a document. A ById method
+// runs the hooks of the method it wraps, and a save of a loaded document records op update.
+const OP_NAMES: Record<Exclude<Call['kind'], 'Update' | 'Delete' | 'Upsert'>, string> = { Create: 'create', CreateMany: 'create', InsertMany: 'create', UpdateMany: 'updateMany', DeleteMany: 'deleteMany', DeleteVetoed: 'deleteMany' }
+const VIA_OPS: Record<string, string> = { save: 'update', findByIdAndUpdate: 'findOneAndUpdate', document: 'deleteOne', findByIdAndDelete: 'findOneAndDelete', findByIdAndRemove: 'findOneAndRemove' }
+const opName = (call: Call) => ('via' in call ? (VIA_OPS[call.via] ?? call.via) : OP_NAMES[call.kind])
 const kindOf = (call: Call, live: boolean): Kind => {
-  if (call.kind === 'Create' || call.kind === 'InsertMany') return 'KCreate'
+  if (call.kind === 'Create' || call.kind === 'CreateMany' || call.kind === 'InsertMany') return 'KCreate'
   if (call.kind === 'Delete' || call.kind === 'DeleteMany' || call.kind === 'DeleteVetoed') return 'KDelete'
   if (call.kind === 'Upsert' && !live) return 'KCreate'
   return 'KUpdate'
@@ -137,29 +142,31 @@ type Generated =
   | { kind: 'Touch'; id: number; field: string; value: number; flags: Flags; via: UpdateVia }
   | { kind: 'Recreate'; id: number; doc: Doc; next: Doc }
   | { kind: 'Rewrite'; id: number; doc: Doc; flags: Flags; via: 'replaceOne' | 'findOneAndReplace' }
-const updateViaArb = fc.constantFrom<UpdateVia>('updateOne', 'findOneAndUpdate', 'replaceOne', 'findOneAndReplace', 'save')
-// Before mongoose 8 a document's deleteOne runs the document hooks, which record another op.
-const deleteViaArb = fc.constantFrom<DeleteVia>('deleteOne', 'findOneAndDelete', ...(isMongooseLessThan8 ? [] : (['document'] as const)))
+const updateViaArb = fc.constantFrom<UpdateVia>(...UPDATE_VIAS)
+const deleteViaArb = fc.constantFrom<DeleteVia>(...DELETE_VIAS)
+const upsertViaArb = fc.constantFrom<UpsertVia>(...UPSERT_VIAS)
+const itemsArb = fc.uniqueArray(fc.record({ id: idArb, doc: docArb }), { selector: (item) => item.id, minLength: 1, maxLength: 3 })
 const NO_SWITCH: Flags = { hook: false, event: false, history: false }
 const callArbWith = (flagsArb: fc.Arbitrary<Flags>, fieldArb: fc.Arbitrary<string>): fc.Arbitrary<Generated> =>
   fc.oneof(
     fc.record({ kind: fc.constant('Create' as const), id: idArb, doc: docArb }),
+    fc.record({ kind: fc.constant('CreateMany' as const), items: itemsArb }),
     fc.record({ kind: fc.constant('Update' as const), id: idArb, doc: docArb, flags: flagsArb, via: updateViaArb }),
     fc.record({ kind: fc.constant('Repeat' as const), id: idArb, flags: flagsArb, via: updateViaArb }),
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('Recreate' as const), id: idArb, doc: docArb, next: docArb }) },
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('Rewrite' as const), id: idArb, doc: docArb, flags: flagsArb, via: fc.constantFrom('replaceOne' as const, 'findOneAndReplace' as const) }) },
     { weight: 3, arbitrary: fc.record({ kind: fc.constant('Touch' as const), id: idArb, field: fieldArb, value: fc.integer({ min: 0, max: 3 }), flags: flagsArb, via: updateViaArb }) },
     fc.record({ kind: fc.constant('Delete' as const), id: idArb, flags: flagsArb, via: deleteViaArb }),
-    fc.record({ kind: fc.constant('InsertMany' as const), items: fc.uniqueArray(fc.record({ id: idArb, doc: docArb }), { selector: (item) => item.id, minLength: 1, maxLength: 3 }) }),
+    fc.record({ kind: fc.constant('InsertMany' as const), items: itemsArb, ordered: fc.boolean() }),
     fc.record({ kind: fc.constant('UpdateMany' as const), ids: idsArb, doc: docArb, flags: flagsArb }),
     fc.record({ kind: fc.constant('DeleteMany' as const), ids: idsArb, flags: flagsArb }),
     { weight: 2, arbitrary: fc.record({ kind: fc.constant('DeleteVetoed' as const), ids: idsArb, flags: flagsArb }) },
-    { weight: 2, arbitrary: fc.record({ kind: fc.constant('Upsert' as const), id: idArb, doc: docArb, flags: flagsArb }) },
+    { weight: 2, arbitrary: fc.record({ kind: fc.constant('Upsert' as const), id: idArb, doc: docArb, flags: flagsArb, via: upsertViaArb }) },
   )
 
-// Leaves out inserts of a live id (what the plugin records for an insertMany that fails is pinned in
-// history.laws.test.ts), and turns a Repeat or Touch into an update of the id's current document, or
-// drops it when the id is not live.
+// Leaves out inserts of a live id by insertMany or by a create of several documents (what the plugin
+// records for an insertMany that fails is pinned in history.laws.test.ts), and turns a Repeat or Touch
+// into an update of the id's current document, or drops it when the id is not live.
 const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
   if (call.kind === 'Repeat' || call.kind === 'Touch') {
     const doc = live.get(call.id)
@@ -175,9 +182,9 @@ const keep = (call: Generated, live: Map<number, Doc>): Call[] => {
       { kind: 'Update', id: call.id, doc: call.next, flags: NO_SWITCH, via: 'save' },
     ]
   }
-  if (call.kind === 'InsertMany') {
+  if (call.kind === 'InsertMany' || call.kind === 'CreateMany') {
     const items = call.items.filter((item) => !live.has(item.id))
-    return items.length > 0 ? [{ kind: 'InsertMany', items }] : []
+    return items.length > 0 ? [{ ...call, items }] : []
   }
   if ((call.kind === 'Update' && call.via === 'save') || (call.kind === 'Delete' && call.via === 'document')) return [{ ...call, flags: NO_SWITCH }]
   return [call]
@@ -197,6 +204,7 @@ const track = (call: Call, live: Map<number, Doc>) => {
       if (live.has(call.id)) live.set(call.id, call.doc)
       return
     case 'InsertMany':
+    case 'CreateMany':
       for (const item of call.items) live.set(item.id, item.doc)
       return
     case 'UpdateMany':
@@ -226,6 +234,47 @@ const contractCalls = (generated: Generated[]): Call[] => {
   return calls
 }
 
+// One sequence through every method, run first under every configuration, so that each rule the
+// sequences must reach is reached whatever the draw: an update by each update method and one that
+// changes only omitted fields, a delete by each delete method followed by a new create and an update
+// of a document with only omitted fields, an inserting and a matching upsert by each upsert method,
+// and the bulk calls.
+const coverageSequence = (omit: Omit): Call[] => {
+  const all = (n: number): Doc => Object.fromEntries(FIELDS.map((f) => [f, n]))
+  const [omitted = 'f0'] = omit.keys
+  const generated: Generated[] = [
+    { kind: 'Create', id: 1, doc: all(0) },
+    { kind: 'Create', id: 1, doc: all(3) },
+    ...UPDATE_VIAS.map((via, i): Generated => ({ kind: 'Update', id: 1, doc: { ...all(i % 2), f3: i }, flags: NO_SWITCH, via })),
+    { kind: 'Touch', id: 1, field: omitted, value: 3, flags: NO_SWITCH, via: 'updateOne' },
+    ...DELETE_VIAS.flatMap((via): Generated[] => [
+      { kind: 'Create', id: 2, doc: all(1) },
+      { kind: 'Delete', id: 2, flags: NO_SWITCH, via },
+    ]),
+    { kind: 'Create', id: 2, doc: { f0: 1 } },
+    { kind: 'Update', id: 2, doc: { f0: 2, f3: 1 }, flags: NO_SWITCH, via: 'save' },
+    ...UPSERT_VIAS.flatMap((via, i): Generated[] => [
+      { kind: 'Upsert', id: 3, doc: { f1: i }, flags: NO_SWITCH, via },
+      { kind: 'Upsert', id: 3, doc: { f2: i }, flags: NO_SWITCH, via },
+      { kind: 'Delete', id: 3, flags: NO_SWITCH, via: 'deleteOne' },
+    ]),
+    { kind: 'InsertMany', items: [{ id: 3, doc: all(1) }], ordered: true },
+    { kind: 'DeleteMany', ids: [1, 2, 3], flags: NO_SWITCH },
+    { kind: 'InsertMany', items: [{ id: 3, doc: all(2) }], ordered: false },
+    {
+      kind: 'CreateMany',
+      items: [
+        { id: 1, doc: all(2) },
+        { id: 2, doc: all(3) },
+      ],
+    },
+    { kind: 'UpdateMany', ids: [1, 2, 3], doc: all(1), flags: NO_SWITCH },
+    { kind: 'DeleteVetoed', ids: [1, 2], flags: NO_SWITCH },
+    { kind: 'DeleteMany', ids: [1, 2, 3], flags: NO_SWITCH },
+  ]
+  return contractCalls(generated)
+}
+
 // The arms behind the rarer rules (an update after a recreate, a vetoed delete, a matching upsert)
 // weigh double. Half the sequences switch nothing, so the replay check, which needs no switch in the whole sequence,
 // is reached often.
@@ -236,7 +285,9 @@ const sequenceArb = (omit: Omit) => {
 }
 
 const modelFlags = (flags: Flags) => ({ $: 'Flags', ...flags })
-const toModelCall = (call: Call) => {
+// A create of several documents saves each, as that many creates.
+const toModelCalls = (call: Call): unknown[] => (call.kind === 'CreateMany' ? call.items.map(({ id, doc }) => toModelCall({ kind: 'Create', id, doc })) : [toModelCall(call)])
+const toModelCall = (call: Exclude<Call, { kind: 'CreateMany' }>) => {
   switch (call.kind) {
     case 'Create':
       return { $: 'Single', cmd: { $: 'Create', id: call.id, doc: toEntries(call.doc) } }
@@ -262,28 +313,50 @@ const switchesOf = (flags: Flags) => ({ ignoreHook: flags.hook, ignoreEvent: fla
 // the operators.
 const replaceWith = (doc: Doc) => ({ $set: { ...doc }, $unset: Object.fromEntries(FIELDS.filter((f) => !(f in doc)).map((f) => [f, 1])) })
 
-const executeUpdate = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { kind: 'Update' }>) => {
-  if (call.via === 'save') {
-    const doc = await M.findById(oid(call.id)).exec()
-    if (!doc) return
-    for (const field of FIELDS) doc.set(field, call.doc[field])
-    return doc.save()
-  }
-  const filter = { _id: oid(call.id) }
-  const switches = switchesOf(call.flags)
-  if (call.via === 'updateOne') return M.updateOne(filter, replaceWith(call.doc)).setOptions(switches).exec()
-  if (call.via === 'findOneAndUpdate') return M.findOneAndUpdate(filter, replaceWith(call.doc)).setOptions(switches).exec()
-  // A replacement keeps the fields the laws do not cover. It is a new object: mongoose adds __v to the one it is given.
+// The methods mongoose has removed, typed as the versions that have them declare them.
+type LegacyQuery = { setOptions: (options: object) => { exec: () => Promise<unknown> } }
+type Legacy = { [method in 'update' | 'remove' | 'findOneAndRemove' | 'findByIdAndRemove']: (...args: unknown[]) => LegacyQuery }
+const legacy = (M: mongoose.Model<LawDoc>) => M as unknown as Legacy
+
+// A query method's call that makes the document call.doc, or inserts it with upsert. A replacement
+// keeps the fields the laws do not cover. It is a new object: mongoose adds __v to the one it is given.
+const runUpdate = async (M: mongoose.Model<LawDoc>, via: Exclude<UpdateVia, 'save'>, id: number, doc: Doc, options: object) => {
+  const filter = { _id: oid(id) }
+  if (via === 'update') return legacy(M).update(filter, replaceWith(doc)).setOptions(options).exec()
+  if (via === 'updateOne') return M.updateOne(filter, replaceWith(doc)).setOptions(options).exec()
+  if (via === 'findOneAndUpdate') return M.findOneAndUpdate(filter, replaceWith(doc)).setOptions(options).exec()
+  if (via === 'findByIdAndUpdate') return M.findByIdAndUpdate(oid(id), replaceWith(doc)).setOptions(options).exec()
   const current = await M.collection.findOne(filter)
-  const replacement = { ...Object.fromEntries(Object.entries(current ?? {}).filter(([k]) => !FIELDS.includes(k) && k !== '_id' && k !== '__v')), ...call.doc }
-  const query = call.via === 'replaceOne' ? M.replaceOne(filter, replacement) : M.findOneAndReplace(filter, replacement)
-  return query.setOptions(switches).exec()
+  const replacement = { ...Object.fromEntries(Object.entries(current ?? {}).filter(([k]) => !FIELDS.includes(k) && k !== '_id' && k !== '__v')), ...doc }
+  const query = via === 'replaceOne' ? M.replaceOne(filter, replacement) : M.findOneAndReplace(filter, replacement)
+  return query.setOptions(options).exec()
+}
+
+const executeUpdate = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { kind: 'Update' }>) => {
+  if (call.via !== 'save') return runUpdate(M, call.via, call.id, call.doc, switchesOf(call.flags))
+  const doc = await M.findById(oid(call.id)).exec()
+  if (!doc) return
+  for (const field of FIELDS) doc.set(field, call.doc[field])
+  return doc.save()
 }
 
 const executeDelete = async (M: mongoose.Model<LawDoc>, call: Extract<Call, { kind: 'Delete' }>) => {
-  if (call.via === 'document') return (await M.findById(oid(call.id)).exec())?.deleteOne()
-  const query = call.via === 'findOneAndDelete' ? M.findOneAndDelete({ _id: oid(call.id) }) : M.deleteOne({ _id: oid(call.id) })
-  return query.setOptions(switchesOf(call.flags)).exec()
+  const filter = { _id: oid(call.id) }
+  const switches = switchesOf(call.flags)
+  switch (call.via) {
+    case 'document':
+      return (await M.findById(filter._id).exec())?.deleteOne()
+    case 'deleteOne':
+      return M.deleteOne(filter).setOptions(switches).exec()
+    case 'findOneAndDelete':
+      return M.findOneAndDelete(filter).setOptions(switches).exec()
+    case 'findByIdAndDelete':
+      return M.findByIdAndDelete(filter._id).setOptions(switches).exec()
+    case 'findByIdAndRemove':
+      return legacy(M).findByIdAndRemove(filter._id).setOptions(switches).exec()
+    default:
+      return legacy(M)[call.via](filter).setOptions(switches).exec()
+  }
 }
 
 const execute = async (M: mongoose.Model<LawDoc>, call: Call, extra: Record<string, unknown> = {}) => {
@@ -294,8 +367,13 @@ const execute = async (M: mongoose.Model<LawDoc>, call: Call, extra: Record<stri
       return executeUpdate(M, call)
     case 'Delete':
       return executeDelete(M, call)
+    case 'CreateMany':
+      return M.create(call.items.map((item) => ({ _id: oid(item.id), ...item.doc, ...extra })))
     case 'InsertMany':
-      return M.insertMany(call.items.map((item) => ({ _id: oid(item.id), ...item.doc, ...extra })))
+      return M.insertMany(
+        call.items.map((item) => ({ _id: oid(item.id), ...item.doc, ...extra })),
+        { ordered: call.ordered },
+      )
     case 'UpdateMany':
       return M.updateMany({ _id: { $in: call.ids.map(oid) } }, replaceWith(call.doc))
         .setOptions(switchesOf(call.flags))
@@ -306,9 +384,7 @@ const execute = async (M: mongoose.Model<LawDoc>, call: Call, extra: Record<stri
         .setOptions(switchesOf(call.flags))
         .exec()
     case 'Upsert':
-      return M.updateOne({ _id: oid(call.id) }, replaceWith(call.doc))
-        .setOptions({ ...switchesOf(call.flags), upsert: true })
-        .exec()
+      return runUpdate(M, call.via, call.id, call.doc, { ...switchesOf(call.flags), upsert: true })
   }
 }
 // The hook does nothing, preDelete included, with ignoreHook or with both ignoreEvent and ignorePatchHistory.
@@ -325,7 +401,8 @@ const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: b
   if (call.kind === 'Create' && before) reached.push('Create of a live id')
   if (call.kind === 'Update' && call.via !== 'updateOne' && before) reached.push(`Update by ${call.via}`)
   if (call.kind === 'Delete' && call.via !== 'deleteOne') reached.push(`Delete by ${call.via}`)
-  if (call.kind === 'Upsert') reached.push(before ? 'Upsert matching' : 'Upsert inserting')
+  if (call.kind === 'InsertMany' && !call.ordered) reached.push('InsertMany unordered')
+  if (call.kind === 'Upsert') reached.push(...upsertRules(call.via, before !== null))
   if (call.kind === 'DeleteVetoed' && hooked) reached.push('DeleteVetoed vetoed')
   if (call.kind !== 'Update' || !before) return reached
   const old = fieldsOf(before)
@@ -334,33 +411,29 @@ const reachedBy = (call: Call, before: Record<string, unknown> | null, hooked: b
   if (deleted.has(call.id)) reached.push('Update after a delete and a new create')
   return reached
 }
+const upsertRules = (via: UpsertVia, matching: boolean) => {
+  const outcome = matching ? 'matching' : 'inserting'
+  return [`Upsert ${outcome}`, ...(via === 'updateOne' ? [] : [`Upsert by ${via} ${outcome}`])]
+}
 const ALWAYS_REACHED = [
   'Create',
   'Create of a live id',
+  'CreateMany',
   'Update',
   'Delete',
-  'Update by save',
-  'Update by findOneAndUpdate',
-  'Update by replaceOne',
-  'Update by findOneAndReplace',
-  'Delete by findOneAndDelete',
+  ...UPDATE_VIAS.filter((via) => via !== 'updateOne').map((via) => `Update by ${via}`),
+  ...DELETE_VIAS.filter((via) => via !== 'deleteOne').map((via) => `Delete by ${via}`),
+  ...UPSERT_VIAS.flatMap((via) => [...upsertRules(via, true), ...upsertRules(via, false)]),
   'InsertMany',
+  'InsertMany unordered',
   'UpdateMany',
   'DeleteMany',
   'DeleteVetoed',
   'Upsert',
-  'Upsert matching',
-  'Upsert inserting',
   'DeleteVetoed vetoed',
   'Update after a delete and a new create',
 ]
-const mustReach = ({ cfg, omit, rejected }: Target) => [
-  ...ALWAYS_REACHED,
-  ...(isMongooseLessThan8 ? [] : ['Delete by document']),
-  ...(omit.id ? ['Update from a document with only omitted fields'] : []),
-  ...(omit.keys.length > 0 ? ['Update changing only omitted fields'] : []),
-  ...(cfg.history && !rejected && !omit.id ? ['Replay of an update patch'] : []),
-]
+const mustReach = ({ cfg, omit, rejected }: Target) => [...new Set(ALWAYS_REACHED), ...(omit.id ? ['Update from a document with only omitted fields'] : []), ...(omit.keys.length > 0 ? ['Update changing only omitted fields'] : []), ...(cfg.history && !rejected && !omit.id ? ['Replay of an update patch'] : [])]
 
 const noSwitch = (call: Call) => !('flags' in call) || (!call.flags.hook && !call.flags.event && !call.flags.history)
 
@@ -436,9 +509,17 @@ export const createHarness = () => {
     const evsBefore = seen.length
     const errorsBefore = errors.length
     const hooked = await executeChecked(M, call, extra)
-    const next = modelCall(modelCfg, modelOmit, states.state, toModelCall(call))
-    const healthyNext = modelCall(healthyCfg, modelOmit, states.healthy, toModelCall(call))
-    expect(errors.length - errorsBefore).toBe(rejected ? failedWrites(fromList(healthyNext.hist).slice(fromList(states.healthy.hist).length)) : 0)
+    // Each model call is one write: a create of several documents fails once per document.
+    let next = states.state
+    let healthyNext = states.healthy
+    let failed = 0
+    for (const modelCallOf of toModelCalls(call)) {
+      next = modelCall(modelCfg, modelOmit, next, modelCallOf)
+      const healthyBefore = fromList(healthyNext.hist).length
+      healthyNext = modelCall(healthyCfg, modelOmit, healthyNext, modelCallOf)
+      failed += failedWrites(fromList(healthyNext.hist).slice(healthyBefore))
+    }
+    expect(errors.length - errorsBefore).toBe(rejected ? failed : 0)
 
     // Every entry written, whatever its model: an entry recorded under another name is still one too many.
     // Selected by identity: ObjectIds are not in creation order once their counter wraps.
@@ -496,7 +577,7 @@ export const createHarness = () => {
             }
           }
         }),
-        { numRuns },
+        { numRuns, examples: [[coverageSequence(omit)]] },
       )
       .finally(() => rejectHistoryWrites(false))
     expect(sequences).toBe(numRuns)
