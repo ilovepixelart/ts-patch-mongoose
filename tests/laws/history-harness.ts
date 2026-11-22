@@ -284,6 +284,34 @@ const sequenceArb = (omit: Omit) => {
   return fc.oneof(fc.array(callArbWith(flagsArb, fieldArb), { maxLength: 8 }), fc.array(callArbWith(noSwitchArb, fieldArb), { maxLength: 8 })).map(contractCalls)
 }
 
+// The fixed coverage sequence reaches every rule on its own, so the reach check below says nothing
+// about the random draws. This says it: each call kind, each method of a kind and each query switch
+// on each kind that takes switches, missing from a sample of the random sequences (fixed seed, no
+// database), so an arm or a method the generator stops drawing fails.
+const FLAG_NAMES = ['hook', 'event', 'history'] as const
+const SWITCHED_KINDS = ['Update', 'Delete', 'UpdateMany', 'DeleteMany', 'DeleteVetoed', 'Upsert'] as const
+const drawn = (call: Call): string[] => [
+  call.kind,
+  ...('via' in call ? [`${call.kind} by ${call.via}`] : []),
+  ...('flags' in call ? FLAG_NAMES.filter((flag) => call.flags[flag]).map((flag) => `${call.kind} with ${flag}`) : []),
+  ...(call.kind === 'InsertMany' ? [`InsertMany ${call.ordered ? 'ordered' : 'unordered'}`] : []),
+]
+const MUST_DRAW = [
+  'Create',
+  'CreateMany',
+  'InsertMany ordered',
+  'InsertMany unordered',
+  ...SWITCHED_KINDS,
+  ...UPDATE_VIAS.map((via) => `Update by ${via}`),
+  ...DELETE_VIAS.map((via) => `Delete by ${via}`),
+  ...UPSERT_VIAS.map((via) => `Upsert by ${via}`),
+  ...SWITCHED_KINDS.flatMap((kind) => FLAG_NAMES.map((flag) => `${kind} with ${flag}`)),
+]
+export const undrawn = (omit: Omit, sequences: number): string[] => {
+  const seen = new Set(fc.sample(sequenceArb(omit), { numRuns: sequences, seed: 1 }).flatMap((calls) => calls.flatMap(drawn)))
+  return MUST_DRAW.filter((label) => !seen.has(label))
+}
+
 const modelFlags = (flags: Flags) => ({ $: 'Flags', ...flags })
 // A create of several documents saves each, as that many creates.
 const toModelCalls = (call: Call): unknown[] => (call.kind === 'CreateMany' ? call.items.map(({ id, doc }) => toModelCall({ kind: 'Create', id, doc })) : [toModelCall(call)])

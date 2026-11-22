@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import { patchEventEmitter, patchHistoryPlugin } from '../../src/index'
 import { isMongooseLessThan8 } from '../../src/version'
 import server from '../mongo/server'
-import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
+import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid, undrawn } from './history-harness'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
 // events each mongoose call writes (create, save, insertMany, every update and delete method mongoose has,
@@ -57,6 +57,13 @@ describe('the plugin keeps the laws of laws/history.bend', () => {
     it(`${target.label}: each call writes the history and events the model writes, the store is the model store, and history replays to it`, async () => {
       await checkSequences(target, 60)
     }, 120_000)
+  }
+
+  // The reach check is met by the fixed coverage sequence alone; this holds the random draws to every arm.
+  for (const omit of OMITS) {
+    it(`omit [${omit.keys.join(', ')}${omit.id ? ', _id' : ''}]: the random sequences draw every call kind, method and query switch`, () => {
+      expect(undrawn(omit, 300)).toEqual([])
+    })
   }
 
   // Characterization: the updated event's doc keeps each $unset field as a key whose value is undefined.
