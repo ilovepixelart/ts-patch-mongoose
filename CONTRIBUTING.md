@@ -59,16 +59,17 @@ npm run test:e2e -- --mongoose 6.12.2       # another mongoose version
 - any scenario differs from the published version at a path that no `e2e/allowlist.json` entry for that scenario allows
 - an `e2e/allowlist.json` entry allows no difference (remove entries once their change is published)
 - what a scenario recorded disagrees with what MongoDB stored, by any of the store oracles in `e2e/store-oracle.mjs`, at a path no `e2e/known-defects.json` entry for that oracle and scenario excuses:
-  - `updated-doc`: the last updated event of a stored document does not carry that document as mongoose reads it back
+  - `updated-doc`: outside a rolled back transaction, the last updated event of a stored document does not carry that document as mongoose reads it back
   - `recorded`: a document's stored state changed, and no event and no history entry names it
-  - `replay`: the history patches, applied to a document as it was, do not give the document as it is
+  - `replay`: where the operation writes history, a changed document has no history entry, or its patches, applied to the document as it was, fail an op or do not give the document as it is
   - `created-doc`: a created event's doc is not the document as stored
   - `deleted-doc`: a deleted event's document is still stored
   - `rolled-back`: a transaction async local storage rolled back changed the store or wrote history
+  - `quiet`: an operation marked `silent` recorded an event or history, or one that writes no history wrote some
 - an `e2e/known-defects.json` entry excuses no violation (remove it with the fix)
 - any manual transaction of the cold-start check fails
 
-An intended behaviour change goes into `e2e/allowlist.json` with the scenarios it changes, the difference paths it changes in them (for example `$.events[*].payload.doc.**`, where `*` matches one key or index and `**` any rest of the path) and the reason. The store oracles need no baseline, so they also fail on a defect the published version shares; a defect they find that a later change fixes goes into `e2e/known-defects.json` with the oracle, the scenario, the paths it excuses and the reason. They judge a change only where no omit entry of the profile may cover it, and an operation marked `silent` (it switches the hook off, or is not hooked) is expected to record nothing. The tooling's own tests run with `npm run test:e2e:tools`. `--candidate <version|file.tgz>` and `--baseline <version>` replace the packed build or the published version; `--known-defects <file>` replaces `e2e/known-defects.json`; `--keep` keeps the consumer projects and their outputs (they are always kept when the run fails). CI runs it for every mongoose major.
+An intended behaviour change goes into `e2e/allowlist.json` with the scenarios it changes, the difference paths it changes in them (for example `$.events[*].payload.doc.**`, where `*` matches one key or index and `**` any rest of the path) and the reason. The store oracles need no baseline, so they also fail on a defect the published version shares; a defect they find that a later change fixes goes into `e2e/known-defects.json` with the oracle, the scenario, the paths it excuses and the reason. They judge a change only where no omit entry of the profile may cover it. `recorded` and `replay` do not judge a scenario that called `onError`, and rolled back transactions are judged by `rolled-back` and `quiet` only. An operation marked `silent` (it switches the hook off, or is not hooked) must record nothing, and one marked `history: false` must write no history. The tooling's own tests run with `npm run test:e2e:tools`. `--candidate <version|file.tgz>` and `--baseline <version>` replace the packed build or the published version; `--known-defects <file>` replaces `e2e/known-defects.json`; `--keep` keeps the consumer projects and their outputs (they are always kept when the run fails). CI runs it for every mongoose major.
 
 ## Mutation testing
 

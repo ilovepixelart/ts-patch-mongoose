@@ -340,43 +340,89 @@
     {
       "oracle": "replay",
       "scenario": "*/save:existing/*",
-      "paths": ["$patch", "$.dict**", "$.__v"],
+      "paths": [
+        "$patch test /bigs/*",
+        "$patch test /dict/*",
+        "$patch remove /dict/*",
+        "$.dict**",
+        "$.__v"
+      ],
       "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
     },
     {
       "oracle": "replay",
       "scenario": "*/save:populated/*",
-      "paths": ["$patch", "$.dict**", "$.__v"],
+      "paths": [
+        "$patch test /bigs/*",
+        "$patch test /dict/*",
+        "$patch remove /dict/*",
+        "$.dict**",
+        "$.__v"
+      ],
       "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
     },
     {
       "oracle": "replay",
       "scenario": "*/save:unchanged/*",
-      "paths": ["$patch", "$.dict**", "$.__v"],
+      "paths": [
+        "$patch test /bigs/*",
+        "$patch test /dict/*",
+        "$patch remove /dict/*",
+        "$.dict**",
+        "$.__v"
+      ],
       "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
     },
     {
       "oracle": "replay",
       "scenario": "*/save:subdocument-array/*",
-      "paths": ["$patch", "$.__v"],
+      "paths": [
+        "$patch test /bigs/*",
+        "$patch test /dict/*",
+        "$patch remove /dict/*",
+        "$.dict**",
+        "$.__v"
+      ],
       "reason": "A save diffs the stored document as read with lean against the document captured before the write, so its patch tests a BigInt as the number stored and replaces it with a string, removes every key of a Map field the save did not change, and misses the version key the write sets"
     },
     {
       "oracle": "replay",
       "scenario": "*/replaceOne/*",
-      "paths": ["$patch"],
-      "reason": "A replacement's patch tests and removes a Map field with the empty object the plugin diffs Maps as, not the value stored"
+      "paths": ["$patch test /dict"],
+      "reason": "A replacement's patch tests a Map field without a value, so the test cannot hold on the document stored"
     },
     {
       "oracle": "replay",
       "scenario": "*/findOneAndReplace/*",
-      "paths": ["$patch"],
-      "reason": "A replacement's patch tests and removes a Map field with the empty object the plugin diffs Maps as, not the value stored"
+      "paths": ["$patch test /dict"],
+      "reason": "A replacement's patch tests a Map field without a value, so the test cannot hold on the document stored",
+      "mongoose": 7
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/findOneAndReplace/*",
+      "paths": ["$patch test /dict"],
+      "reason": "A replacement's patch tests a Map field without a value, so the test cannot hold on the document stored",
+      "mongoose": 8
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/findOneAndReplace/*",
+      "paths": ["$patch test /dict"],
+      "reason": "A replacement's patch tests a Map field without a value, so the test cannot hold on the document stored",
+      "mongoose": 9
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/findOneAndReplace/*",
+      "mongoose": 6,
+      "paths": ["$patch test /dict", "$.tags", "$.labels", "$.items"],
+      "reason": "A replacement's patch tests a Map field without a value, so the test cannot hold on the document stored; on mongoose 6 it also stores the replacement without the schema's array defaults, which the patch, built from the document as mongoose reads it, assumes"
     },
     {
       "oracle": "replay",
       "scenario": "*/updateOne:repeated/committed",
-      "paths": ["$patch"],
+      "paths": ["$patch test /n"],
       "reason": "In a transaction with an explicit session the plugin reads outside it (README, Transactions), so the second update's patch tests the value the transaction already replaced"
     },
     {
@@ -504,6 +550,206 @@
       "mongoose": 7,
       "paths": ["$state**"],
       "reason": "On mongoose 7 a document's deleteOne() inside a transaction async local storage rolls back deletes the document anyway"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:push/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:push-missing/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:push-null/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:push-object/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:addToSet-each-duplicates/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:addToSet-missing/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:addToSet-null/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:addToSet-object/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:pull/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:currentDate-date-type/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:currentDate-timestamp/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:currentDate-undefined-spec/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:max-equal-other-type/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:min+max-missing-parent/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:rename-nested/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-array-to-object/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-escaped-keys/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-mixed-buffer/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-mixed-date/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-new-array-path/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-new-non-index-paths/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-new-object-path/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-null/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-object-to-array/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-shrink-array/*",
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:rename-non-string/*",
+      "mongoose": 8,
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:rename-non-string/*",
+      "mongoose": 9,
+      "paths": ["$history"],
+      "reason": "An update of a path inside a Mixed field changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:positional/*",
+      "paths": ["$history"],
+      "reason": "An update through the positional $ operator changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:pipeline/*",
+      "paths": ["$history"],
+      "reason": "An update with an aggregation pipeline changes the stored document, but the plugin records no history entry and no event"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "*/updateOne:set-map/*",
+      "paths": ["$history"],
+      "reason": "A $set of a Map field changes the stored document, but the plugin diffs Maps as empty objects and records nothing"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "omit-all-but-new/updateOne:inc-missing/*",
+      "paths": ["$history"],
+      "reason": "An update from a document whose fields are all omitted records nothing: the plugin skips an update whose omitted original is empty"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "omit-all-but-new/updateOne:rename-visible/*",
+      "paths": ["$history"],
+      "reason": "An update from a document whose fields are all omitted records nothing: the plugin skips an update whose omitted original is empty"
+    },
+    {
+      "oracle": "replay",
+      "scenario": "omit-all-but-secret/updateOne:operators/*",
+      "paths": ["$history"],
+      "reason": "An update that leaves the omitted document empty records nothing: the plugin skips an update whose omitted result is empty"
     }
   ]
 }

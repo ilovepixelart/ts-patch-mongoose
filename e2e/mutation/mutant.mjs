@@ -6,7 +6,8 @@
 //            with no mutant active, so a scenario that is not deterministic fails it instead of killing mutants.
 // The reference is this build, not the published baseline, so allowlisted changes do not count as kills.
 // Concurrent runs share the install, which they only read. A run that crashes instead of finishing is retried
-// once, so an infrastructure failure such as a replica set that did not start is not counted as a kill.
+// once, so a passing infrastructure failure such as a replica set that did not start is not counted as a
+// kill; a crash in both attempts is, as the mutant crashing the run, and its stderr is kept with the kill.
 // MUTANT_MONGOOSE installs another mongoose version in the consumer, for the code only older majors run.
 import { execFile } from 'node:child_process'
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

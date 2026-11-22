@@ -1,24 +1,26 @@
 import { readFileSync } from 'node:fs'
-import { diffPaths, globToRegExp, pathToRegExp } from './compare.mjs'
+import { allDiffPaths, globToRegExp, pathToRegExp } from './compare.mjs'
 
 // Checks of one build against MongoDB rather than against the baseline, so a defect the baseline
 // shares fails here. Each oracle judges a scenario record by what the store held before and after it:
 //
 //   updated-doc  the last updated event of a stored document carries that document as mongoose reads it
 //   recorded     every document whose stored state changed is named by an event or a history entry
-//   replay       the history patches, applied to a document as it was, give the document as it is
+//   replay       where the operation writes history, every changed document has entries, and their
+//                patches, applied to the document as it was, give the document as it is
 //   created-doc  a created event's doc is the document as stored (before mongoose fills in defaults on
 //                read), unless the scenario changed it later
 //   deleted-doc  a deleted event's document is no longer stored
 //   rolled-back  a transaction async local storage rolled back leaves the store and history as they were
+//   quiet        an operation marked silent records nothing, and one that writes no history writes none
 //
 // A change at a path the profile's omit option may cover is not judged: the oracles over-approximate
 // omit (any key named by an omit entry's last segment), so they never fail on an omitted path and the
-// laws hold omit itself. A scenario whose onError calls reported a lost record is not judged by
-// recorded or replay. Manually rolled back transactions keep their history (README, Transactions), so
-// only updated-doc skips them as well.
+// laws hold omit itself. recorded and replay do not judge a scenario that called onError at all.
+// Rolled back transactions are judged by rolled-back and quiet only: a manual one keeps its history
+// (README, Transactions) though its store is unchanged.
 
-export const ORACLES = ['updated-doc', 'recorded', 'replay', 'created-doc', 'deleted-doc', 'rolled-back']
+export const ORACLES = ['updated-doc', 'recorded', 'replay', 'created-doc', 'deleted-doc', 'rolled-back', 'quiet']
 const ROLLED_BACK = new Set(['aborted', 'als-aborted'])
 const ENTRY_KEYS = new Set(['oracle', 'scenario', 'mongoose', 'paths', 'reason'])
 
@@ -88,7 +90,7 @@ const updatedDoc = (id, record) => {
   const found = []
   for (const [docId, doc] of last) {
     const read = stored.get(docId)
-    if (read && JSON.stringify(canonical(read)) !== JSON.stringify(canonical(doc))) found.push({ doc: docId, paths: diffPaths(canonical(read), canonical(doc)) })
+    if (read && JSON.stringify(canonical(read)) !== JSON.stringify(canonical(doc))) found.push({ doc: docId, paths: allDiffPaths(canonical(read), canonical(doc)) })
   }
   return found
 }
@@ -138,13 +140,36 @@ const add = (doc, pointer, value) => {
   else parent[key] = value
 }
 
-// RFC 6902, as the history replays: each op on a copy of the document, a failed test stops it.
-const applyOp = (doc, op) => {
-  const value = structuredClone(op.value)
-  if (op.op === 'test' && JSON.stringify(canonical(read(doc, op.path))) !== JSON.stringify(canonical(op.value))) throw new Error(`test ${op.path} failed: ${JSON.stringify(read(doc, op.path))}`)
-  if (op.op === 'remove' || op.op === 'replace' || op.op === 'move') remove(doc, op.op === 'move' ? op.from : op.path)
-  if (op.op === 'add' || op.op === 'replace') add(doc, op.path, value)
-  if (op.op === 'move' || op.op === 'copy') add(doc, op.path, structuredClone(read(doc, op.from)))
+// RFC 6902 on the document as the history replays it. A test that does not hold or an op that cannot
+// apply is reported by the op's name and pointer, and the replay goes on with the next op, so every
+// later op is judged too.
+// A value without the keys omit may cover, at any depth: what a test op the plugin built from the
+// omitted document holds.
+const withoutOmitted = (value, omitted) => {
+  if (Array.isArray(value)) return value.map((item) => withoutOmitted(item, omitted))
+  if (!isObject(value)) return value
+  return Object.fromEntries(
+    Object.keys(value)
+      .filter((key) => !omitted.has(key))
+      .map((key) => [key, withoutOmitted(value[key], omitted)]),
+  )
+}
+
+const applyOp = (doc, op, omitted) => {
+  const name = `$patch ${op.op} ${op.op === 'move' || op.op === 'copy' ? `${op.from} ${op.path}` : op.path}`
+  try {
+    if (op.op === 'test') {
+      const actual = read(doc, op.path)
+      const same = JSON.stringify(canonical(withoutOmitted(actual, omitted))) === JSON.stringify(canonical(withoutOmitted(op.value, omitted)))
+      return same ? undefined : `${name}: the document has ${JSON.stringify(actual) ?? '<missing>'}`
+    }
+    const value = op.op === 'move' || op.op === 'copy' ? structuredClone(read(doc, op.from)) : structuredClone(op.value)
+    if (op.op === 'remove' || op.op === 'replace' || op.op === 'move') remove(doc, op.op === 'move' ? op.from : op.path)
+    if (op.op !== 'remove') add(doc, op.path, value)
+    return undefined
+  } catch (error) {
+    return `${name}: ${error.message}`
+  }
 }
 
 const replay = (id, record) => {
@@ -158,9 +183,15 @@ const replay = (id, record) => {
     entries.set(docId, [...(entries.get(docId) ?? []), entry])
   }
   const found = []
-  for (const [docId, list] of entries) {
-    // A document created or deleted in the scenario has no stored state to replay from or to.
+  for (const docId of new Set([...before.keys(), ...after.keys()])) {
+    const list = entries.get(docId) ?? []
+    // A document created or deleted in the scenario has no stored state to replay from or to; recorded
+    // judges that it is named at all.
     if (!before.has(docId) || !after.has(docId) || list.some((entry) => !Array.isArray(entry.patch))) continue
+    if (list.length === 0) {
+      if (changedPaths(visible(before.get(docId), omitted), visible(after.get(docId), omitted)).length > 0) found.push({ doc: docId, paths: ['$history: no entry for a changed document'] })
+      continue
+    }
     const sorted = [...list].sort((left, right) => left.version - right.version)
     const versions = sorted.map((entry) => entry.version)
     if (versions.some((version, index) => version !== index)) {
@@ -168,13 +199,8 @@ const replay = (id, record) => {
       continue
     }
     const doc = structuredClone(before.get(docId))
-    try {
-      for (const entry of sorted) for (const op of entry.patch) applyOp(doc, op)
-    } catch (error) {
-      found.push({ doc: docId, paths: [`$patch: ${error.message}`] })
-      continue
-    }
-    const paths = changedPaths(visible(doc, omitted), visible(after.get(docId), omitted)).map((path) => path.replace(': before ', ': replayed ').replace(', after ', ', stored '))
+    const failed = sorted.flatMap((entry) => entry.patch.map((op) => applyOp(doc, op, omitted))).filter((message) => message !== undefined)
+    const paths = [...failed, ...changedPaths(visible(doc, omitted), visible(after.get(docId), omitted)).map((path) => path.replace(': before ', ': replayed ').replace(', after ', ', stored '))]
     if (paths.length > 0) found.push({ doc: docId, paths })
   }
   return found
@@ -210,11 +236,18 @@ const deletedDoc = (id, record) => {
 
 const rolledBack = (id, record) => {
   if (modeOf(id) !== 'als-aborted' || !Array.isArray(record.before)) return []
-  const paths = [...(JSON.stringify(record.before) === JSON.stringify(record.state) ? [] : diffPaths(record.before, record.state).map((path) => `$state${path.slice(1)}`)), ...((record.history ?? []).length > 0 ? [`$history: ${record.history.length} entries`] : [])]
+  const paths = [...(JSON.stringify(record.before) === JSON.stringify(record.state) ? [] : allDiffPaths(record.before, record.state).map((path) => `$state${path.slice(1)}`)), ...((record.history ?? []).length > 0 ? [`$history: ${record.history.length} entries`] : [])]
   return paths.length > 0 ? [{ doc: '*', paths }] : []
 }
 
-const CHECKS = { 'updated-doc': updatedDoc, recorded, replay, 'created-doc': createdDoc, 'deleted-doc': deletedDoc, 'rolled-back': rolledBack }
+const quiet = (_id, record) => {
+  const events = record.silent ? (record.events ?? []).length : 0
+  const history = record.historyExpected ? 0 : (record.history ?? []).length
+  const paths = [...(events > 0 ? [`$events: ${events} recorded`] : []), ...(history > 0 ? [`$history: ${history} recorded`] : [])]
+  return paths.length > 0 ? [{ doc: '*', paths }] : []
+}
+
+const CHECKS = { 'updated-doc': updatedDoc, recorded, replay, 'created-doc': createdDoc, 'deleted-doc': deletedDoc, 'rolled-back': rolledBack, quiet }
 
 // Every violation of every oracle, as { oracle, id, doc, paths }. Records without the store before
 // the scenario (skipped scenarios and the history/* checks) are judged by none.

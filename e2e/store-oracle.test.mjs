@@ -139,7 +139,7 @@ describe('replay', () => {
         ],
       }),
     })
-    assert.deepEqual(failed[0].paths, ['$patch: test /n failed: 1'])
+    assert.deepEqual(failed[0].paths, ['$patch test /n: the document has 1'])
     const skipped = only('replay', { 'full/updateOne/none': record({ before, after: [{ _id: A, n: 2 }], history: [entry(A, 1, [{ op: 'replace', path: '/n', value: 2 }])] }) })
     assert.deepEqual(skipped[0].paths, ['$version: [1], expected 0 to 0'])
   })
@@ -160,7 +160,64 @@ describe('omit', () => {
   })
 })
 
+describe('replay holds history to every change', () => {
+  it('reports a changed document no history entry names when the operation writes history', () => {
+    const scenarios = { 'full/updateOne/none': record({ before: [{ _id: A, n: 1 }], after: [{ _id: A, n: 2 }], events: [updated({ _id: oid(A), n: 2 })] }) }
+    assert.deepEqual(only('replay', scenarios), [{ oracle: 'replay', id: 'full/updateOne/none', doc: A, paths: ['$history: no entry for a changed document'] }])
+  })
+
+  it('names the patch op that fails and replays the ops after it', () => {
+    const history = [
+      entry(A, 0, [
+        { op: 'test', path: '/n', value: 9 },
+        { op: 'replace', path: '/n', value: 2 },
+        { op: 'replace', path: '/m', value: 3 },
+      ]),
+    ]
+    const scenarios = { 'full/updateOne/none': record({ before: [{ _id: A, n: 1, m: 1 }], after: [{ _id: A, n: 2, m: 5 }], history }) }
+    assert.deepEqual(only('replay', scenarios)[0].paths, ['$patch test /n: the document has 1', '$.m: replayed 3, stored 5'])
+  })
+
+  it('tests a value the plugin built from the omitted document without the paths omit may cover', () => {
+    const history = [
+      entry(A, 0, [
+        { op: 'test', path: '/meta', value: { color: 'red' } },
+        { op: 'remove', path: '/meta' },
+      ]),
+    ]
+    const scenarios = { 'full/replaceOne/none': record({ before: [{ _id: A, meta: { color: 'red', size: 1 } }], after: [{ _id: A }], history, omit: ['meta.size'] }) }
+    assert.deepEqual(only('replay', scenarios), [])
+  })
+
+  it('replays a move and a copy as RFC 6902 defines them', () => {
+    const history = [
+      entry(A, 0, [
+        { op: 'move', from: '/a', path: '/b' },
+        { op: 'copy', from: '/b', path: '/c' },
+      ]),
+    ]
+    assert.deepEqual(only('replay', { 'full/updateOne/none': record({ before: [{ _id: A, a: 1 }], after: [{ _id: A, b: 1, c: 1 }], history }) }), [])
+  })
+})
+
+describe('quiet', () => {
+  it('reports a silent operation that recorded an event or history', () => {
+    const scenarios = { 'full/updateOne:ignoreHook/none': record({ silent: true, historyExpected: false, events: [updated({ _id: oid(A), n: 2 })], history: [entry(A, 0, [])] }) }
+    assert.deepEqual(only('quiet', scenarios)[0].paths, ['$events: 1 recorded', '$history: 1 recorded'])
+  })
+
+  it('reports history from an operation or profile that writes none, and accepts its events', () => {
+    assert.deepEqual(only('quiet', { 'disabled/updateOne/none': record({ historyExpected: false, events: [updated({ _id: oid(A), n: 2 })], history: [entry(A, 0, [])] }) })[0].paths, ['$history: 1 recorded'])
+    assert.deepEqual(only('quiet', { 'disabled/updateOne/none': record({ historyExpected: false, events: [updated({ _id: oid(A), n: 2 })] }) }), [])
+  })
+})
+
 describe('created-doc and deleted-doc', () => {
+  it('does not judge a created doc in a rolled back transaction, whose document is not stored', () => {
+    const scenarios = { 'full/insertMany/aborted': record({ events: [created({ _id: oid(B), n: 1 })] }) }
+    assert.deepEqual(only('created-doc', scenarios), [])
+  })
+
   it('takes a BigInt as stored (a number) and as an event holds it ("5n") for the same value', () => {
     const scenarios = { 'full/save:new/none': record({ after: [{ _id: B, bigs: [5, 6] }], events: [created({ _id: oid(B), bigs: ['5n', '6n'] })] }) }
     assert.deepEqual(only('created-doc', scenarios), [])
@@ -230,6 +287,13 @@ describe('checkStore', () => {
     assert.equal(checkStore(scenarios, known([entryFor({ mongoose: '6.13' })]), '6.12.0').failures.length, 1)
     assert.equal(checkStore(scenarios, known([entryFor({ mongoose: '6.1' })]), '6.13.13').failures.length, 1)
     assert.throws(() => known([entryFor({ mongoose: 'six' })]), /"mongoose" must be a major version number or a version prefix/)
+  })
+
+  it('judges every path of a violation, not only the first ones it displays', () => {
+    const items = Array.from({ length: 9 }, (_, index) => ({ _id: `${index}`, v: 'x' }))
+    const stored = { 'full/updateOne:subdocument-push/none': record({ after: [{ _id: A, n: 1, items }], events: [updated({ _id: oid(A), n: 999, items: items.map(({ v }) => ({ v })) })] }) }
+    const pushed = known([entryFor({ scenario: '*/updateOne:subdocument-push/*', paths: ['$.items[*]._id'] })])
+    assert.equal(checkStore(stored, pushed, '9.12.2').failures.length, 1)
   })
 
   it('fails a violation at a path the known defect does not name', () => {
