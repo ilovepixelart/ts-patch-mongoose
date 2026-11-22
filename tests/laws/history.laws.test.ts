@@ -7,9 +7,10 @@ import server from '../mongo/server'
 import { type Cfg, createHarness, fieldsOf, idOf, type LawDoc, type Omit, oid } from './history-harness'
 
 // laws/history.bend models the plugin's contract over a document store: the history entries and
-// events each mongoose call writes (save, updateOne, findOneAndUpdate, replaceOne, findOneAndReplace, deleteOne, findOneAndDelete, a
-// document's deleteOne, insertMany, updateMany, deleteMany and upserts), under every configuration, omit option and query switch. These tests run random call
-// sequences on the plugin and the model alike: each call's history entries and events must be the
+// events each mongoose call writes (create, save, insertMany, every update and delete method mongoose has,
+// a document's deleteOne, updateMany, deleteMany and upserts by every update method), under every
+// configuration, omit option and query switch. These tests run one sequence through every method and
+// random call sequences on the plugin and the model alike: each call's history entries and events must be the
 // model's, the stored documents must be the model's, and replaying a document's history must give the
 // stored document without its omitted fields wherever the law applies (history on, no switches, _id
 // kept; LAWS.bend: replay_matches_store, replay_matches_omitted_store).
