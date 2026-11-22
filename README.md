@@ -173,7 +173,7 @@ export default Book
 
 ## Transactions
 
-The plugin reads documents and writes patch history outside the caller's transaction, so an aborted transaction keeps the history entries of the changes it attempted, and a document created earlier in the same transaction is not seen by the plugin. With mongoose 8+ `transactionAsyncLocalStorage`, mongoose applies the transaction's session to the plugin's history operations, so their entries follow the transaction.
+The plugin reads documents and writes patch history outside the caller's transaction, so an aborted transaction keeps the history entries of the changes it attempted, and a document created earlier in the same transaction is not seen by the plugin. With `transactionAsyncLocalStorage` (mongoose 7.8 and later 7.x, and 8.4 and later), mongoose applies the transaction's session to the plugin's history operations, so their entries follow the transaction.
 
 ## Subscribe
 

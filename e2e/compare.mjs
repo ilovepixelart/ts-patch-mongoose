@@ -32,6 +32,9 @@ const describe = (list) => list.slice(0, MAX_PATHS).map(({ path, detail }) => `$
 // The first paths at which two JSON values differ, for display.
 export const diffPaths = (baseline, candidate) => describe(differences(baseline, candidate))
 
+// Every path at which two JSON values differ, each with its detail: what a check judges.
+export const allDiffPaths = (baseline, candidate) => differences(baseline, candidate).map(({ path, detail }) => `${path}: ${detail}`)
+
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export const globToRegExp = (glob) => new RegExp(`^${glob.split('*').map(escapeRegExp).join('[^/]+')}$`)

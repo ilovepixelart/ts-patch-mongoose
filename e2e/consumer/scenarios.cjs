@@ -170,7 +170,7 @@ const sessionModes = (mongoose) => {
   }
 }
 
-// transactionAsyncLocalStorage exists from mongoose 8.4; older versions reject the option.
+// transactionAsyncLocalStorage exists in mongoose 7.8 and later 7.x, and from 8.4; other versions reject the option.
 const supportsAsyncLocalStorage = (mongoose) => {
   try {
     mongoose.set('transactionAsyncLocalStorage', false)
@@ -197,11 +197,21 @@ const exportsShape = (pkg) =>
     .sort()
     .map((key) => `${key}: ${typeof pkg[key]}`)
 
+// What setPatchHistoryTTL threw instead of reporting to onError, so a version that throws is compared
+// rather than ending the run.
+const ttlCall = async (setPatchHistoryTTL, ttl, rec) => {
+  try {
+    await setPatchHistoryTTL(ttl, rec.onError)
+    return undefined
+  } catch (error) {
+    return errorShape(error)
+  }
+}
+
 const historyIndexes = async (history, setPatchHistoryTTL, rec) => {
-  await setPatchHistoryTTL('1h', rec.onError)
-  await setPatchHistoryTTL('2h', rec.onError)
+  const thrown = [await ttlCall(setPatchHistoryTTL, '1h', rec), await ttlCall(setPatchHistoryTTL, '2h', rec)].filter(Boolean)
   const indexes = await history.indexes()
-  return { indexes: indexes.map(plain).sort((a, b) => a.name.localeCompare(b.name)), onError: [...rec.seen.onError] }
+  return { indexes: indexes.map(plain).sort((a, b) => a.name.localeCompare(b.name)), onError: [...rec.seen.onError], ...(thrown.length > 0 && { thrown }) }
 }
 
 // The TTL index after each call: unchanged TTL, a new TTL, under a second, removal with 0, exactly
@@ -213,9 +223,9 @@ const historyTtlSteps = async (history, setPatchHistoryTTL, rec) => {
   const steps = []
   for (const ttl of TTL_STEPS) {
     rec.clear()
-    await setPatchHistoryTTL(ttl, rec.onError)
+    const thrown = await ttlCall(setPatchHistoryTTL, ttl, rec)
     const ttlIndex = (await history.indexes()).find((index) => index.name === 'createdAt_1_TTL')
-    steps.push({ ttl, index: ttlIndex ? { key: ttlIndex.key, expireAfterSeconds: ttlIndex.expireAfterSeconds } : null, onError: [...rec.seen.onError] })
+    steps.push({ ttl, index: ttlIndex ? { key: ttlIndex.key, expireAfterSeconds: ttlIndex.expireAfterSeconds } : null, onError: [...rec.seen.onError], ...(thrown && { thrown }) })
   }
   return steps
 }
@@ -232,9 +242,9 @@ const historyTtlInputs = async (history, setPatchHistoryTTL, rec) => {
   for (const ttl of TTL_INPUTS) {
     await history.dropIndex('createdAt_1_TTL').catch(() => undefined)
     rec.clear()
-    await setPatchHistoryTTL(ttl, rec.onError)
+    const thrown = await ttlCall(setPatchHistoryTTL, ttl, rec)
     const ttlIndex = (await history.indexes()).find((index) => index.name === 'createdAt_1_TTL')
-    results.push({ ttl, expireAfterSeconds: ttlIndex ? ttlIndex.expireAfterSeconds : null, onError: [...rec.seen.onError] })
+    results.push({ ttl, expireAfterSeconds: ttlIndex ? ttlIndex.expireAfterSeconds : null, onError: [...rec.seen.onError], ...(thrown && { thrown }) })
   }
   return results
 }

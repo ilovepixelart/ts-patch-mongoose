@@ -2,8 +2,9 @@
 // it and the latest published version (or --baseline) into two fresh consumer projects outside
 // the repository, runs the same scenarios in each through require and through import against
 // real replica sets, and fails on any difference that allowlist.json does not list, on any
-// difference between require and import, on any updated event whose doc is not the stored document
-// unless known-defects.json names it, and on any failed cold-start transaction.
+// difference between require and import, on any disagreement between what a scenario recorded and
+// what MongoDB stored (store-oracle.mjs) that known-defects.json does not excuse, and on any failed
+// cold-start transaction.
 //
 //   npm run test:e2e -- [--mongoose 9.4.1] [--candidate <spec|file.tgz>] [--baseline <spec>] [--known-defects <file>] [--keep]
 
@@ -102,18 +103,24 @@ const checkFormats = (consumer, cjs, esm) => {
   if (ids.length > 0) failures.push(`${consumer.name}: require and import disagree on ${ids.length} scenarios: ${ids.slice(0, 10).join(', ')}`)
 }
 
-const checkBuilds = (baseline, candidate) => {
+// The first paths of a violation, then how many more: every path is judged, only these are printed.
+const SHOWN_PATHS = 8
+const showPaths = (paths) => [...paths.slice(0, SHOWN_PATHS), ...(paths.length > SHOWN_PATHS ? [`... ${paths.length - SHOWN_PATHS} more`] : [])].join('\n  ')
+
+// Entries are matched to the mongoose version the consumers installed, which a range or tag in
+// --mongoose only names.
+const checkBuilds = (baseline, candidate, installed) => {
   const allowlist = loadAllowlist(args.allowlist)
-  const { failures: diffs, allowed, unused } = compareBuilds(baseline.scenarios, candidate.scenarios, allowlist, mongooseVersion)
+  const { failures: diffs, allowed, unused } = compareBuilds(baseline.scenarios, candidate.scenarios, allowlist, installed)
   for (const { id, paths, reason } of allowed) console.log(`[e2e] allowed difference ${id} (${reason})\n  ${paths.join('\n  ')}`)
   for (const { id, paths } of diffs) failures.push(`behaviour differs from the baseline in ${id} at paths allowlist.json does not allow:\n  ${paths.join('\n  ')}`)
   for (const { scenario, reason } of unused) failures.push(`allowlist.json entry "${scenario}" (${reason}) matches no difference: remove it`)
 }
 
 // Independent of the baseline: what each scenario recorded must agree with what MongoDB stored.
-const checkAgainstStore = (candidate) => {
-  const { failures: violations, unused } = checkStore(candidate.scenarios, loadKnownDefects(args['known-defects']), mongooseVersion)
-  for (const { oracle, id, doc, paths } of violations) failures.push(`store oracle ${oracle}: ${doc} in ${id}:\n  ${paths.join('\n  ')}`)
+const checkAgainstStore = (candidate, installed) => {
+  const { failures: violations, unused } = checkStore(candidate.scenarios, loadKnownDefects(args['known-defects']), installed)
+  for (const { oracle, id, doc, paths } of violations) failures.push(`store oracle ${oracle}: ${doc} in ${id}:\n  ${showPaths(paths)}`)
   for (const { oracle, scenario, reason } of unused) failures.push(`known-defects.json entry ${oracle} "${scenario}" (${reason}) matches no violation: remove it`)
 }
 
@@ -167,8 +174,8 @@ const main = async () => {
     const servers = runs.map(([name, run]) => ({ name, version: run.mongodb }))
     failures.push(...versionMismatches('mongodb', mongodbVersion, servers))
     if (candidateCjs) coverage(candidateCjs.scenarios)
-    if (candidateCjs && baselineCjs) checkBuilds(baselineCjs, candidateCjs)
-    if (candidateCjs) checkAgainstStore(candidateCjs)
+    if (candidateCjs && baselineCjs) checkBuilds(baselineCjs, candidateCjs, candidate.mongoose)
+    if (candidateCjs) checkAgainstStore(candidateCjs, candidate.mongoose)
 
     checkColdStart(await phase('ran the cold-start check', () => runNode(candidate, 'cold-start.mjs', 'cold-start.json', 900_000)))
   } finally {
