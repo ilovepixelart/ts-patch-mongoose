@@ -66,8 +66,12 @@ jobs:
       - name: Type check
         run: npm run type:check
 
+      # In an order shuffled by the run's id, so a test that depends on another's state fails here;
+      # the log prints the seed, and --sequence.seed=<seed> replays the order.
       - name: Coverage
-        run: npm run test
+        env:
+          SEED: ${{ github.run_id }}
+        run: npm run test -- --sequence.shuffle --sequence.seed="$SEED"
 
   sonar:
     name: Biome, Coverage & Sonar
@@ -180,7 +184,8 @@ jobs:
 
   # The proofs of laws/ (npm run laws): Bend checks them, and --verdict rechecks them with BendTT's
   # kernel, which Lean builds. Both toolchains are pinned and checked against the release digests.
-  # Informational: the CI job below does not require it, so a change to src/ never waits on a proof.
+  # Required by the CI job below. The proofs and the generated modules depend on laws/ alone, so a
+  # pull request that changes nothing under laws/ skips the check; main and manual runs check always.
   laws:
     name: Laws (Bend proofs)
     runs-on: ubuntu-latest
@@ -198,15 +203,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Changes under laws/
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE" ] || [ -n "$(git diff --name-only "$BASE" HEAD -- laws/)" ]; then
+            echo "check=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing under laws/ changed: the proofs and the generated modules are as on the base."
+            echo "check=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Use Node.js 24.x
+        if: steps.changes.outputs.check == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24.x
 
       # What bend-lang.com/install.sh does, at a pinned version: the release archive, its digest, ~/.bend.
       - name: Install Bend ${{ env.BEND_VERSION }}
+        if: steps.changes.outputs.check == 'true'
         run: |
           set -euo pipefail
           archive="bend-${BEND_VERSION}-linux-x64.tar.gz"
@@ -218,6 +239,7 @@ jobs:
           mv "$RUNNER_TEMP/bend/bin/bend" "$HOME/.bend/bin/bend"
 
       - name: Install Lean ${{ env.LEAN_VERSION }}
+        if: steps.changes.outputs.check == 'true'
         run: |
           set -euo pipefail
           archive="lean-${LEAN_VERSION}-linux.tar.zst"
@@ -228,6 +250,7 @@ jobs:
           echo "$RUNNER_TEMP/lean/bin" >> "$GITHUB_PATH"
 
       - name: Check the laws
+        if: steps.changes.outputs.check == 'true'
         run: npm run laws
 
   zizmor:
@@ -250,10 +273,10 @@ jobs:
       - name: Audit workflows
         run: uvx zizmor@1.32.0 --format=plain --config .github/zizmor.yml .github
 
-  # The one check branch rules require: it fails unless every job above except laws succeeded.
+  # The one check branch rules require: it fails unless every job above succeeded.
   ci:
     name: CI
-    needs: [tests, sonar, e2e, zizmor]
+    needs: [tests, sonar, e2e, laws, zizmor]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
