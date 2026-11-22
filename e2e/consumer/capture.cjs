@@ -46,6 +46,7 @@ const plain = (value) => {
   if (value instanceof RegExp) return regExpShape(value)
   if (isDocument(value)) return plain(value.toObject())
   if (Array.isArray(value)) return Array.from(value, plain)
+  if (value instanceof Map) return Object.fromEntries(Array.from(value, ([key, item]) => [key, plain(item)]))
   const out = {}
   for (const key of Object.keys(value)) out[key] = plain(value[key])
   return out

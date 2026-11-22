@@ -309,7 +309,8 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet, onScenario = () => 
   try {
     await mongoose.connect(replSet.getUri('e2e'))
     const models = {}
-    for (const [profile, options] of Object.entries(profiles(rec, mongoose))) {
+    const profileOptions = profiles(rec, mongoose)
+    for (const [profile, options] of Object.entries(profileOptions)) {
       const schema = new mongoose.Schema(fields(mongoose), SCHEMA_OPTIONS[profile])
       schema.plugin(patchHistoryPlugin, options)
       models[profile] = mongoose.model(`E2e${profile}`, schema)
@@ -335,12 +336,24 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet, onScenario = () => 
     }
     await keep('package/exports', exportsShape(pkg))
 
-    const runOne = async (M, operation, mode) => {
+    // A stored document in the form the plugin diffs it: as mongoose reads it, through JSON.
+    // A BSON Timestamp differs on every run, so it keeps the shape plain() gives it.
+    const jsonValue = function (key, value) {
+      if (this[key]?._bsontype === 'Timestamp') return '<Timestamp>'
+      return typeof value === 'bigint' ? value.toString() : value
+    }
+    const json = (doc) => plain(JSON.parse(JSON.stringify(doc.toObject({ depopulate: true, virtuals: false, flattenMaps: true }), jsonValue)))
+    const jsonState = async (M) => (await M.find({}).sort({ _id: 1 }).exec()).map(json)
+
+    const runOne = async (M, operation, mode, options) => {
       await M.collection.deleteMany({})
       await history.deleteMany({})
       await M.collection.insertMany(seeds())
       rec.clear()
-      const record = {}
+      // What the store oracles (e2e/store-oracle.mjs) judge a scenario by, besides what it recorded.
+      const record = { omit: options.omit ?? null, silent: operation.silent === true, historyExpected: !options.patchHistoryDisabled && operation.history !== false }
+      record.before = (await M.collection.find({}).sort({ _id: 1 }).toArray()).map(plain)
+      record.jsonBefore = await jsonState(M)
       try {
         record.result = resultShape(await modes[mode]((o) => operation.run({ M, o, oid, fresh })))
       } catch (error) {
@@ -349,6 +362,7 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet, onScenario = () => 
       record.state = (await M.collection.find({}).sort({ _id: 1 }).toArray()).map(plain)
       // The stored documents as mongoose reads them, the form an event's doc has.
       record.read = (await M.find({}).sort({ _id: 1 }).exec()).map(plain)
+      record.jsonAfter = await jsonState(M)
       record.history = (await history.find({}).sort({ _id: 1 }).toArray()).map(historyEntry)
       Object.assign(record, structuredClone(rec.seen))
       return aliasObjectIds(record)
@@ -365,7 +379,7 @@ module.exports = async ({ mongoose, pkg, MongoMemoryReplSet, onScenario = () => 
       for (const [profile, names] of Object.entries(PROFILE_OPERATIONS)) {
         for (const operation of operations.filter((op) => names.includes(op.name))) {
           const skipped = unavailable(models[profile], operation, mode)
-          await keep(`${profile}/${operation.name}/${mode}`, skipped ? { skipped } : await runOne(models[profile], operation, mode))
+          await keep(`${profile}/${operation.name}/${mode}`, skipped ? { skipped } : await runOne(models[profile], operation, mode, profileOptions[profile]))
         }
       }
     }
