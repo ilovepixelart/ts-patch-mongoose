@@ -281,7 +281,6 @@ describe('plugin - event updated & patch history disabled', () => {
         updatedAt: created.createdAt,
       }),
       doc: expect.objectContaining({
-        __v: 0,
         _id: updated?._id,
         name: updated?.name,
         role: updated?.role,
@@ -293,8 +292,13 @@ describe('plugin - event updated & patch history disabled', () => {
         { op: 'replace', path: '/name', value: 'John Doe' },
         { op: 'test', path: '/role', value: 'user' },
         { op: 'replace', path: '/role', value: 'manager' },
+        { op: 'test', path: '/__v', value: 0 },
+        { op: 'remove', path: '/__v' },
       ]),
     })
+    // A findOneAndReplace stores the replacement without a version key
+    expect(updated?.toObject()).not.toHaveProperty('__v')
+    expect(vi.mocked(em.emit).mock.calls[0]?.[1]?.doc).not.toHaveProperty('__v')
 
     // Confirm that the document is updated
     expect(updated?.name).toBe('John Doe')

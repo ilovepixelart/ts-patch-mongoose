@@ -1,11 +1,13 @@
 import { applyUpdate } from '../assign-update'
 import { cloneDeep, isArray, isEmpty, isHookIgnored, isObjectLike, toObjectOptions } from '../helpers'
 import { createPatch, updatePatch } from '../patch'
+import { isMongoose6 } from '../version'
 
 import type { HydratedDocument, Model, MongooseQueryMiddleware, Schema, UpdateQuery, UpdateWithAggregationPipeline } from 'mongoose'
 import type { HookContext, PluginOptions } from '../types'
 
 const updateMethods = ['update', 'updateOne', 'replaceOne', 'updateMany', 'findOneAndUpdate', 'findOneAndReplace', 'findByIdAndUpdate']
+const replaceMethods = new Set(['replaceOne', 'findOneAndReplace'])
 
 const trackChangedFields = (fields: Record<string, unknown> | undefined, updated: Record<string, unknown>, changed: Map<string, unknown>): void => {
   if (!fields) return
@@ -32,6 +34,17 @@ export const assignUpdate = <T>(document: HydratedDocument<T>, update: UpdateQue
   }
   if (update.createdAt) doc.createdAt = update.createdAt
   return doc
+}
+
+// A replacement is the whole new document, built as mongoose builds it before the write: a new document
+// without an _id, with the _id of the document it replaces. Mongoose 6 casts a findOneAndReplace
+// without runValidators as given, so schema defaults apply to it only from mongoose 7.
+const replaceWith = <T>(query: HookContext<T>, document: HydratedDocument<T>, replacement: UpdateQuery<T>): HydratedDocument<T> => {
+  const model = query.model as Model<T>
+  const runValidators = query.getOptions().runValidators ?? model.base.get('runValidators')
+  const defaults = !(isMongoose6 && query.op === 'findOneAndReplace' && !runValidators)
+  const replaced = new model(replacement, null, { skipId: true, defaults }).toObject(toObjectOptions) as HydratedDocument<T>
+  return Object.assign(replaced, { _id: document._id })
 }
 
 export const splitUpdateAndCommands = <T>(updateQuery: UpdateWithAggregationPipeline | UpdateQuery<T> | null): { update: UpdateQuery<T>; commands: Record<string, unknown>[] } => {
@@ -106,7 +119,8 @@ export const updateHooksInitialize = <T>(schema: Schema<T>, opts: PluginOptions<
     const cursor = model.find(filter).cursor()
     await cursor.eachAsync(async (doc: HydratedDocument<T>) => {
       const origDoc = doc.toObject(toObjectOptions) as HydratedDocument<T>
-      await updatePatch(opts, this._context, assignUpdate(doc, update, commands), origDoc)
+      const updated = replaceMethods.has(this.op ?? '') ? replaceWith(this, doc, update) : assignUpdate(doc, update, commands)
+      await updatePatch(opts, this._context, updated, origDoc)
     })
   })
 
